@@ -3,7 +3,7 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, cast
 from enum import Enum
 
 try:
@@ -123,7 +123,10 @@ Examples:
                 max_tokens=500
             )
             
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content
+            if not isinstance(content, str) or not content:
+                raise ValueError("OpenAI response content is not a non-empty string.")
+            result = json.loads(content)
             
             operation = HostOperation(result["operation"])
             parameters = result.get("parameters", {})
@@ -279,7 +282,11 @@ Parse the user input and respond with JSON in this format:
                 ]
             )
             
-            result = json.loads(response.content[0].text)
+            content_block = response.content[0] if response.content else None
+            if not (isinstance(content_block, str) and content_block):
+                raise ValueError("Anthropic response content is not a non-empty string.")
+            content_str = cast(str, content_block)
+            result = json.loads(content_str)
             
             operation = HostOperation(result["operation"])
             parameters = result.get("parameters", {})

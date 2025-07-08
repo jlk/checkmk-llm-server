@@ -13,43 +13,53 @@ from .utils import setup_logging
 
 
 @click.group()
-@click.option('--log-level', default='INFO', help='Logging level (DEBUG, INFO, WARNING, ERROR)')
+@click.option('--log-level', default=None, help='Logging level (DEBUG, INFO, WARNING, ERROR)')
 @click.option('--config', '--config-file', help='Path to configuration file (YAML, TOML, or JSON)')
 @click.pass_context
 def cli(ctx, log_level: str, config: Optional[str]):
     """Checkmk LLM Agent - Natural language interface for Checkmk."""
     ctx.ensure_object(dict)
-    
+
+    # Load configuration first (to get config log_level if CLI flag not set)
+    from .config import load_config
+    app_config = load_config(config_file=config)
+    ctx.obj['config'] = app_config
+
+    # Determine log level: CLI flag overrides config
+    effective_log_level = log_level or app_config.log_level
+
     # Setup logging
-    setup_logging(log_level)
+    from .logging_utils import setup_logging
+    setup_logging(effective_log_level)
     logger = logging.getLogger(__name__)
-    
+
     try:
-        # Load configuration
-        app_config = load_config(config_file=config)
-        ctx.obj['config'] = app_config
-        
         # Initialize clients
+        from .api_client import CheckmkClient
         checkmk_client = CheckmkClient(app_config.checkmk)
         ctx.obj['checkmk_client'] = checkmk_client
-        
+
         # Try to initialize LLM client
         try:
+            from .llm_client import create_llm_client
             llm_client = create_llm_client(app_config.llm)
             ctx.obj['llm_client'] = llm_client
-            
+
             # Initialize host operations manager
+            from .host_operations import HostOperationsManager
             host_manager = HostOperationsManager(checkmk_client, llm_client, app_config)
             ctx.obj['host_manager'] = host_manager
-            
+
         except Exception as e:
             logger.warning(f"LLM client initialization failed: {e}")
             ctx.obj['llm_client'] = None
             ctx.obj['host_manager'] = None
-            
+
     except Exception as e:
         logger.error(f"Initialization failed: {e}")
+        import click
         click.echo(f"❌ Error: {e}", err=True)
+        import sys
         sys.exit(1)
 
 

@@ -37,6 +37,7 @@ class CheckmkClient:
         self.logger = logging.getLogger(__name__)
         
         # Set up authentication
+        self.logger.debug(f"Setting up authentication for user: {self.config.username}")
         self._setup_authentication()
         
         # Set default headers
@@ -44,6 +45,7 @@ class CheckmkClient:
             'Accept': 'application/json',
             'Content-Type': 'application/json'
         })
+        self.logger.debug(f"Session headers: {self.session.headers}")
     
     def _setup_authentication(self):
         """Set up Bearer token authentication."""
@@ -51,6 +53,7 @@ class CheckmkClient:
         self.session.headers.update({
             'Authorization': f'Bearer {auth_token}'
         })
+        self.logger.debug("Authentication header set.")
     
     @retry_on_failure(max_retries=3)
     def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
@@ -59,6 +62,7 @@ class CheckmkClient:
         if endpoint.startswith('/'):
             endpoint = endpoint[1:]
         url = urljoin(self.base_url + '/', endpoint)
+        self.logger.debug(f"Preparing {method} request to {url} with kwargs: {kwargs}")
         
         try:
             response = self.session.request(
@@ -67,6 +71,9 @@ class CheckmkClient:
                 timeout=self.config.request_timeout,
                 **kwargs
             )
+            self.logger.debug(f"Response status: {response.status_code}")
+            self.logger.debug(f"Response headers: {response.headers}")
+            self.logger.debug(f"Response text: {response.text}")
             
             self.logger.debug(f"{method} {url} -> {response.status_code}")
             
@@ -276,9 +283,10 @@ class CheckmkClient:
         Returns:
             True if connection is successful
         """
+        self.logger.debug("Testing connection to Checkmk API by listing hosts.")
         try:
-            # Try to list hosts as a connection test
             self.list_hosts()
+            self.logger.debug("Connection test succeeded.")
             return True
         except CheckmkAPIError as e:
             self.logger.error(f"Connection test failed: {e}")

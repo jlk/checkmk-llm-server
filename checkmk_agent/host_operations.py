@@ -211,9 +211,10 @@ class HostOperationsManager:
     
     def interactive_create_host(self) -> str:
         """Interactive host creation with prompts."""
+        logger = logging.getLogger(__name__)
         try:
-            print("🔧 Interactive Host Creation")
-            print("=" * 30)
+            logger.info("🔧 Interactive Host Creation")
+            logger.info("=" * 30)
             
             # Get host name
             while True:
@@ -222,9 +223,9 @@ class HostOperationsManager:
                     if validate_hostname(host_name):
                         break
                     else:
-                        print("❌ Invalid hostname format. Use only letters, numbers, dots, hyphens, and underscores.")
+                        logger.warning("❌ Invalid hostname format. Use only letters, numbers, dots, hyphens, and underscores.")
                 else:
-                    print("❌ Host name is required.")
+                    logger.warning("❌ Host name is required.")
             
             # Get folder
             folder = input(f"Folder (default: {self.config.default_folder}): ").strip()
@@ -244,11 +245,11 @@ class HostOperationsManager:
                 attributes["alias"] = alias
             
             # Confirm creation
-            print(f"\n📋 Host Configuration:")
-            print(f"  Name: {host_name}")
-            print(f"  Folder: {folder}")
+            logger.info(f"\n📋 Host Configuration:")
+            logger.info(f"  Name: {host_name}")
+            logger.info(f"  Folder: {folder}")
             if attributes:
-                print(f"  Attributes: {attributes}")
+                logger.info(f"  Attributes: {attributes}")
             
             confirm = input("\nCreate this host? (y/N): ").strip().lower()
             if confirm != 'y':
