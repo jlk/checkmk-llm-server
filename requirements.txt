@@ -1,0 +1,21 @@
+# Core dependencies
+requests>=2.31.0
+pydantic>=2.0.0
+click>=8.1.0
+python-dotenv>=1.0.0
+
+# LLM integration
+openai>=1.0.0
+anthropic>=0.18.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Optional dependencies for enhanced functionality
+rich>=13.0.0  # Better CLI output formatting
+typer>=0.9.0  # Alternative to click for CLI
+httpx>=0.24.0  # Async HTTP client for future enhancements
