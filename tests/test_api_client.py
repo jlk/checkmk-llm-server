@@ -61,8 +61,8 @@ class TestCheckmkClient:
         assert result == {"test": "data"}
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert args[0] == 'GET'  # method
-        assert 'test-endpoint' in args[1]  # url
+        assert kwargs['method'] == 'GET'
+        assert 'test-endpoint' in kwargs['url']
         assert kwargs['timeout'] == 30
     
     @patch('checkmk_agent.api_client.requests.Session.request')
@@ -121,7 +121,7 @@ class TestCheckmkClient:
         
         # Check API call
         args, kwargs = mock_request.call_args
-        assert '/domain-types/host_config/collections/all' in args[1]
+        assert '/domain-types/host_config/collections/all' in kwargs['url']
         assert kwargs.get('params') == {}
     
     @patch('checkmk_agent.api_client.requests.Session.request')
@@ -154,7 +154,7 @@ class TestCheckmkClient:
         
         # Check API call
         args, kwargs = mock_request.call_args
-        assert '/objects/host_config/test-host' in args[1]
+        assert '/objects/host_config/test-host' in kwargs['url']
     
     @patch('checkmk_agent.api_client.requests.Session.request')
     def test_create_host(self, mock_request, client):
@@ -177,7 +177,7 @@ class TestCheckmkClient:
         
         # Check API call
         args, kwargs = mock_request.call_args
-        assert '/domain-types/host_config/collections/all' in args[1]
+        assert '/domain-types/host_config/collections/all' in kwargs['url']
         assert kwargs['json']['folder'] == "/test"
         assert kwargs['json']['host_name'] == "new-host"
         assert kwargs['json']['attributes']['ipaddress'] == "192.168.1.10"
@@ -210,8 +210,8 @@ class TestCheckmkClient:
         
         # Check API call
         args, kwargs = mock_request.call_args
-        assert args[0] == 'DELETE'
-        assert '/objects/host_config/test-host' in args[1]
+        assert kwargs['method'] == 'DELETE'
+        assert '/objects/host_config/test-host' in kwargs['url']
     
     @patch('checkmk_agent.api_client.requests.Session.request')
     def test_update_host(self, mock_request, client):
@@ -231,8 +231,8 @@ class TestCheckmkClient:
         
         # Check API call
         args, kwargs = mock_request.call_args
-        assert args[0] == 'PUT'
-        assert '/objects/host_config/test-host' in args[1]
+        assert kwargs['method'] == 'PUT'
+        assert '/objects/host_config/test-host' in kwargs['url']
         assert kwargs['json']['attributes']['ipaddress'] == "192.168.1.20"
         assert kwargs['headers']['If-Match'] == "test-etag"
     
@@ -253,7 +253,7 @@ class TestCheckmkClient:
         
         # Check API call
         args, kwargs = mock_request.call_args
-        assert '/domain-types/host_config/actions/bulk-create/invoke' in args[1]
+        assert '/domain-types/host_config/actions/bulk-create/invoke' in kwargs['url']
         assert len(kwargs['json']['entries']) == 2
         assert kwargs['json']['entries'][0]['host_name'] == "host1"
         assert kwargs['json']['entries'][1]['attributes']['ipaddress'] == "192.168.1.10"
@@ -272,7 +272,7 @@ class TestCheckmkClient:
         
         # Check API call
         args, kwargs = mock_request.call_args
-        assert '/domain-types/host_config/actions/bulk-delete/invoke' in args[1]
+        assert '/domain-types/host_config/actions/bulk-delete/invoke' in kwargs['url']
         assert kwargs['json']['entries'] == host_names
     
     @patch('checkmk_agent.api_client.requests.Session.request')

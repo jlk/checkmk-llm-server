@@ -21,20 +21,25 @@ git clone <repository-url>
 cd checkmk_llm_agent
 ```
 
-2. Install dependencies:
+2. Set up Python virtual environment (recommended):
 ```bash
-pip install -r requirements.txt
-# Or install with specific LLM support
-pip install -e ".[openai]"  # For OpenAI support
-pip install -e ".[anthropic]"  # For Anthropic support
-pip install -e ".[all]"  # For both
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Configure environment variables:
+3. Install dependencies:
 ```bash
-cp .env.example .env
-# Edit .env with your credentials
+pip install -r requirements.txt
 ```
+
+4. Configure the application:
+```bash
+# Copy an example configuration file
+cp config.yaml.example config.yaml
+# Edit config.yaml with your Checkmk server details and API keys
+```
+
+> **Note**: Virtual environment is strongly recommended to avoid dependency conflicts. Always activate the virtual environment before running the application or tests.
 
 ### Configuration
 
@@ -109,6 +114,11 @@ See `examples/` directory for environment-specific configuration examples.
 
 ### Command Line Interface
 
+First, activate your virtual environment:
+```bash
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
 Test the connection:
 ```bash
 python -m checkmk_agent.cli test
@@ -169,7 +179,13 @@ Host deleted successfully.
 
 ### Python API
 
-You can also use the agent programmatically:
+You can also use the agent programmatically. First, ensure your virtual environment is activated:
+
+```bash
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+Then use the agent in your Python code:
 
 ```python
 from checkmk_agent.config import load_config
@@ -215,6 +231,27 @@ Currently supports the following Checkmk host operations:
 
 ## Development
 
+### Setting Up Development Environment
+
+1. Clone the repository and set up virtual environment:
+```bash
+git clone <repository-url>
+cd checkmk_llm_agent
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+2. Install development dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Configure for development:
+```bash
+cp config.yaml.example config.yaml
+# Edit config.yaml with your development settings
+```
+
 ### Project Structure
 
 ```
@@ -227,17 +264,37 @@ checkmk_llm_agent/
 │   ├── cli.py                 # Command-line interface
 │   ├── config.py              # Configuration management
 │   └── utils.py               # Common utilities
-├── tests/
-├── docs/
-├── requirements.txt
-├── setup.py
+├── tests/                     # Test suite (114 tests)
+├── docs/                      # Documentation
+├── examples/                  # Configuration examples
+├── venv/                      # Virtual environment (created locally)
+├── requirements.txt           # Python dependencies
+├── setup.py                   # Package configuration
 └── README.md
 ```
 
 ### Running Tests
 
+Always activate the virtual environment first:
+```bash
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+Run the full test suite (114 tests):
 ```bash
 pytest tests/
+```
+
+Run specific test categories:
+```bash
+pytest tests/test_api_client.py     # API client tests
+pytest tests/test_integration.py   # Integration tests
+pytest tests/test_cli.py           # CLI tests
+```
+
+Run tests with coverage:
+```bash
+pytest tests/ --cov=checkmk_agent
 ```
 
 ### Code Formatting
@@ -259,13 +316,48 @@ Future enhancements planned:
 - 🌐 Web interface
 - 📊 Monitoring dashboards
 
-## Contributing
+## Troubleshooting
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+### Virtual Environment Issues
+
+**Problem**: Command not found or import errors
+```bash
+# Solution: Ensure virtual environment is activated
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+**Problem**: Dependencies missing after installation
+```bash
+# Solution: Reinstall dependencies in virtual environment
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Problem**: Tests failing with import errors
+```bash
+# Solution: Run tests from project root with virtual environment activated
+source venv/bin/activate
+pytest tests/
+```
+
+**Problem**: Virtual environment not working on Windows
+```bash
+# Use Windows-specific activation script
+venv\Scripts\activate
+```
+
+### Common Issues
+
+**Problem**: Connection errors to Checkmk server
+- Check your `config.yaml` file has correct server URL and credentials
+- Verify the Checkmk server is accessible from your network
+- Ensure the site name matches your Checkmk installation
+
+**Problem**: LLM API errors
+- Verify your OpenAI or Anthropic API keys are correct in configuration
+- Check your API key has sufficient quota/credits
+- Ensure you're using supported model names
+
 
 ## License
 

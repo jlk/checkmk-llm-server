@@ -23,7 +23,7 @@ class CreateHostRequest(BaseModel):
     """Request model for creating a host."""
     
     folder: str = Field(..., description="The path name of the folder where the host will be created")
-    host_name: str = Field(..., description="The hostname or IP address of the host", regex=r'^[-0-9a-zA-Z_.]+$')
+    host_name: str = Field(..., description="The hostname or IP address of the host", pattern=r'^[-0-9a-zA-Z_.]+$')
     attributes: Optional[Dict[str, Any]] = Field(None, description="Attributes to set on the newly created host")
 
 
@@ -55,7 +55,10 @@ class CheckmkClient:
     @retry_on_failure(max_retries=3)
     def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make HTTP request with error handling."""
-        url = urljoin(self.base_url, endpoint)
+        # Ensure endpoint doesn't start with / to avoid urljoin path replacement
+        if endpoint.startswith('/'):
+            endpoint = endpoint[1:]
+        url = urljoin(self.base_url + '/', endpoint)
         
         try:
             response = self.session.request(
@@ -168,7 +171,7 @@ class CheckmkClient:
         response = self._make_request(
             'POST',
             '/domain-types/host_config/collections/all',
-            json=request_data.dict(),
+            json=request_data.model_dump(),
             params=params
         )
         
@@ -231,7 +234,7 @@ class CheckmkClient:
         entries = []
         for host_data in hosts:
             request_data = CreateHostRequest(**host_data)
-            entries.append(request_data.dict())
+            entries.append(request_data.model_dump())
         
         params = {}
         if bake_agent:

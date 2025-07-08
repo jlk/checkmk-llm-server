@@ -43,13 +43,14 @@ class TestCLIInitialization:
         """Test successful CLI initialization."""
         mock_load_config.return_value = mock_config
         mock_checkmk_instance = Mock()
+        mock_checkmk_instance.test_connection.return_value = True
         mock_checkmk_client.return_value = mock_checkmk_instance
         mock_llm_instance = Mock()
         mock_llm_client.return_value = mock_llm_instance
         mock_host_instance = Mock()
         mock_host_manager.return_value = mock_host_instance
         
-        result = runner.invoke(cli, ['--help'])
+        result = runner.invoke(cli, ['test'])
         
         assert result.exit_code == 0
         mock_load_config.assert_called_once()
@@ -61,7 +62,7 @@ class TestCLIInitialization:
         """Test CLI initialization with configuration error."""
         mock_load_config.side_effect = Exception("Config error")
         
-        result = runner.invoke(cli, ['--help'])
+        result = runner.invoke(cli, ['test'])
         
         assert result.exit_code == 1
         assert "Config error" in result.output

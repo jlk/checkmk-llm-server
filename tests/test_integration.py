@@ -219,27 +219,27 @@ class TestCheckmkAPIIntegration:
     def test_api_error_handling_integration(self, checkmk_client):
         """Test API error handling in integration scenario."""
         error_response = {
-            "title": "Bad Request",
-            "status": 400,
-            "detail": "Invalid hostname format"
+            "title": "Conflict",
+            "status": 409,
+            "detail": "Host already exists"
         }
         
         with requests_mock.Mocker() as m:
             m.post(
                 "https://test-checkmk.example.com/mysite/check_mk/api/1.0/domain-types/host_config/collections/all",
                 json=error_response,
-                status_code=400
+                status_code=409
             )
             
             with pytest.raises(CheckmkAPIError) as exc_info:
                 checkmk_client.create_host(
                     folder="/test",
-                    host_name="invalid-host-name!",
+                    host_name="existing-host",
                     attributes={}
                 )
             
-            assert exc_info.value.status_code == 400
-            assert "Invalid hostname format" in str(exc_info.value)
+            assert exc_info.value.status_code == 409
+            assert "Host already exists" in str(exc_info.value)
     
     def test_authentication_integration(self, checkmk_client):
         """Test authentication header in integration scenario."""
