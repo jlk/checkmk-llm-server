@@ -14,9 +14,9 @@ from .utils import setup_logging
 
 @click.group()
 @click.option('--log-level', default='INFO', help='Logging level (DEBUG, INFO, WARNING, ERROR)')
-@click.option('--config-file', help='Path to configuration file')
+@click.option('--config', '--config-file', help='Path to configuration file (YAML, TOML, or JSON)')
 @click.pass_context
-def cli(ctx, log_level: str, config_file: Optional[str]):
+def cli(ctx, log_level: str, config: Optional[str]):
     """Checkmk LLM Agent - Natural language interface for Checkmk."""
     ctx.ensure_object(dict)
     
@@ -26,20 +26,20 @@ def cli(ctx, log_level: str, config_file: Optional[str]):
     
     try:
         # Load configuration
-        config = load_config()
-        ctx.obj['config'] = config
+        app_config = load_config(config_file=config)
+        ctx.obj['config'] = app_config
         
         # Initialize clients
-        checkmk_client = CheckmkClient(config.checkmk)
+        checkmk_client = CheckmkClient(app_config.checkmk)
         ctx.obj['checkmk_client'] = checkmk_client
         
         # Try to initialize LLM client
         try:
-            llm_client = create_llm_client(config.llm)
+            llm_client = create_llm_client(app_config.llm)
             ctx.obj['llm_client'] = llm_client
             
             # Initialize host operations manager
-            host_manager = HostOperationsManager(checkmk_client, llm_client, config)
+            host_manager = HostOperationsManager(checkmk_client, llm_client, app_config)
             ctx.obj['host_manager'] = host_manager
             
         except Exception as e:

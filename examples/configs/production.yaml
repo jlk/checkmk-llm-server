@@ -1,0 +1,20 @@
+# Production Environment Configuration
+# For production deployment with high reliability
+
+checkmk:
+  server_url: "https://monitoring.company.com"
+  username: "automation"
+  # In production, use environment variables for sensitive data
+  password: "${CHECKMK_PASSWORD}"
+  site: "prod"
+  max_retries: 5
+  request_timeout: 60
+
+llm:
+  # Use environment variables for API keys in production
+  openai_api_key: "${OPENAI_API_KEY}"
+  anthropic_api_key: "${ANTHROPIC_API_KEY}"
+  default_model: "gpt-4"
+
+default_folder: "/automation"
+log_level: "WARNING"

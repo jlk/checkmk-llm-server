@@ -1,0 +1,18 @@
+# Development Environment Configuration
+# For local development and testing
+
+checkmk:
+  server_url: "http://localhost:5000"
+  username: "cmkadmin"
+  password: "cmkadmin"
+  site: "dev"
+  max_retries: 2
+  request_timeout: 10
+
+llm:
+  # Use a faster, cheaper model for development
+  openai_api_key: "sk-dev-api-key"
+  default_model: "gpt-3.5-turbo"
+
+default_folder: "/development"
+log_level: "DEBUG"

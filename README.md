@@ -38,7 +38,39 @@ cp .env.example .env
 
 ### Configuration
 
-Set up your `.env` file with the required credentials:
+The agent supports multiple configuration methods with flexible priority handling:
+
+#### Configuration File Formats
+
+Choose from **YAML** (recommended), **TOML**, or **JSON**:
+
+```bash
+# Copy and customize an example
+cp config.yaml.example config.yaml
+# OR
+cp config.toml.example config.toml  
+# OR
+cp config.json.example config.json
+```
+
+**YAML Configuration (config.yaml):**
+```yaml
+checkmk:
+  server_url: "https://your-checkmk-server.com"
+  username: "automation_user" 
+  password: "your_secure_password"
+  site: "mysite"
+
+llm:
+  openai_api_key: "sk-your-openai-api-key"
+  # OR anthropic_api_key: "your-anthropic-api-key"
+  default_model: "gpt-3.5-turbo"
+
+default_folder: "/"
+log_level: "INFO"
+```
+
+#### Environment Variables (.env)
 
 ```env
 # Checkmk Configuration
@@ -56,6 +88,23 @@ DEFAULT_FOLDER=/
 LOG_LEVEL=INFO
 ```
 
+#### Configuration Priority
+
+Configuration is loaded in this order (highest to lowest priority):
+
+1. **Environment variables** (highest)
+2. **Specified config file** (`--config path/to/config.yaml`)
+3. **Auto-discovered config file** (current directory, user config directory)
+4. **Default values** (lowest)
+
+#### Auto-Discovery
+
+The agent automatically finds configuration files in standard locations:
+- Current directory: `config.yaml`, `config.yml`, `config.toml`, `config.json`
+- User config: `~/.config/checkmk-agent/config.yaml`
+
+See `examples/` directory for environment-specific configuration examples.
+
 ## Usage
 
 ### Command Line Interface
@@ -63,11 +112,15 @@ LOG_LEVEL=INFO
 Test the connection:
 ```bash
 python -m checkmk_agent.cli test
+# OR with specific config file
+python -m checkmk_agent.cli --config config.yaml test
 ```
 
 Interactive mode:
 ```bash
 python -m checkmk_agent.cli interactive
+# OR with specific config
+python -m checkmk_agent.cli --config examples/configs/production.yaml interactive
 ```
 
 Direct host management:
@@ -83,6 +136,9 @@ python -m checkmk_agent.cli hosts delete server01
 
 # Get host details
 python -m checkmk_agent.cli hosts get server01
+
+# Use specific configuration file
+python -m checkmk_agent.cli --config examples/configs/development.yaml hosts list
 ```
 
 ### Interactive Mode Examples

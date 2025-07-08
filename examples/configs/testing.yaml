@@ -1,0 +1,18 @@
+# Testing Environment Configuration
+# For automated testing and CI/CD
+
+checkmk:
+  server_url: "https://test-checkmk.example.com"
+  username: "test_automation"
+  password: "test_password"
+  site: "test"
+  max_retries: 1
+  request_timeout: 5
+
+llm:
+  # Use mock or test API keys
+  openai_api_key: "sk-test-key"
+  default_model: "gpt-3.5-turbo"
+
+default_folder: "/testing"
+log_level: "ERROR"
