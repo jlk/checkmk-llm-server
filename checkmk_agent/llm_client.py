@@ -282,11 +282,19 @@ Parse the user input and respond with JSON in this format:
                 ]
             )
             
-            content_block = response.content[0] if response.content else None
-            if not (isinstance(content_block, str) and content_block):
-                raise ValueError("Anthropic response content is not a non-empty string.")
-            content_str = cast(str, content_block)
-            result = json.loads(content_str)
+            # Extract text from Anthropic response with proper error handling
+            if not response.content:
+                raise ValueError("Anthropic response has no content")
+            
+            content_block = response.content[0]
+            if not hasattr(content_block, 'text'):
+                raise ValueError("Anthropic response content block has no text attribute")
+            
+            content_text = content_block.text
+            if not content_text:
+                raise ValueError("Anthropic response content text is empty")
+            
+            result = json.loads(content_text)
             
             operation = HostOperation(result["operation"])
             parameters = result.get("parameters", {})
