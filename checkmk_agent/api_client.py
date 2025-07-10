@@ -27,6 +27,24 @@ class CreateHostRequest(BaseModel):
     attributes: Optional[Dict[str, Any]] = Field(None, description="Attributes to set on the newly created host")
 
 
+class CreateRuleRequest(BaseModel):
+    """Request model for creating a rule."""
+    
+    ruleset: str = Field(..., description="The name of the ruleset")
+    folder: str = Field(..., description="The folder path where the rule will be created")
+    properties: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Rule properties (disabled, description, etc.)")
+    value_raw: str = Field(..., description="The rule value as JSON string")
+    conditions: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Rule conditions for matching")
+
+
+class MoveRuleRequest(BaseModel):
+    """Request model for moving a rule."""
+    
+    position: str = Field(..., description="Position to move rule to", pattern=r'^(top_of_folder|bottom_of_folder|before|after)$')
+    folder: Optional[str] = Field(None, description="Target folder for the rule")
+    target_rule_id: Optional[str] = Field(None, description="Target rule ID for before/after positioning")
+
+
 class CheckmkClient:
     """Client for interacting with Checkmk REST API."""
     
@@ -274,6 +292,131 @@ class CheckmkClient:
         )
         
         self.logger.info(f"Bulk deleted {len(host_names)} hosts")
+        return response
+    
+    # Rule operations
+    
+    def list_rules(self, ruleset_name: str) -> List[Dict[str, Any]]:
+        """
+        List all rules in a specific ruleset.
+        
+        Args:
+            ruleset_name: The name of the ruleset to list rules for
+            
+        Returns:
+            List of rule objects
+        """
+        response = self._make_request(
+            'GET',
+            '/domain-types/rule/collections/all',
+            params={'ruleset_name': ruleset_name}
+        )
+        
+        # Extract rule data from response
+        rules = response.get('value', [])
+        self.logger.info(f"Retrieved {len(rules)} rules for ruleset: {ruleset_name}")
+        return rules
+    
+    def get_rule(self, rule_id: str) -> Dict[str, Any]:
+        """
+        Get configuration details for a specific rule.
+        
+        Args:
+            rule_id: The rule ID
+            
+        Returns:
+            Rule configuration object
+        """
+        response = self._make_request(
+            'GET',
+            f'/objects/rule/{rule_id}'
+        )
+        
+        self.logger.info(f"Retrieved rule: {rule_id}")
+        return response
+    
+    def create_rule(self, ruleset: str, folder: str, value_raw: str, 
+                   conditions: Optional[Dict[str, Any]] = None,
+                   properties: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Create a new rule.
+        
+        Args:
+            ruleset: The name of the ruleset
+            folder: The folder path where the rule will be created
+            value_raw: The rule value as JSON string
+            conditions: Optional rule conditions for matching
+            properties: Optional rule properties (disabled, description, etc.)
+            
+        Returns:
+            Created rule object
+        """
+        # Validate input
+        request_data = CreateRuleRequest(
+            ruleset=ruleset,
+            folder=folder,
+            value_raw=value_raw,
+            conditions=conditions or {},
+            properties=properties or {}
+        )
+        
+        response = self._make_request(
+            'POST',
+            '/domain-types/rule/collections/all',
+            json=request_data.model_dump()
+        )
+        
+        self.logger.info(f"Created rule in ruleset: {ruleset}, folder: {folder}")
+        return response
+    
+    def delete_rule(self, rule_id: str) -> None:
+        """
+        Delete a specific rule.
+        
+        Args:
+            rule_id: The rule ID to delete
+        """
+        self._make_request(
+            'DELETE',
+            f'/objects/rule/{rule_id}'
+        )
+        
+        self.logger.info(f"Deleted rule: {rule_id}")
+    
+    def move_rule(self, rule_id: str, position: str, folder: Optional[str] = None,
+                 target_rule_id: Optional[str] = None, etag: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Move a rule to a new position.
+        
+        Args:
+            rule_id: The rule ID to move
+            position: Position to move rule to (top_of_folder, bottom_of_folder, before, after)
+            folder: Target folder for the rule
+            target_rule_id: Target rule ID for before/after positioning
+            etag: ETag for concurrency control
+            
+        Returns:
+            Updated rule object
+        """
+        # Validate input
+        move_data = MoveRuleRequest(
+            position=position,
+            folder=folder,
+            target_rule_id=target_rule_id
+        )
+        
+        headers = {}
+        if etag:
+            headers['If-Match'] = etag
+        
+        response = self._make_request(
+            'POST',
+            f'/objects/rule/{rule_id}/actions/move/invoke',
+            json=move_data.model_dump(exclude_none=True),
+            headers=headers
+        )
+        
+        self.logger.info(f"Moved rule: {rule_id} to position: {position}")
         return response
     
     def test_connection(self) -> bool:

@@ -61,6 +61,22 @@ class HostOperationsManager:
         elif command.operation == HostOperation.UPDATE:
             return self._update_host(command.parameters)
         
+        # Rule operations
+        elif command.operation == HostOperation.LIST_RULES:
+            return self._list_rules(command.parameters)
+        
+        elif command.operation == HostOperation.CREATE_RULE:
+            return self._create_rule(command.parameters)
+        
+        elif command.operation == HostOperation.DELETE_RULE:
+            return self._delete_rule(command.parameters)
+        
+        elif command.operation == HostOperation.GET_RULE:
+            return self._get_rule(command.parameters)
+        
+        elif command.operation == HostOperation.MOVE_RULE:
+            return self._move_rule(command.parameters)
+        
         else:
             raise ValueError(f"Unsupported operation: {command.operation}")
     
@@ -268,3 +284,69 @@ class HostOperationsManager:
             return "\n❌ Host creation cancelled."
         except Exception as e:
             return f"❌ Failed to create host: {e}"
+    
+    # Rule operations
+    
+    def _list_rules(self, parameters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """List rules in a specific ruleset."""
+        ruleset_name = parameters.get("ruleset_name")
+        if not ruleset_name:
+            raise ValueError("ruleset_name is required for listing rules")
+        
+        return self.checkmk.list_rules(ruleset_name)
+    
+    def _create_rule(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new rule."""
+        ruleset = parameters.get("ruleset")
+        folder = parameters.get("folder", self.config.default_folder)
+        value_raw = parameters.get("value_raw")
+        conditions = parameters.get("conditions", {})
+        properties = parameters.get("properties", {})
+        
+        if not ruleset:
+            raise ValueError("ruleset is required for creating rules")
+        if not value_raw:
+            raise ValueError("value_raw is required for creating rules")
+        
+        return self.checkmk.create_rule(
+            ruleset=ruleset,
+            folder=folder,
+            value_raw=value_raw,
+            conditions=conditions,
+            properties=properties
+        )
+    
+    def _delete_rule(self, parameters: Dict[str, Any]) -> None:
+        """Delete a rule."""
+        rule_id = parameters.get("rule_id")
+        if not rule_id:
+            raise ValueError("rule_id is required for deleting rules")
+        
+        self.checkmk.delete_rule(rule_id)
+    
+    def _get_rule(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Get details of a specific rule."""
+        rule_id = parameters.get("rule_id")
+        if not rule_id:
+            raise ValueError("rule_id is required for getting rule details")
+        
+        return self.checkmk.get_rule(rule_id)
+    
+    def _move_rule(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Move a rule to a new position."""
+        rule_id = parameters.get("rule_id")
+        position = parameters.get("position")
+        folder = parameters.get("folder")
+        target_rule_id = parameters.get("target_rule_id")
+        
+        if not rule_id:
+            raise ValueError("rule_id is required for moving rules")
+        if not position:
+            raise ValueError("position is required for moving rules")
+        
+        return self.checkmk.move_rule(
+            rule_id=rule_id,
+            position=position,
+            folder=folder,
+            target_rule_id=target_rule_id
+        )

@@ -327,6 +327,196 @@ def interactive_create(ctx):
     click.echo(result)
 
 
+@cli.group()
+def rules():
+    """Rule management commands."""
+    pass
+
+
+@rules.command('list')
+@click.argument('ruleset_name')
+@click.pass_context
+def list_rules(ctx, ruleset_name: str):
+    """List all rules in a specific ruleset."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        rules = checkmk_client.list_rules(ruleset_name)
+        
+        if not rules:
+            click.echo(f"No rules found in ruleset: {ruleset_name}")
+            return
+        
+        # Display rules
+        click.echo(f"Found {len(rules)} rules in ruleset '{ruleset_name}':")
+        for rule in rules:
+            rule_id = rule.get("id", "Unknown")
+            extensions = rule.get("extensions", {})
+            folder = extensions.get("folder", "Unknown")
+            properties = extensions.get("properties", {})
+            disabled = properties.get("disabled", False)
+            description = properties.get("description", "")
+            
+            click.echo(f"  📋 {rule_id}")
+            click.echo(f"     Folder: {folder}")
+            click.echo(f"     Status: {'Disabled' if disabled else 'Enabled'}")
+            if description:
+                click.echo(f"     Description: {description}")
+            click.echo()
+            
+    except Exception as e:
+        click.echo(f"❌ Error listing rules: {e}", err=True)
+        sys.exit(1)
+
+
+@rules.command('create')
+@click.argument('ruleset_name')
+@click.option('--folder', default='/', help='Folder path (default: /)')
+@click.option('--value', help='Rule value as JSON string')
+@click.option('--description', help='Rule description')
+@click.option('--disabled', is_flag=True, help='Create rule as disabled')
+@click.pass_context
+def create_rule(ctx, ruleset_name: str, folder: str, value: Optional[str], 
+                description: Optional[str], disabled: bool):
+    """Create a new rule in a ruleset."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        # If value not provided, prompt for it
+        if not value:
+            value = click.prompt("Enter rule value as JSON string")
+        
+        # Build properties
+        properties = {}
+        if description:
+            properties['description'] = description
+        if disabled:
+            properties['disabled'] = True
+        
+        result = checkmk_client.create_rule(
+            ruleset=ruleset_name,
+            folder=folder,
+            value_raw=value,
+            properties=properties
+        )
+        
+        rule_id = result.get("id", "Unknown")
+        click.echo(f"✅ Successfully created rule: {rule_id}")
+        click.echo(f"   Ruleset: {ruleset_name}")
+        click.echo(f"   Folder: {folder}")
+        if properties:
+            click.echo(f"   Properties: {properties}")
+            
+    except Exception as e:
+        click.echo(f"❌ Error creating rule: {e}", err=True)
+        sys.exit(1)
+
+
+@rules.command('delete')
+@click.argument('rule_id')
+@click.option('--force', is_flag=True, help='Skip confirmation prompt')
+@click.pass_context
+def delete_rule(ctx, rule_id: str, force: bool):
+    """Delete a rule."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        # Check if rule exists
+        try:
+            rule = checkmk_client.get_rule(rule_id)
+            extensions = rule.get("extensions", {})
+            ruleset = extensions.get("ruleset", "Unknown")
+            folder = extensions.get("folder", "Unknown")
+            click.echo(f"Rule found: {rule_id}")
+            click.echo(f"Ruleset: {ruleset}")
+            click.echo(f"Folder: {folder}")
+        except Exception as e:
+            click.echo(f"❌ Rule '{rule_id}' not found: {e}", err=True)
+            sys.exit(1)
+        
+        # Confirmation
+        if not force:
+            if not click.confirm(f"Are you sure you want to delete rule '{rule_id}'?"):
+                click.echo("❌ Deletion cancelled.")
+                return
+        
+        checkmk_client.delete_rule(rule_id)
+        click.echo(f"✅ Successfully deleted rule: {rule_id}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error deleting rule: {e}", err=True)
+        sys.exit(1)
+
+
+@rules.command('get')
+@click.argument('rule_id')
+@click.pass_context
+def get_rule(ctx, rule_id: str):
+    """Get detailed information about a rule."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        rule = checkmk_client.get_rule(rule_id)
+        
+        rule_id = rule.get("id", "Unknown")
+        extensions = rule.get("extensions", {})
+        ruleset = extensions.get("ruleset", "Unknown")
+        folder = extensions.get("folder", "Unknown")
+        properties = extensions.get("properties", {})
+        value_raw = extensions.get("value_raw", "")
+        
+        click.echo(f"📋 Rule Details: {rule_id}")
+        click.echo(f"   Ruleset: {ruleset}")
+        click.echo(f"   Folder: {folder}")
+        click.echo(f"   Status: {'Disabled' if properties.get('disabled') else 'Enabled'}")
+        
+        if properties.get("description"):
+            click.echo(f"   Description: {properties['description']}")
+        
+        if value_raw:
+            click.echo(f"   Value: {value_raw}")
+        
+        if extensions.get("conditions"):
+            click.echo(f"   Conditions: {extensions['conditions']}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error getting rule: {e}", err=True)
+        sys.exit(1)
+
+
+@rules.command('move')
+@click.argument('rule_id')
+@click.argument('position', type=click.Choice(['top_of_folder', 'bottom_of_folder', 'before', 'after']))
+@click.option('--folder', help='Target folder for the rule')
+@click.option('--target-rule', help='Target rule ID for before/after positioning')
+@click.pass_context
+def move_rule(ctx, rule_id: str, position: str, folder: Optional[str], target_rule: Optional[str]):
+    """Move a rule to a new position."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        if position in ['before', 'after'] and not target_rule:
+            raise ValueError(f"--target-rule is required when position is '{position}'")
+        
+        result = checkmk_client.move_rule(
+            rule_id=rule_id,
+            position=position,
+            folder=folder,
+            target_rule_id=target_rule
+        )
+        
+        click.echo(f"✅ Successfully moved rule: {rule_id}")
+        click.echo(f"   Position: {position}")
+        if folder:
+            click.echo(f"   Target folder: {folder}")
+        if target_rule:
+            click.echo(f"   Target rule: {target_rule}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error moving rule: {e}", err=True)
+        sys.exit(1)
+
+
 @cli.command()
 @click.pass_context
 def stats(ctx):

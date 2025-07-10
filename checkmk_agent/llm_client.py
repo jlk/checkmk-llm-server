@@ -28,12 +28,18 @@ class LLMProvider(Enum):
 
 
 class HostOperation(Enum):
-    """Supported host operations."""
+    """Supported operations (kept for backward compatibility)."""
     LIST = "list"
     CREATE = "create"
     DELETE = "delete"
     GET = "get"
     UPDATE = "update"
+    # Rule operations
+    LIST_RULES = "list_rules"
+    CREATE_RULE = "create_rule"
+    DELETE_RULE = "delete_rule"
+    GET_RULE = "get_rule"
+    MOVE_RULE = "move_rule"
 
 
 class ParsedCommand:
@@ -85,22 +91,36 @@ class OpenAIClient(LLMClient):
     
     def parse_command(self, user_input: str) -> ParsedCommand:
         """Parse natural language input using OpenAI."""
-        system_prompt = """You are a Checkmk host management assistant. Parse user commands into structured operations.
+        system_prompt = """You are a Checkmk management assistant. Parse user commands into structured operations for hosts and rules.
 
 Available operations:
+Host operations:
 - list: List all hosts or search for specific hosts
 - create: Create a new host (requires folder and host_name)
 - delete: Delete an existing host (requires host_name)
 - get: Get details of a specific host (requires host_name)
 - update: Update host configuration (requires host_name and attributes)
 
+Rule operations:
+- list_rules: List rules in a ruleset (requires ruleset_name)
+- create_rule: Create a new rule (requires ruleset, folder, value_raw)
+- delete_rule: Delete a rule (requires rule_id)
+- get_rule: Get details of a specific rule (requires rule_id)
+- move_rule: Move a rule position (requires rule_id, position)
+
 Parse the user input and respond with JSON in this format:
 {
-    "operation": "list|create|delete|get|update",
+    "operation": "list|create|delete|get|update|list_rules|create_rule|delete_rule|get_rule|move_rule",
     "parameters": {
-        "host_name": "hostname (if applicable)",
+        "host_name": "hostname (for host operations)",
+        "rule_id": "rule ID (for rule operations)",
+        "ruleset_name": "ruleset name (for list_rules, create_rule)",
         "folder": "folder path (default: /)",
-        "attributes": {"key": "value"} (for create/update),
+        "value_raw": "rule value as JSON string (for create_rule)",
+        "conditions": {"key": "value"} (for create_rule),
+        "properties": {"key": "value"} (for create_rule),
+        "position": "position (for move_rule: top_of_folder, bottom_of_folder, before, after)",
+        "attributes": {"key": "value"} (for host create/update),
         "search_term": "search term (for list)"
     },
     "confidence": 0.0-1.0
@@ -110,6 +130,9 @@ Examples:
 - "list all hosts" -> {"operation": "list", "parameters": {}, "confidence": 0.9}
 - "create host server01 in folder /web" -> {"operation": "create", "parameters": {"host_name": "server01", "folder": "/web"}, "confidence": 0.95}
 - "delete host server01" -> {"operation": "delete", "parameters": {"host_name": "server01"}, "confidence": 0.9}
+- "list rules in host_groups" -> {"operation": "list_rules", "parameters": {"ruleset_name": "host_groups"}, "confidence": 0.9}
+- "create rule for web servers" -> {"operation": "create_rule", "parameters": {"ruleset": "host_groups", "folder": "/", "value_raw": "{\"group_name\": \"web_servers\"}"}, "confidence": 0.8}
+- "delete rule abc123" -> {"operation": "delete_rule", "parameters": {"rule_id": "abc123"}, "confidence": 0.9}
 """
         
         try:
@@ -181,6 +204,46 @@ Examples:
 - Cluster: {'Yes' if extensions.get('is_cluster') else 'No'}
 - Offline: {'Yes' if extensions.get('is_offline') else 'No'}"""
         
+        elif operation == HostOperation.LIST_RULES:
+            if isinstance(data, list):
+                if not data:
+                    return "No rules found."
+                
+                rule_list = []
+                for rule in data:
+                    rule_id = rule.get("id", "Unknown")
+                    extensions = rule.get("extensions", {})
+                    folder = extensions.get("folder", "Unknown")
+                    ruleset = extensions.get("ruleset", "Unknown")
+                    rule_list.append(f"- {rule_id} (ruleset: {ruleset}, folder: {folder})")
+                
+                return f"Found {len(data)} rules:\n" + "\n".join(rule_list)
+        
+        elif operation == HostOperation.CREATE_RULE:
+            rule_id = data.get("id", "Unknown") if isinstance(data, dict) else "Unknown"
+            return f"Successfully created rule: {rule_id}"
+        
+        elif operation == HostOperation.DELETE_RULE:
+            return "Rule deleted successfully."
+        
+        elif operation == HostOperation.GET_RULE:
+            if isinstance(data, dict):
+                rule_id = data.get("id", "Unknown")
+                extensions = data.get("extensions", {})
+                folder = extensions.get("folder", "Unknown")
+                ruleset = extensions.get("ruleset", "Unknown")
+                properties = extensions.get("properties", {})
+                
+                return f"""Rule Details:
+- ID: {rule_id}
+- Ruleset: {ruleset}
+- Folder: {folder}
+- Disabled: {'Yes' if properties.get('disabled') else 'No'}
+- Description: {properties.get('description', 'None')}"""
+        
+        elif operation == HostOperation.MOVE_RULE:
+            return "Rule moved successfully."
+        
         return f"Operation {operation.value} completed successfully."
     
     def _fallback_parse(self, user_input: str) -> ParsedCommand:
@@ -250,22 +313,36 @@ class AnthropicClient(LLMClient):
     
     def parse_command(self, user_input: str) -> ParsedCommand:
         """Parse natural language input using Anthropic Claude."""
-        system_prompt = """You are a Checkmk host management assistant. Parse user commands into structured operations.
+        system_prompt = """You are a Checkmk management assistant. Parse user commands into structured operations for hosts and rules.
 
 Available operations:
+Host operations:
 - list: List all hosts or search for specific hosts
 - create: Create a new host (requires folder and host_name)
 - delete: Delete an existing host (requires host_name)
 - get: Get details of a specific host (requires host_name)
 - update: Update host configuration (requires host_name and attributes)
 
+Rule operations:
+- list_rules: List rules in a ruleset (requires ruleset_name)
+- create_rule: Create a new rule (requires ruleset, folder, value_raw)
+- delete_rule: Delete a rule (requires rule_id)
+- get_rule: Get details of a specific rule (requires rule_id)
+- move_rule: Move a rule position (requires rule_id, position)
+
 Parse the user input and respond with JSON in this format:
 {
-    "operation": "list|create|delete|get|update",
+    "operation": "list|create|delete|get|update|list_rules|create_rule|delete_rule|get_rule|move_rule",
     "parameters": {
-        "host_name": "hostname (if applicable)",
+        "host_name": "hostname (for host operations)",
+        "rule_id": "rule ID (for rule operations)",
+        "ruleset_name": "ruleset name (for list_rules, create_rule)",
         "folder": "folder path (default: /)",
-        "attributes": {"key": "value"} (for create/update),
+        "value_raw": "rule value as JSON string (for create_rule)",
+        "conditions": {"key": "value"} (for create_rule),
+        "properties": {"key": "value"} (for create_rule),
+        "position": "position (for move_rule: top_of_folder, bottom_of_folder, before, after)",
+        "attributes": {"key": "value"} (for host create/update),
         "search_term": "search term (for list)"
     },
     "confidence": 0.0-1.0
@@ -349,6 +426,46 @@ Parse the user input and respond with JSON in this format:
 - IP Address: {ip_address}
 - Cluster: {'Yes' if extensions.get('is_cluster') else 'No'}
 - Offline: {'Yes' if extensions.get('is_offline') else 'No'}"""
+        
+        elif operation == HostOperation.LIST_RULES:
+            if isinstance(data, list):
+                if not data:
+                    return "No rules found."
+                
+                rule_list = []
+                for rule in data:
+                    rule_id = rule.get("id", "Unknown")
+                    extensions = rule.get("extensions", {})
+                    folder = extensions.get("folder", "Unknown")
+                    ruleset = extensions.get("ruleset", "Unknown")
+                    rule_list.append(f"- {rule_id} (ruleset: {ruleset}, folder: {folder})")
+                
+                return f"Found {len(data)} rules:\n" + "\n".join(rule_list)
+        
+        elif operation == HostOperation.CREATE_RULE:
+            rule_id = data.get("id", "Unknown") if isinstance(data, dict) else "Unknown"
+            return f"Successfully created rule: {rule_id}"
+        
+        elif operation == HostOperation.DELETE_RULE:
+            return "Rule deleted successfully."
+        
+        elif operation == HostOperation.GET_RULE:
+            if isinstance(data, dict):
+                rule_id = data.get("id", "Unknown")
+                extensions = data.get("extensions", {})
+                folder = extensions.get("folder", "Unknown")
+                ruleset = extensions.get("ruleset", "Unknown")
+                properties = extensions.get("properties", {})
+                
+                return f"""Rule Details:
+- ID: {rule_id}
+- Ruleset: {ruleset}
+- Folder: {folder}
+- Disabled: {'Yes' if properties.get('disabled') else 'No'}
+- Description: {properties.get('description', 'None')}"""
+        
+        elif operation == HostOperation.MOVE_RULE:
+            return "Rule moved successfully."
         
         return f"Operation {operation.value} completed successfully."
     
