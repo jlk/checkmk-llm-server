@@ -45,6 +45,45 @@ class MoveRuleRequest(BaseModel):
     target_rule_id: Optional[str] = Field(None, description="Target rule ID for before/after positioning")
 
 
+class ServiceRequest(BaseModel):
+    """Request model for service operations."""
+    
+    host_name: Optional[str] = Field(None, description="Filter by hostname")
+    sites: Optional[List[str]] = Field(None, description="Restrict to specific sites")
+    query: Optional[str] = Field(None, description="Livestatus query expressions")
+    columns: Optional[List[str]] = Field(None, description="Desired columns (default: host_name, description)")
+
+
+class AcknowledgeServiceRequest(BaseModel):
+    """Request model for acknowledging service problems."""
+    
+    acknowledge_type: str = Field(..., description="Type of acknowledgment", pattern=r'^(service)$')
+    host_name: str = Field(..., description="The hostname")
+    service_description: str = Field(..., description="The service description")
+    comment: str = Field(..., description="A comment for the acknowledgment")
+    sticky: bool = Field(True, description="Whether acknowledgment persists until service is OK")
+    notify: bool = Field(True, description="Whether to send notifications")
+    persistent: bool = Field(False, description="Whether acknowledgment survives restarts")
+
+
+class ServiceDowntimeRequest(BaseModel):
+    """Request model for creating service downtime."""
+    
+    downtime_type: str = Field(..., description="Type of downtime", pattern=r'^(service)$')
+    host_name: str = Field(..., description="The hostname")
+    service_descriptions: List[str] = Field(..., description="List of service descriptions")
+    start_time: str = Field(..., description="Start time as ISO timestamp")
+    end_time: str = Field(..., description="End time as ISO timestamp")
+    comment: str = Field(..., description="A comment for the downtime")
+
+
+class ServiceDiscoveryRequest(BaseModel):
+    """Request model for service discovery operations."""
+    
+    host_name: str = Field(..., description="The hostname")
+    mode: str = Field(default="refresh", description="Discovery mode", pattern=r'^(refresh|new|remove|fixall|refresh_autochecks)$')
+
+
 class CheckmkClient:
     """Client for interacting with Checkmk REST API."""
     
@@ -417,6 +456,211 @@ class CheckmkClient:
         )
         
         self.logger.info(f"Moved rule: {rule_id} to position: {position}")
+        return response
+    
+    # Service operations
+    
+    def list_host_services(self, host_name: str, sites: Optional[List[str]] = None, 
+                          query: Optional[str] = None, columns: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        List all services for a specific host.
+        
+        Args:
+            host_name: The hostname
+            sites: Restrict to specific sites
+            query: Livestatus query expressions
+            columns: Desired columns (default: host_name, description)
+            
+        Returns:
+            List of service objects
+        """
+        params = {}
+        if sites:
+            params['sites'] = sites
+        if query:
+            params['query'] = query
+        if columns:
+            params['columns'] = columns
+        
+        response = self._make_request(
+            'GET',
+            f'/objects/host/{host_name}/collections/services',
+            params=params
+        )
+        
+        # Extract service data from response
+        services = response.get('value', [])
+        self.logger.info(f"Retrieved {len(services)} services for host: {host_name}")
+        return services
+    
+    def list_all_services(self, host_name: Optional[str] = None, sites: Optional[List[str]] = None,
+                         query: Optional[str] = None, columns: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        List all services across all hosts with optional filtering.
+        
+        Args:
+            host_name: Filter by hostname
+            sites: Restrict to specific sites
+            query: Livestatus query expressions
+            columns: Desired columns (default: host_name, description)
+            
+        Returns:
+            List of service objects
+        """
+        params = {}
+        if host_name:
+            params['host_name'] = host_name
+        if sites:
+            params['sites'] = sites
+        if query:
+            params['query'] = query
+        if columns:
+            params['columns'] = columns
+        
+        response = self._make_request(
+            'GET',
+            '/domain-types/service/collections/all',
+            params=params
+        )
+        
+        # Extract service data from response
+        services = response.get('value', [])
+        self.logger.info(f"Retrieved {len(services)} services")
+        return services
+    
+    def acknowledge_service_problems(self, host_name: str, service_description: str, 
+                                   comment: str, sticky: bool = True,
+                                   notify: bool = True, persistent: bool = False) -> Dict[str, Any]:
+        """
+        Acknowledge service problems.
+        
+        Args:
+            host_name: The hostname
+            service_description: The service description
+            comment: A comment for the acknowledgment
+            sticky: Whether acknowledgment persists until service is OK
+            notify: Whether to send notifications
+            persistent: Whether acknowledgment survives restarts
+            
+        Returns:
+            Acknowledgment response
+        """
+        # Validate input
+        request_data = AcknowledgeServiceRequest(
+            acknowledge_type="service",
+            host_name=host_name,
+            service_description=service_description,
+            comment=comment,
+            sticky=sticky,
+            notify=notify,
+            persistent=persistent
+        )
+        
+        response = self._make_request(
+            'POST',
+            '/domain-types/acknowledge/collections/service',
+            json=request_data.model_dump()
+        )
+        
+        self.logger.info(f"Acknowledged service problem: {host_name}/{service_description}")
+        return response
+    
+    def create_service_downtime(self, host_name: str, service_description: str,
+                               start_time: str, end_time: str, comment: str) -> Dict[str, Any]:
+        """
+        Create downtime for a service.
+        
+        Args:
+            host_name: The hostname
+            service_description: The service description
+            start_time: Start time as ISO timestamp
+            end_time: End time as ISO timestamp
+            comment: A comment for the downtime
+            
+        Returns:
+            Downtime creation response
+        """
+        # Validate input - note that service_descriptions is a list
+        request_data = ServiceDowntimeRequest(
+            downtime_type="service",
+            host_name=host_name,
+            service_descriptions=[service_description],  # Convert to list
+            start_time=start_time,
+            end_time=end_time,
+            comment=comment
+        )
+        
+        response = self._make_request(
+            'POST',
+            '/domain-types/downtime/collections/service',
+            json=request_data.model_dump()
+        )
+        
+        self.logger.info(f"Created downtime for service: {host_name}/{service_description}")
+        return response
+    
+    # Service discovery operations
+    
+    def get_service_discovery_result(self, host_name: str) -> Dict[str, Any]:
+        """
+        Get the current service discovery result for a host.
+        
+        Args:
+            host_name: The hostname
+            
+        Returns:
+            Service discovery result object
+        """
+        response = self._make_request(
+            'GET',
+            f'/objects/service_discovery/{host_name}'
+        )
+        
+        self.logger.info(f"Retrieved service discovery result for host: {host_name}")
+        return response
+    
+    def get_service_discovery_status(self, host_name: str) -> Dict[str, Any]:
+        """
+        Get the status of the last service discovery background job for a host.
+        
+        Args:
+            host_name: The hostname
+            
+        Returns:
+            Service discovery job status object
+        """
+        response = self._make_request(
+            'GET',
+            f'/objects/service_discovery_run/{host_name}'
+        )
+        
+        self.logger.info(f"Retrieved service discovery status for host: {host_name}")
+        return response
+    
+    def start_service_discovery(self, host_name: str, mode: str = "refresh") -> Dict[str, Any]:
+        """
+        Start a service discovery background job for a host.
+        
+        Args:
+            host_name: The hostname
+            mode: Discovery mode (refresh, new, remove, fixall, refresh_autochecks)
+            
+        Returns:
+            Service discovery job start response
+        """
+        # Validate input
+        request_data = ServiceDiscoveryRequest(
+            host_name=host_name,
+            mode=mode
+        )
+        
+        response = self._make_request(
+            'POST',
+            '/domain-types/service_discovery_run/actions/start/invoke',
+            json=request_data.model_dump()
+        )
+        
+        self.logger.info(f"Started service discovery for host: {host_name} with mode: {mode}")
         return response
     
     def test_connection(self) -> bool:

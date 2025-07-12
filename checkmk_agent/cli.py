@@ -49,11 +49,17 @@ def cli(ctx, log_level: str, config: Optional[str]):
             from .host_operations import HostOperationsManager
             host_manager = HostOperationsManager(checkmk_client, llm_client, app_config)
             ctx.obj['host_manager'] = host_manager
+            
+            # Initialize service operations manager
+            from .service_operations import ServiceOperationsManager
+            service_manager = ServiceOperationsManager(checkmk_client, llm_client, app_config)
+            ctx.obj['service_manager'] = service_manager
 
         except Exception as e:
             logger.warning(f"LLM client initialization failed: {e}")
             ctx.obj['llm_client'] = None
             ctx.obj['host_manager'] = None
+            ctx.obj['service_manager'] = None
 
     except Exception as e:
         logger.error(f"Initialization failed: {e}")
@@ -97,6 +103,9 @@ def interactive(ctx):
     click.echo("- Create hosts: 'create host server01 in folder /'")
     click.echo("- Delete hosts: 'delete host server01'")
     click.echo("- Get host details: 'show details for server01'")
+    click.echo("- List services: 'show services for server01', 'list all services'")
+    click.echo("- Service operations: 'acknowledge CPU load on server01', 'create downtime for disk space'")
+    click.echo("- Service discovery: 'discover services on server01'")
     click.echo("\nType 'exit' or 'quit' to exit, 'help' for more commands.\n")
     
     while True:
@@ -124,9 +133,20 @@ def interactive(ctx):
                 click.echo(result)
                 continue
             
-            # Process the command
-            result = host_manager.process_command(user_input)
-            click.echo(result)
+            # Process the command - try service commands first, then host commands
+            service_manager = ctx.obj.get('service_manager')
+            
+            # Check if it's a service-related command
+            service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load']
+            is_service_command = any(keyword in user_input.lower() for keyword in service_keywords)
+            
+            if is_service_command and service_manager:
+                result = service_manager.process_command(user_input)
+                click.echo(result)
+            else:
+                # Default to host operations
+                result = host_manager.process_command(user_input)
+                click.echo(result)
             
         except KeyboardInterrupt:
             click.echo("\n👋 Goodbye!")
@@ -517,6 +537,242 @@ def move_rule(ctx, rule_id: str, position: str, folder: Optional[str], target_ru
         sys.exit(1)
 
 
+@cli.group()
+def services():
+    """Service management commands."""
+    pass
+
+
+@services.command('list')
+@click.argument('host_name', required=False)
+@click.option('--sites', multiple=True, help='Restrict to specific sites')
+@click.option('--query', help='Livestatus query expressions')
+@click.option('--columns', multiple=True, help='Desired columns')
+@click.pass_context
+def list_services(ctx, host_name: Optional[str], sites: tuple, query: Optional[str], columns: tuple):
+    """List services for a host or all services."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        if host_name:
+            # List services for specific host
+            services = checkmk_client.list_host_services(
+                host_name=host_name,
+                sites=list(sites) if sites else None,
+                query=query,
+                columns=list(columns) if columns else None
+            )
+        else:
+            # List all services
+            services = checkmk_client.list_all_services(
+                sites=list(sites) if sites else None,
+                query=query,
+                columns=list(columns) if columns else None
+            )
+        
+        if not services:
+            if host_name:
+                click.echo(f"No services found for host: {host_name}")
+            else:
+                click.echo("No services found.")
+            return
+        
+        # Display services
+        if host_name:
+            click.echo(f"Found {len(services)} services for host: {host_name}")
+        else:
+            click.echo(f"Found {len(services)} services")
+        
+        for service in services:
+            extensions = service.get('extensions', {})
+            service_desc = extensions.get('description', 'Unknown')
+            service_state = extensions.get('state', 'Unknown')
+            host = extensions.get('host_name', host_name or 'Unknown')
+            
+            state_emoji = '✅' if service_state == 'OK' or service_state == 0 else '❌'
+            click.echo(f"  {state_emoji} {host}/{service_desc} - {service_state}")
+            
+    except Exception as e:
+        click.echo(f"❌ Error listing services: {e}", err=True)
+        sys.exit(1)
+
+
+@services.command('status')
+@click.argument('host_name')
+@click.argument('service_description')
+@click.pass_context
+def get_service_status(ctx, host_name: str, service_description: str):
+    """Get detailed status of a specific service."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        services = checkmk_client.list_host_services(
+            host_name=host_name,
+            query=f"service_description = '{service_description}'"
+        )
+        
+        if not services:
+            click.echo(f"❌ Service '{service_description}' not found on host '{host_name}'")
+            sys.exit(1)
+        
+        service = services[0]
+        extensions = service.get('extensions', {})
+        service_state = extensions.get('state', 'Unknown')
+        last_check = extensions.get('last_check', 'Unknown')
+        plugin_output = extensions.get('plugin_output', 'No output')
+        
+        state_emoji = '✅' if service_state == 'OK' or service_state == 0 else '❌'
+        
+        click.echo(f"📊 Service Status: {host_name}/{service_description}")
+        click.echo(f"{state_emoji} State: {service_state}")
+        click.echo(f"⏰ Last Check: {last_check}")
+        click.echo(f"💬 Output: {plugin_output}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error getting service status: {e}", err=True)
+        sys.exit(1)
+
+
+@services.command('acknowledge')
+@click.argument('host_name')
+@click.argument('service_description')
+@click.option('--comment', default='Acknowledged via CLI', help='Acknowledgment comment')
+@click.option('--sticky', is_flag=True, help='Make acknowledgment sticky')
+@click.pass_context
+def acknowledge_service(ctx, host_name: str, service_description: str, comment: str, sticky: bool):
+    """Acknowledge a service problem."""
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    
+    try:
+        author = config.checkmk.username
+        
+        checkmk_client.acknowledge_service_problems(
+            host_name=host_name,
+            service_description=service_description,
+            comment=comment,
+            author=author,
+            sticky=sticky
+        )
+        
+        click.echo(f"✅ Acknowledged service problem: {host_name}/{service_description}")
+        click.echo(f"💬 Comment: {comment}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error acknowledging service: {e}", err=True)
+        sys.exit(1)
+
+
+@services.command('downtime')
+@click.argument('host_name')
+@click.argument('service_description')
+@click.option('--hours', default=2, type=int, help='Duration in hours (default: 2)')
+@click.option('--comment', default='Downtime created via CLI', help='Downtime comment')
+@click.pass_context
+def create_service_downtime(ctx, host_name: str, service_description: str, hours: int, comment: str):
+    """Create downtime for a service."""
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    
+    try:
+        from datetime import datetime, timedelta
+        
+        start_time = datetime.now()
+        end_time = start_time + timedelta(hours=hours)
+        author = config.checkmk.username
+        
+        checkmk_client.create_service_downtime(
+            host_name=host_name,
+            service_description=service_description,
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+            comment=comment,
+            author=author
+        )
+        
+        click.echo(f"✅ Created downtime for service: {host_name}/{service_description}")
+        click.echo(f"⏰ Duration: {hours} hours")
+        click.echo(f"🕐 Start: {start_time.strftime('%Y-%m-%d %H:%M')}")
+        click.echo(f"🕑 End: {end_time.strftime('%Y-%m-%d %H:%M')}")
+        click.echo(f"💬 Comment: {comment}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error creating downtime: {e}", err=True)
+        sys.exit(1)
+
+
+@services.command('discover')
+@click.argument('host_name')
+@click.option('--mode', default='refresh', 
+              type=click.Choice(['refresh', 'new', 'remove', 'fixall', 'refresh_autochecks']),
+              help='Discovery mode (default: refresh)')
+@click.pass_context
+def discover_services(ctx, host_name: str, mode: str):
+    """Discover services on a host."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        # Start service discovery
+        click.echo(f"🔍 Starting service discovery for host: {host_name} (mode: {mode})")
+        checkmk_client.start_service_discovery(host_name, mode)
+        
+        # Get discovery results
+        discovery_result = checkmk_client.get_service_discovery_result(host_name)
+        
+        # Format response
+        extensions = discovery_result.get('extensions', {})
+        vanished = extensions.get('vanished', [])
+        new = extensions.get('new', [])
+        ignored = extensions.get('ignored', [])
+        
+        click.echo(f"✅ Service discovery completed for host: {host_name}")
+        
+        if new:
+            click.echo(f"\n✨ New services found ({len(new)}):")
+            for service in new:
+                service_desc = service.get('service_description', 'Unknown')
+                click.echo(f"  + {service_desc}")
+        
+        if vanished:
+            click.echo(f"\n👻 Vanished services ({len(vanished)}):")
+            for service in vanished:
+                service_desc = service.get('service_description', 'Unknown')
+                click.echo(f"  - {service_desc}")
+        
+        if ignored:
+            click.echo(f"\n🚫 Ignored services ({len(ignored)}):")
+            for service in ignored:
+                service_desc = service.get('service_description', 'Unknown')
+                click.echo(f"  ! {service_desc}")
+        
+        if not new and not vanished and not ignored:
+            click.echo("\n✅ No service changes detected")
+        
+    except Exception as e:
+        click.echo(f"❌ Error discovering services: {e}", err=True)
+        sys.exit(1)
+
+
+@services.command('stats')
+@click.pass_context
+def service_stats(ctx):
+    """Show service statistics."""
+    service_manager = ctx.obj.get('service_manager')
+    
+    if not service_manager:
+        # Fallback to basic stats without LLM
+        checkmk_client = ctx.obj['checkmk_client']
+        try:
+            services = checkmk_client.list_all_services()
+            click.echo(f"📊 Total services: {len(services)}")
+        except Exception as e:
+            click.echo(f"❌ Error getting statistics: {e}", err=True)
+        return
+    
+    result = service_manager.get_service_statistics()
+    click.echo(result)
+
+
 @cli.command()
 @click.pass_context
 def stats(ctx):
@@ -542,11 +798,17 @@ def show_help():
     click.echo("""
 🔧 Available Commands:
 
-Natural Language Commands:
+Natural Language Commands - Host Management:
   - "list all hosts" / "show hosts"
   - "create host server01 in folder /web"
   - "delete host server01"
   - "show details for server01"
+
+Natural Language Commands - Service Management:
+  - "list services for server01" / "show all services"
+  - "acknowledge CPU load on server01"
+  - "create downtime for disk space on server01"
+  - "discover services on server01"
 
 Special Commands:
   - help/h        Show this help
@@ -557,8 +819,10 @@ Special Commands:
 Examples:
   🔧 checkmk> list all hosts
   🔧 checkmk> create host web01 with ip 192.168.1.10
-  🔧 checkmk> delete server01
-  🔧 checkmk> show me details for web01
+  🔧 checkmk> show services for web01
+  🔧 checkmk> acknowledge CPU load on web01 with comment "investigating"
+  🔧 checkmk> create 4 hour downtime for disk space on web01
+  🔧 checkmk> discover services on web01
 """)
 
 

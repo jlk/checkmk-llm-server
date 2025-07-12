@@ -73,6 +73,11 @@ class LLMClient(ABC):
                        success: bool = True, error: Optional[str] = None) -> str:
         """Format API response for human consumption."""
         pass
+    
+    @abstractmethod
+    def chat_completion(self, prompt: str) -> str:
+        """Get a direct chat completion response for the given prompt."""
+        pass
 
 
 class OpenAIClient(LLMClient):
@@ -295,6 +300,28 @@ Examples:
         
         # Default to list
         return ParsedCommand(HostOperation.LIST, {}, 0.5, user_input)
+    
+    def chat_completion(self, prompt: str) -> str:
+        """Get a direct chat completion response using OpenAI."""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=1000
+            )
+            
+            content = response.choices[0].message.content
+            if not isinstance(content, str) or not content:
+                raise ValueError("OpenAI response content is not a non-empty string.")
+            
+            return content
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get chat completion: {e}")
+            return '{"action": "unknown", "parameters": {}}'
 
 
 class AnthropicClient(LLMClient):
@@ -513,6 +540,36 @@ Parse the user input and respond with JSON in this format:
             return ParsedCommand(HostOperation.DELETE, params, 0.7, user_input)
         
         return ParsedCommand(HostOperation.LIST, {}, 0.5, user_input)
+    
+    def chat_completion(self, prompt: str) -> str:
+        """Get a direct chat completion response using Anthropic Claude."""
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1000,
+                temperature=0.1,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            # Extract text from Anthropic response with proper error handling
+            if not response.content:
+                raise ValueError("Anthropic response has no content")
+            
+            content_block = response.content[0]
+            if not hasattr(content_block, 'text'):
+                raise ValueError("Anthropic response content block has no text attribute")
+            
+            content_text = content_block.text
+            if not content_text:
+                raise ValueError("Anthropic response content text is empty")
+            
+            return content_text
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get chat completion: {e}")
+            return '{"action": "unknown", "parameters": {}}'
 
 
 def create_llm_client(config: LLMConfig, provider: Optional[LLMProvider] = None) -> LLMClient:

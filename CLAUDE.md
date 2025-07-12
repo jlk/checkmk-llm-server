@@ -10,10 +10,16 @@ This is a **Checkmk LLM Agent** project designed to integrate with Checkmk's RES
 
 ## Current State
 
-The project is in early development with:
+The project is an active Checkmk LLM Agent implementation with:
 - Complete Checkmk REST API OpenAPI specification (`checkmk-rest-openapi.yaml`)
+- Host management operations (CRUD)
+- Rule management operations (CRUD)
+- **Service status and management operations** (NEW)
+- Natural language processing capabilities
+- CLI interface with interactive mode
+- Error handling and retry logic
+- Test coverage for core functionality
 - VS Code workspace configuration
-- No implementation code yet
 
 ## API Architecture
 
@@ -23,6 +29,7 @@ The project centers around the comprehensive Checkmk REST API v1.0 specification
 - **Monitoring Operations**: Acknowledge problems, downtimes, host/service status
 - **Setup & Configuration**: Host/service management, user management, rules/rulesets
 - **Service Discovery**: Automated service detection and configuration
+- **Service Management**: Service status monitoring, acknowledgments, downtime scheduling
 - **Business Intelligence**: BI operations and analytics
 - **Internal Operations**: Certificate management, activation, agent downloads
 
@@ -73,15 +80,102 @@ python checkmk_agent.py
 checkmk-rest-openapi.yaml     # Complete Checkmk REST API specification (21k+ lines)
 checkmk_agent.code-workspace  # VS Code workspace configuration
 .claude/settings.local.json   # Claude Code permissions
+
+checkmk_agent/
+├── __init__.py
+├── api_client.py             # Core API client with service operations
+├── cli.py                    # CLI interface with service commands
+├── config.py                 # Configuration management
+├── host_operations.py        # Host management operations
+├── service_operations.py     # Service management operations (NEW)
+├── llm_client.py            # LLM integration
+├── logging_utils.py         # Logging utilities
+└── utils.py                 # Utility functions
+
+tests/
+├── __init__.py
+├── conftest.py
+├── test_api_client.py
+├── test_cli.py
+├── test_host_operations.py
+├── test_service_operations.py # Service operations tests (NEW)
+├── test_integration.py
+└── test_llm_client.py
+
+examples/
+├── README.md
+└── configs/
+    ├── development.yaml
+    ├── production.yaml
+    └── testing.yaml
 ```
 
 ## Development Workflow
 
-1. **API Client**: Build basic Checkmk REST API client
-2. **LLM Integration**: Add natural language processing capabilities
-3. **Agent Logic**: Implement conversation flow and command routing
-4. **Testing**: Add comprehensive tests for API interactions
-5. **Documentation**: Create setup and usage guides
+1. **API Client**: ✅ Checkmk REST API client with host/rule/service operations
+2. **LLM Integration**: ✅ Natural language processing capabilities
+3. **Agent Logic**: ✅ Conversation flow and command routing for hosts/rules/services
+4. **Testing**: ✅ Test coverage for core operations
+5. **Documentation**: ✅ Setup and usage guides
+
+## Service Operations Architecture
+
+The service operations functionality is built around these key components:
+
+### 1. API Client Integration (`api_client.py`)
+- **Service Status Methods**: `list_host_services()`, `list_all_services()`
+- **Service Management**: `acknowledge_service_problems()`, `create_service_downtime()`
+- **Service Discovery**: `get_service_discovery_result()`, `start_service_discovery()`
+- **Pydantic Models**: Type-safe validation for all service operations
+
+### 2. Service Operations Manager (`service_operations.py`)
+- **Natural Language Processing**: Analyzes user commands for service operations
+- **Command Routing**: Routes commands to appropriate API methods
+- **Response Formatting**: Converts API responses to human-readable format
+- **Error Handling**: Robust error handling with meaningful messages
+
+### 3. CLI Interface (`cli.py`)
+- **Services Command Group**: Complete CLI interface for service operations
+  - `services list [host_name]` - List services
+  - `services status <host> <service>` - Get service status
+  - `services acknowledge <host> <service>` - Acknowledge problems
+  - `services downtime <host> <service>` - Create downtime
+  - `services discover <host>` - Discover services
+  - `services stats` - Show service statistics
+- **Interactive Mode**: Natural language service commands in interactive mode
+
+### 4. Supported Service Operations
+
+#### Service Status and Monitoring
+- **List Services**: View all services for a host or across all hosts
+- **Service Status**: Get detailed status information for specific services
+- **Service Statistics**: Overview of service states across the infrastructure
+
+#### Service Problem Management
+- **Acknowledge Problems**: Acknowledge service problems with comments
+- **Create Downtime**: Schedule downtime periods for planned maintenance
+- **Sticky/Persistent Options**: Control acknowledgment behavior
+
+#### Service Discovery
+- **Automated Discovery**: Discover new services on hosts
+- **Discovery Modes**: Multiple discovery modes (refresh, new, remove, fixall)
+- **Discovery Results**: Review discovered, vanished, and ignored services
+
+### 5. Natural Language Examples
+
+The system understands commands like:
+- `"list services for server01"`
+- `"show all services"`
+- `"acknowledge CPU load on server01"`
+- `"create 4 hour downtime for disk space on server01"`
+- `"discover services on server01"`
+
+### 6. Error Handling and Validation
+
+- **API Error Handling**: Comprehensive error handling for all API operations
+- **Input Validation**: Pydantic models ensure type safety
+- **User-Friendly Messages**: Clear error messages and success confirmations
+- **Retry Logic**: Built-in retry mechanism with exponential backoff
 
 ## Conversation Storage
 
