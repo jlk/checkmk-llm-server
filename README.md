@@ -2,14 +2,29 @@
 
 A Python agent that connects Large Language Models (Claude/ChatGPT) to Checkmk for easier configuration management through natural language interactions.
 
+## What Can It Do?
+
+| Operation | CLI Command | Natural Language Example |
+|-----------|-------------|-------------------------|
+| **Host Management** | `hosts list` | `"list all hosts"` |
+| **Service Monitoring** | `services list server01` | `"show services for server01"` |
+| **Service Parameters** | `services params set server01 "CPU utilization" --warning 85` | `"set CPU warning to 85% for server01"` |
+| **Problem Management** | `services acknowledge server01 "CPU utilization"` | `"acknowledge CPU load on server01"` |
+| **Downtime Scheduling** | `services downtime server01 "disk space" --hours 4` | `"create 4 hour downtime for disk space on server01"` |
+| **Rule Management** | `rules create filesystem --folder /web` | `"create filesystem rule for web servers"` |
+| **Discovery** | `services discover server01` | `"discover services on server01"` |
+
 ## Features
 
 - 🤖 **Natural Language Interface**: Talk to Checkmk using plain English
 - 🔧 **Host Management**: List, create, delete, and manage hosts
+- 🚀 **Service Operations**: Monitor, acknowledge, and manage service status
+- ⚙️ **Service Parameters**: Override thresholds and configure service monitoring
+- 📊 **Rule Management**: Create, modify, and delete Checkmk rules
 - 🌐 **Multiple LLM Support**: Works with OpenAI GPT and Anthropic Claude
 - 📊 **Interactive CLI**: Command-line interface with both direct commands and interactive mode
 - 🔒 **Secure**: Environment-based configuration with credential management
-- 📈 **Comprehensive**: Full support for Checkmk REST API host operations
+- 📈 **Comprehensive**: Full support for Checkmk REST API operations
 
 ## Quick Start
 
@@ -146,9 +161,38 @@ python -m checkmk_agent.cli hosts delete server01
 
 # Get host details
 python -m checkmk_agent.cli hosts get server01
+```
 
-# Use specific configuration file
-python -m checkmk_agent.cli --config examples/configs/development.yaml hosts list
+Service operations:
+```bash
+# List services
+python -m checkmk_agent.cli services list server01
+
+# Get service status
+python -m checkmk_agent.cli services status server01 "CPU utilization"
+
+# Acknowledge service problems
+python -m checkmk_agent.cli services acknowledge server01 "CPU utilization" --comment "Working on it"
+
+# Create service downtime
+python -m checkmk_agent.cli services downtime server01 "CPU utilization" --hours 2
+
+# Service parameter management
+python -m checkmk_agent.cli services params defaults cpu
+python -m checkmk_agent.cli services params show server01 "CPU utilization"
+python -m checkmk_agent.cli services params set server01 "CPU utilization" --warning 85 --critical 95
+```
+
+Rule management:
+```bash
+# List rules
+python -m checkmk_agent.cli rules list
+
+# Create a rule
+python -m checkmk_agent.cli rules create filesystem --folder /web --comment "Web server rules"
+
+# Delete a rule
+python -m checkmk_agent.cli rules delete rule_id_123
 ```
 
 ### Interactive Mode Examples
@@ -177,6 +221,45 @@ Host Details:
 Host deleted successfully.
 ```
 
+**Service Operations:**
+```
+🔧 checkmk> list services for web01
+Found 12 services for web01:
+- CPU utilization (OK)
+- Memory (OK)
+- Filesystem / (WARNING)
+- Network Interface eth0 (OK)
+
+🔧 checkmk> acknowledge CPU load on web01
+✅ Acknowledged CPU load on web01
+💬 Comment: Working on it
+
+🔧 checkmk> create 4 hour downtime for disk space on web01
+✅ Created 4 hour downtime for Filesystem / on web01
+⏰ Downtime period: 2024-01-15 14:00 - 18:00
+```
+
+**Service Parameter Management:**
+```
+🔧 checkmk> show default CPU parameters
+📊 Default Parameters for CPU services:
+⚠️  Warning Threshold: 80.0%
+❌ Critical Threshold: 90.0%
+📈 Averaging Period: 15 minutes
+
+🔧 checkmk> set CPU warning to 85% for web01
+✅ Created parameter override for web01/CPU utilization
+⚠️  Warning: 85.0%
+❌ Critical: 90.0%
+🆔 Rule ID: rule_abc123
+
+🔧 checkmk> what are the memory thresholds for web01?
+📊 Effective Parameters for web01/Memory:
+⚠️  Warning: 80.0%
+❌ Critical: 90.0%
+📋 Using default parameters (no custom rules found)
+```
+
 ### Python API
 
 You can also use the agent programmatically. First, ensure your virtual environment is activated:
@@ -192,6 +275,8 @@ from checkmk_agent.config import load_config
 from checkmk_agent.api_client import CheckmkClient
 from checkmk_agent.llm_client import create_llm_client
 from checkmk_agent.host_operations import HostOperationsManager
+from checkmk_agent.service_operations import ServiceOperationsManager
+from checkmk_agent.service_parameters import ServiceParameterManager
 
 # Load configuration
 config = load_config()
@@ -200,12 +285,19 @@ config = load_config()
 checkmk_client = CheckmkClient(config.checkmk)
 llm_client = create_llm_client(config.llm)
 
-# Create host operations manager
+# Create operations managers
 host_manager = HostOperationsManager(checkmk_client, llm_client, config)
+service_manager = ServiceOperationsManager(checkmk_client, llm_client, config)
+parameter_manager = ServiceParameterManager(checkmk_client, config)
 
 # Process natural language commands
 result = host_manager.process_command("list all hosts")
+service_result = service_manager.process_command("list services for web01")
+param_result = parameter_manager.get_default_parameters("cpu")
+
 print(result)
+print(service_result)
+print(param_result)
 ```
 
 ## Architecture
@@ -214,13 +306,17 @@ The agent consists of several key components:
 
 - **CheckmkClient**: Handles all interactions with the Checkmk REST API
 - **LLMClient**: Processes natural language using OpenAI or Anthropic APIs
-- **HostOperationsManager**: Combines API and LLM functionality
+- **HostOperationsManager**: Host management operations with natural language processing
+- **ServiceOperationsManager**: Service monitoring, acknowledgment, and downtime management
+- **ServiceParameterManager**: Service parameter and threshold management
+- **RuleOperationsManager**: Checkmk rule creation and management
 - **CLI**: Command-line interface for user interaction
 
 ## API Coverage
 
-Currently supports the following Checkmk host operations:
+Currently supports the following Checkmk operations:
 
+### Host Operations
 - ✅ List hosts (`GET /domain-types/host_config/collections/all`)
 - ✅ Create host (`POST /domain-types/host_config/collections/all`)
 - ✅ Delete host (`DELETE /objects/host_config/{host_name}`)
@@ -228,6 +324,28 @@ Currently supports the following Checkmk host operations:
 - ✅ Update host (`PUT /objects/host_config/{host_name}`)
 - ✅ Bulk create hosts
 - ✅ Bulk delete hosts
+
+### Service Operations
+- ✅ List services (`GET /domain-types/service/collections/all`)
+- ✅ Get service status and details
+- ✅ Acknowledge service problems (`POST /domain-types/acknowledge/collections/service`)
+- ✅ Create service downtime (`POST /domain-types/downtime/collections/service`)
+- ✅ Service discovery (`POST /objects/host/{host_name}/actions/discover_services`)
+- ✅ Service statistics and monitoring
+
+### Rule Management
+- ✅ List rules (`GET /domain-types/rule/collections/all`)
+- ✅ Create rules (`POST /domain-types/rule/collections/all`)
+- ✅ Delete rules (`DELETE /objects/rule/{rule_id}`)
+- ✅ Get rule details (`GET /objects/rule/{rule_id}`)
+- ✅ List rulesets (`GET /domain-types/ruleset/collections/all`)
+
+### Service Parameter Management
+- ✅ View default service parameters for CPU, memory, disk, network
+- ✅ Override service parameters for specific hosts
+- ✅ Create parameter rules with custom thresholds
+- ✅ Discover appropriate rulesets for services
+- ✅ Rule precedence analysis and validation
 
 ## Development
 
@@ -261,12 +379,17 @@ checkmk_llm_agent/
 │   ├── api_client.py          # Checkmk REST API client
 │   ├── llm_client.py          # LLM integration
 │   ├── host_operations.py     # Host operations logic
+│   ├── service_operations.py  # Service operations logic
+│   ├── service_parameters.py  # Service parameter management
+│   ├── rule_operations.py     # Rule management operations
 │   ├── cli.py                 # Command-line interface
 │   ├── config.py              # Configuration management
+│   ├── logging_utils.py       # Logging utilities
 │   └── utils.py               # Common utilities
-├── tests/                     # Test suite (114 tests)
+├── tests/                     # Test suite (159 tests)
 ├── docs/                      # Documentation
 ├── examples/                  # Configuration examples
+├── specs/                     # Technical specifications
 ├── venv/                      # Virtual environment (created locally)
 ├── requirements.txt           # Python dependencies
 ├── setup.py                   # Package configuration
@@ -280,16 +403,20 @@ Always activate the virtual environment first:
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-Run the full test suite (114 tests):
+Run the full test suite (159 tests):
 ```bash
 pytest tests/
 ```
 
 Run specific test categories:
 ```bash
-pytest tests/test_api_client.py     # API client tests
-pytest tests/test_integration.py   # Integration tests
-pytest tests/test_cli.py           # CLI tests
+pytest tests/test_api_client.py              # API client tests
+pytest tests/test_host_operations.py         # Host operation tests
+pytest tests/test_service_operations.py      # Service operation tests
+pytest tests/test_service_parameters.py      # Service parameter tests
+pytest tests/test_service_parameters_integration.py  # Integration tests
+pytest tests/test_integration.py            # General integration tests
+pytest tests/test_cli.py                    # CLI tests
 ```
 
 Run tests with coverage:
@@ -304,17 +431,35 @@ black checkmk_agent/
 flake8 checkmk_agent/
 ```
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- **[Service Parameter Management](docs/service-parameter-management.md)** - Complete guide to managing service thresholds and parameters
+- **[Technical Specifications](specs/add-service-modification-functionality.md)** - Detailed implementation specifications
+- **[Configuration Examples](examples/)** - Environment-specific configuration templates
+- **[Service Parameter Templates](examples/service_parameter_templates.yaml)** - Pre-defined parameter configurations
+
+### Key Documentation Highlights:
+
+- **CLI Reference**: Complete command reference with examples
+- **Natural Language Guide**: Supported command patterns and examples
+- **Best Practices**: Recommended approaches for different environments
+- **Troubleshooting**: Common issues and solutions
+- **API Integration**: How to use the Python API programmatically
+
 ## Roadmap
 
 Future enhancements planned:
 
-- 🔄 Service management operations
-- 📊 Rule and ruleset management
-- 🚨 Problem acknowledgment and downtime management
 - 📈 Business Intelligence operations
 - 🔐 Enhanced authentication methods
 - 🌐 Web interface
 - 📊 Monitoring dashboards
+- 🔄 Service discovery automation
+- 📊 Advanced analytics and reporting
+- 🔗 External integrations (Slack, Teams, etc.)
+- 🎯 Machine learning for anomaly detection
 
 ## Troubleshooting
 
@@ -357,6 +502,18 @@ venv\Scripts\activate
 - Verify your OpenAI or Anthropic API keys are correct in configuration
 - Check your API key has sufficient quota/credits
 - Ensure you're using supported model names
+
+**Problem**: Service parameter commands not working
+- Ensure you have proper Checkmk permissions (`wato.rulesets`, `wato.edit`)
+- Check that the service exists on the specified host
+- Verify the service name matches exactly (case-sensitive)
+- Use `services params discover` to find the correct ruleset
+
+**Problem**: Parameter overrides not taking effect
+- Check that the rule was created successfully (`services params show`)
+- Verify the rule has higher precedence than existing rules
+- Ensure Checkmk configuration changes were activated
+- Wait for the next service check cycle (typically 1-5 minutes)
 
 
 ## License
