@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from .api_client import CheckmkClient, CheckmkAPIError
 from .llm_client import LLMClient
 from .config import AppConfig
+from .service_parameters import ServiceParameterManager
 
 
 class ServiceOperationsManager:
@@ -18,6 +19,7 @@ class ServiceOperationsManager:
         self.llm_client = llm_client
         self.config = config
         self.logger = logging.getLogger(__name__)
+        self.parameter_manager = ServiceParameterManager(checkmk_client, config)
     
     def process_command(self, command: str) -> str:
         """
@@ -56,7 +58,28 @@ class ServiceOperationsManager:
                 'get_instructions': 'get_instructions',
                 'instructions': 'get_instructions',
                 'help': 'get_instructions',
-                'how_to': 'get_instructions'
+                'how_to': 'get_instructions',
+                # Parameter operations
+                'view_default_parameters': 'view_default_parameters',
+                'show_default_parameters': 'view_default_parameters',
+                'default_parameters': 'view_default_parameters',
+                'view_service_parameters': 'view_service_parameters',
+                'show_service_parameters': 'view_service_parameters',
+                'service_parameters': 'view_service_parameters',
+                'show_parameters': 'view_service_parameters',
+                'set_service_parameters': 'set_service_parameters',
+                'override_parameters': 'set_service_parameters',
+                'set_parameters': 'set_service_parameters',
+                'override_service': 'set_service_parameters',
+                'create_parameter_rule': 'create_parameter_rule',
+                'create_rule': 'create_parameter_rule',
+                'list_parameter_rules': 'list_parameter_rules',
+                'show_rules': 'list_parameter_rules',
+                'list_rules': 'list_parameter_rules',
+                'delete_parameter_rule': 'delete_parameter_rule',
+                'delete_rule': 'delete_parameter_rule',
+                'discover_ruleset': 'discover_ruleset',
+                'find_ruleset': 'discover_ruleset'
             }
             
             # Normalize the action
@@ -74,8 +97,24 @@ class ServiceOperationsManager:
                 return self._handle_discover_services(analysis)
             elif normalized_action == 'get_instructions':
                 return self._handle_get_instructions(analysis)
+            # Parameter operations
+            elif normalized_action == 'view_default_parameters':
+                return self._handle_view_default_parameters(analysis)
+            elif normalized_action == 'view_service_parameters':
+                return self._handle_view_service_parameters(analysis)
+            elif normalized_action == 'set_service_parameters':
+                return self._handle_set_service_parameters(analysis)
+            elif normalized_action == 'create_parameter_rule':
+                return self._handle_create_parameter_rule(analysis)
+            elif normalized_action == 'list_parameter_rules':
+                return self._handle_list_parameter_rules(analysis)
+            elif normalized_action == 'delete_parameter_rule':
+                return self._handle_delete_parameter_rule(analysis)
+            elif normalized_action == 'discover_ruleset':
+                return self._handle_discover_ruleset(analysis)
             else:
-                return f"❌ I don't understand how to handle the action: {action} (normalized: {normalized_action}). Available actions: list_services, get_service_status, acknowledge_service, create_downtime, discover_services, get_instructions"
+                available_actions = "list_services, get_service_status, acknowledge_service, create_downtime, discover_services, view_default_parameters, view_service_parameters, set_service_parameters, create_parameter_rule, list_parameter_rules, delete_parameter_rule, discover_ruleset, get_instructions"
+                return f"❌ I don't understand how to handle the action: {action} (normalized: {normalized_action}). Available actions: {available_actions}"
                 
         except Exception as e:
             self.logger.error(f"Error processing service command: {e}")
@@ -104,6 +143,13 @@ class ServiceOperationsManager:
         - acknowledge_service: Acknowledge service problems
         - create_downtime: Create/schedule downtime for services
         - discover_services: ONLY when user explicitly wants to run discovery (e.g., "discover services", "scan for services")
+        - view_default_parameters: View default parameters for a service type
+        - view_service_parameters: View effective parameters for a specific service
+        - set_service_parameters: Set/override parameters for a service
+        - create_parameter_rule: Create a new parameter rule
+        - list_parameter_rules: List existing parameter rules
+        - delete_parameter_rule: Delete a parameter rule
+        - discover_ruleset: Find the appropriate ruleset for a service
         - get_instructions: When user asks HOW TO do something or wants instructions
         
         Return ONLY this JSON format:
@@ -115,17 +161,26 @@ class ServiceOperationsManager:
                 "comment": "comment text or null",
                 "duration_hours": number_or_null,
                 "mode": "discovery mode or null",
-                "instruction_type": "what they want to know how to do or null"
+                "instruction_type": "what they want to know how to do or null",
+                "service_type": "cpu|memory|disk|filesystem|network or null",
+                "parameter_type": "warning|critical|both or null",
+                "threshold_value": number_or_null,
+                "warning_value": number_or_null,
+                "critical_value": number_or_null,
+                "ruleset_name": "specific ruleset or null",
+                "rule_id": "rule_id or null"
             }}
         }}
         
         Examples:
         - "list services for server01" -> {{"action": "list_services", "parameters": {{"host_name": "server01"}}}}
-        - "how can I add a service to server01?" -> {{"action": "get_instructions", "parameters": {{"host_name": "server01", "instruction_type": "add_service"}}}}
-        - "how do I acknowledge a service?" -> {{"action": "get_instructions", "parameters": {{"instruction_type": "acknowledge_service"}}}}
-        - "how can I schedule downtime?" -> {{"action": "get_instructions", "parameters": {{"instruction_type": "create_downtime"}}}}
-        - "what can I do with services?" -> {{"action": "get_instructions", "parameters": {{"instruction_type": "general"}}}}
-        - "discover services on server01" -> {{"action": "discover_services", "parameters": {{"host_name": "server01"}}}}
+        - "show default CPU parameters" -> {{"action": "view_default_parameters", "parameters": {{"service_type": "cpu"}}}}
+        - "what are CPU thresholds for server01?" -> {{"action": "view_service_parameters", "parameters": {{"host_name": "server01", "service_description": "CPU utilization"}}}}
+        - "set CPU warning to 85% for server01" -> {{"action": "set_service_parameters", "parameters": {{"host_name": "server01", "service_description": "CPU utilization", "parameter_type": "warning", "warning_value": 85}}}}
+        - "override disk critical to 95% for server01" -> {{"action": "set_service_parameters", "parameters": {{"host_name": "server01", "service_description": "Filesystem", "parameter_type": "critical", "critical_value": 95}}}}
+        - "create memory rule for production hosts" -> {{"action": "create_parameter_rule", "parameters": {{"service_type": "memory", "comment": "production hosts rule"}}}}
+        - "show all parameter rules" -> {{"action": "list_parameter_rules", "parameters": {{}}}}
+        - "what ruleset controls CPU on server01?" -> {{"action": "discover_ruleset", "parameters": {{"host_name": "server01", "service_description": "CPU utilization"}}}}
         - "acknowledge CPU load on server01" -> {{"action": "acknowledge_service", "parameters": {{"host_name": "server01", "service_description": "CPU load", "comment": "Working on it"}}}}
         """
         
@@ -552,3 +607,352 @@ Type your question to get detailed instructions for any service operation."""
             return f"✅ Connection successful. Found {len(services)} services."
         except CheckmkAPIError as e:
             return f"❌ Connection failed: {e}"
+    
+    # Parameter operation handlers
+    
+    def _handle_view_default_parameters(self, analysis: Dict[str, Any]) -> str:
+        """Handle viewing default parameters for service types."""
+        try:
+            params = analysis.get('parameters', {})
+            service_type = params.get('service_type', 'cpu')
+            
+            # Get default parameters
+            default_params = self.parameter_manager.get_default_parameters(service_type)
+            
+            if not default_params:
+                return f"❌ No default parameters found for service type: {service_type}"
+            
+            result = f"📊 Default Parameters for {service_type.upper()} services:\n\n"
+            
+            # Format parameters nicely
+            if 'levels' in default_params:
+                warning, critical = default_params['levels']
+                result += f"⚠️  Warning Threshold: {warning:.1f}%\n"
+                result += f"❌ Critical Threshold: {critical:.1f}%\n"
+            
+            if 'average' in default_params:
+                result += f"📈 Averaging Period: {default_params['average']} minutes\n"
+            
+            if 'magic_normsize' in default_params:
+                result += f"💾 Magic Normsize: {default_params['magic_normsize']} GB\n"
+            
+            if 'magic' in default_params:
+                result += f"🎯 Magic Factor: {default_params['magic']}\n"
+            
+            # Show applicable ruleset
+            ruleset_map = self.parameter_manager.PARAMETER_RULESETS.get(service_type, {})
+            default_ruleset = ruleset_map.get('default', 'Unknown')
+            result += f"\n📋 Default Ruleset: {default_ruleset}"
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error viewing default parameters: {e}")
+            return f"❌ Error viewing default parameters: {e}"
+    
+    def _handle_view_service_parameters(self, analysis: Dict[str, Any]) -> str:
+        """Handle viewing parameters for a specific service."""
+        try:
+            params = analysis.get('parameters', {})
+            host_name = params.get('host_name')
+            service_description = params.get('service_description')
+            
+            if not host_name or not service_description:
+                return "❌ Please specify both host name and service description"
+            
+            # Get effective parameters
+            param_info = self.parameter_manager.get_service_parameters(host_name, service_description)
+            
+            if param_info['source'] == 'default':
+                result = f"📊 Parameters for {host_name}/{service_description}:\n"
+                result += "📋 Using default parameters (no custom rules found)\n"
+            else:
+                result = f"📊 Effective Parameters for {host_name}/{service_description}:\n\n"
+                
+                effective_params = param_info['parameters']
+                if 'levels' in effective_params:
+                    warning, critical = effective_params['levels']
+                    result += f"⚠️  Warning: {warning:.1f}%\n"
+                    result += f"❌ Critical: {critical:.1f}%\n"
+                
+                if 'average' in effective_params:
+                    result += f"📈 Average: {effective_params['average']} min\n"
+                
+                if 'magic_normsize' in effective_params:
+                    result += f"💾 Magic Normsize: {effective_params['magic_normsize']} GB\n"
+                
+                primary_rule = param_info.get('primary_rule')
+                if primary_rule:
+                    rule_id = primary_rule.get('id', 'Unknown')
+                    result += f"\n🔗 Source: Rule {rule_id}"
+                
+                # Show rule precedence if multiple rules
+                all_rules = param_info.get('all_rules', [])
+                if len(all_rules) > 1:
+                    result += f"\n\n📊 Rule Precedence ({len(all_rules)} rules):"
+                    for i, rule in enumerate(all_rules[:3], 1):
+                        rule_id = rule.get('id', 'Unknown')
+                        is_primary = i == 1
+                        status = "" if is_primary else " [OVERRIDDEN]"
+                        result += f"\n{i}. Rule {rule_id}{status}"
+                    
+                    if len(all_rules) > 3:
+                        result += f"\n... and {len(all_rules) - 3} more rules"
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error viewing service parameters: {e}")
+            return f"❌ Error viewing service parameters: {e}"
+    
+    def _handle_set_service_parameters(self, analysis: Dict[str, Any]) -> str:
+        """Handle setting/overriding service parameters."""
+        try:
+            params = analysis.get('parameters', {})
+            host_name = params.get('host_name')
+            service_description = params.get('service_description')
+            
+            if not host_name or not service_description:
+                return "❌ Please specify both host name and service description"
+            
+            # Extract threshold values
+            warning_value = params.get('warning_value')
+            critical_value = params.get('critical_value')
+            parameter_type = params.get('parameter_type', 'both')
+            
+            # Determine thresholds to set
+            if parameter_type == 'warning' and warning_value is not None:
+                # Only setting warning, need to get current critical
+                current_params = self.parameter_manager.get_service_parameters(host_name, service_description)
+                current_levels = current_params.get('parameters', {}).get('levels', (80.0, 90.0))
+                critical_value = current_levels[1] if len(current_levels) > 1 else 90.0
+            elif parameter_type == 'critical' and critical_value is not None:
+                # Only setting critical, need to get current warning
+                current_params = self.parameter_manager.get_service_parameters(host_name, service_description)
+                current_levels = current_params.get('parameters', {}).get('levels', (80.0, 90.0))
+                warning_value = current_levels[0] if len(current_levels) > 0 else 80.0
+            elif warning_value is not None and critical_value is not None:
+                # Setting both
+                pass
+            else:
+                return "❌ Please specify warning and/or critical threshold values"
+            
+            # Create simple override
+            comment = params.get('comment') or f"Override thresholds for {service_description} on {host_name}"
+            
+            rule_id = self.parameter_manager.create_simple_override(
+                host_name=host_name,
+                service_name=service_description,
+                warning=warning_value,
+                critical=critical_value,
+                comment=comment
+            )
+            
+            result = f"✅ Created parameter override for {host_name}/{service_description}\n"
+            result += f"⚠️  Warning: {warning_value:.1f}%\n"
+            result += f"❌ Critical: {critical_value:.1f}%\n"
+            result += f"🆔 Rule ID: {rule_id}\n"
+            result += f"💬 Comment: {comment}\n"
+            result += "⏱️  Changes will take effect after next service check cycle"
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error setting service parameters: {e}")
+            return f"❌ Error setting service parameters: {e}"
+    
+    def _handle_create_parameter_rule(self, analysis: Dict[str, Any]) -> str:
+        """Handle creating a new parameter rule."""
+        try:
+            params = analysis.get('parameters', {})
+            service_type = params.get('service_type', 'cpu')
+            comment = params.get('comment', f"Parameter rule for {service_type} services")
+            
+            # Get default parameters for the service type
+            default_params = self.parameter_manager.get_default_parameters(service_type)
+            if not default_params:
+                return f"❌ No default parameters found for service type: {service_type}"
+            
+            # Determine ruleset
+            ruleset_map = self.parameter_manager.PARAMETER_RULESETS.get(service_type, {})
+            ruleset = ruleset_map.get('default')
+            if not ruleset:
+                return f"❌ No ruleset found for service type: {service_type}"
+            
+            # For now, create a general rule - in practice this would need more specific conditions
+            result = f"📋 To create a parameter rule for {service_type} services:\n\n"
+            result += f"🔧 Service Type: {service_type}\n"
+            result += f"📊 Ruleset: {ruleset}\n"
+            result += f"📝 Default Parameters: {default_params}\n\n"
+            result += "ℹ️  Use specific host/service combinations for actual rule creation.\n"
+            result += f"Example: 'set {service_type} warning to 85% for server01'"
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error creating parameter rule: {e}")
+            return f"❌ Error creating parameter rule: {e}"
+    
+    def _handle_list_parameter_rules(self, analysis: Dict[str, Any]) -> str:
+        """Handle listing parameter rules."""
+        try:
+            params = analysis.get('parameters', {})
+            ruleset_name = params.get('ruleset_name')
+            
+            # List available rulesets if no specific ruleset requested
+            if not ruleset_name:
+                rulesets = self.parameter_manager.list_parameter_rulesets()
+                
+                result = f"📋 Available Parameter Rulesets ({len(rulesets)}):\n\n"
+                
+                # Group by category
+                categories = {}
+                for ruleset in rulesets:
+                    ruleset_id = ruleset.get('id', 'Unknown')
+                    # Categorize based on name
+                    if 'cpu' in ruleset_id:
+                        categories.setdefault('CPU', []).append(ruleset_id)
+                    elif 'memory' in ruleset_id:
+                        categories.setdefault('Memory', []).append(ruleset_id)
+                    elif 'filesystem' in ruleset_id:
+                        categories.setdefault('Filesystem', []).append(ruleset_id)
+                    elif 'interface' in ruleset_id or 'network' in ruleset_id:
+                        categories.setdefault('Network', []).append(ruleset_id)
+                    else:
+                        categories.setdefault('Other', []).append(ruleset_id)
+                
+                for category, rulesets_list in categories.items():
+                    result += f"📁 {category}:\n"
+                    for ruleset_id in rulesets_list:
+                        result += f"  📊 {ruleset_id}\n"
+                    result += "\n"
+                
+                result += "💡 Specify a ruleset to see its rules: 'show rules for cpu_utilization_linux'"
+                
+                return result
+            else:
+                # List rules for specific ruleset
+                rules = self.checkmk_client.list_rules(ruleset_name)
+                
+                if not rules:
+                    return f"📋 No rules found for ruleset: {ruleset_name}"
+                
+                result = f"📋 Rules for {ruleset_name} ({len(rules)}):\n\n"
+                
+                for rule in rules[:10]:  # Show first 10 rules
+                    rule_id = rule.get('id', 'Unknown')
+                    extensions = rule.get('extensions', {})
+                    conditions = extensions.get('conditions', {})
+                    properties = extensions.get('properties', {})
+                    
+                    result += f"🔧 Rule {rule_id}\n"
+                    
+                    # Show conditions
+                    if conditions.get('host_name'):
+                        hosts = ', '.join(conditions['host_name'][:3])
+                        if len(conditions['host_name']) > 3:
+                            hosts += f" (and {len(conditions['host_name']) - 3} more)"
+                        result += f"  🖥️  Hosts: {hosts}\n"
+                    
+                    if conditions.get('service_description'):
+                        services = ', '.join(conditions['service_description'][:2])
+                        if len(conditions['service_description']) > 2:
+                            services += f" (and {len(conditions['service_description']) - 2} more)"
+                        result += f"  🔧 Services: {services}\n"
+                    
+                    if properties.get('description'):
+                        desc = properties['description'][:50]
+                        if len(properties['description']) > 50:
+                            desc += "..."
+                        result += f"  💬 Description: {desc}\n"
+                    
+                    result += "\n"
+                
+                if len(rules) > 10:
+                    result += f"... and {len(rules) - 10} more rules"
+                
+                return result
+            
+        except Exception as e:
+            self.logger.error(f"Error listing parameter rules: {e}")
+            return f"❌ Error listing parameter rules: {e}"
+    
+    def _handle_delete_parameter_rule(self, analysis: Dict[str, Any]) -> str:
+        """Handle deleting a parameter rule."""
+        try:
+            params = analysis.get('parameters', {})
+            rule_id = params.get('rule_id')
+            
+            if not rule_id:
+                return "❌ Please specify a rule ID to delete"
+            
+            # Get rule info before deletion
+            try:
+                rule_info = self.checkmk_client.get_rule(rule_id)
+                extensions = rule_info.get('extensions', {})
+                ruleset = extensions.get('ruleset', 'Unknown')
+                conditions = extensions.get('conditions', {})
+            except CheckmkAPIError:
+                ruleset = 'Unknown'
+                conditions = {}
+            
+            # Delete the rule
+            self.parameter_manager.delete_parameter_rule(rule_id)
+            
+            result = f"✅ Deleted parameter rule: {rule_id}\n"
+            result += f"📊 Ruleset: {ruleset}\n"
+            
+            if conditions.get('host_name'):
+                hosts = ', '.join(conditions['host_name'][:3])
+                result += f"🖥️  Affected Hosts: {hosts}\n"
+            
+            result += "⏱️  Changes will take effect after configuration activation"
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting parameter rule: {e}")
+            return f"❌ Error deleting parameter rule: {e}"
+    
+    def _handle_discover_ruleset(self, analysis: Dict[str, Any]) -> str:
+        """Handle discovering the appropriate ruleset for a service."""
+        try:
+            params = analysis.get('parameters', {})
+            host_name = params.get('host_name')
+            service_description = params.get('service_description')
+            
+            if not service_description:
+                return "❌ Please specify a service description"
+            
+            # Discover ruleset
+            ruleset = self.parameter_manager.discover_service_ruleset(host_name or 'unknown', service_description)
+            
+            if not ruleset:
+                return f"❌ Could not determine appropriate ruleset for service: {service_description}"
+            
+            result = f"🔍 Service: {service_description}\n"
+            if host_name:
+                result += f"🖥️  Host: {host_name}\n"
+            result += f"📋 Recommended Ruleset: {ruleset}\n\n"
+            
+            # Show default parameters for this ruleset
+            service_type = 'cpu' if 'cpu' in ruleset else 'memory' if 'memory' in ruleset else 'filesystem' if 'filesystem' in ruleset else 'network'
+            default_params = self.parameter_manager.get_default_parameters(service_type)
+            
+            if default_params:
+                result += "📊 Default Parameters:\n"
+                if 'levels' in default_params:
+                    warning, critical = default_params['levels']
+                    result += f"  ⚠️  Warning: {warning:.1f}%\n"
+                    result += f"  ❌ Critical: {critical:.1f}%\n"
+                
+                if 'average' in default_params:
+                    result += f"  📈 Average: {default_params['average']} min\n"
+            
+            result += f"\n💡 To override parameters: 'set {service_type} warning to 85% for {host_name or 'HOSTNAME'}'"
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error discovering ruleset: {e}")
+            return f"❌ Error discovering ruleset: {e}"

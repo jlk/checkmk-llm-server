@@ -1,0 +1,406 @@
+# Service Parameter Templates and Presets for Checkmk LLM Agent
+
+# Common CPU monitoring templates
+cpu_templates:
+  # Conservative thresholds for production systems
+  conservative:
+    warning: 80
+    critical: 90
+    average: 15
+    description: "Conservative CPU thresholds for production systems"
+    use_case: "Production servers where high CPU might indicate issues"
+    
+  # Aggressive thresholds for high-performance systems
+  aggressive:
+    warning: 85
+    critical: 95
+    average: 10
+    description: "Aggressive CPU thresholds for high-performance systems"
+    use_case: "Systems expected to run at high CPU utilization"
+    
+  # Development/test environment thresholds
+  development:
+    warning: 90
+    critical: 95
+    average: 5
+    description: "Relaxed CPU thresholds for development environments"
+    use_case: "Dev/test systems where high CPU is normal"
+
+# Memory monitoring templates
+memory_templates:
+  # Standard memory thresholds
+  standard:
+    warning: 80
+    critical: 90
+    average: 3
+    handle_zero: true
+    description: "Standard memory usage thresholds"
+    use_case: "General purpose servers and workstations"
+    
+  # Database server memory thresholds
+  database:
+    warning: 85
+    critical: 92
+    average: 5
+    handle_zero: true
+    description: "Memory thresholds optimized for database servers"
+    use_case: "Database servers that typically use high memory"
+    
+  # Cache-heavy application thresholds
+  cache_heavy:
+    warning: 88
+    critical: 94
+    average: 3
+    handle_zero: true
+    description: "Memory thresholds for cache-heavy applications"
+    use_case: "Applications like Redis, Memcached, or web caches"
+
+# Filesystem monitoring templates
+filesystem_templates:
+  # Conservative filesystem thresholds
+  conservative:
+    warning: 80
+    critical: 90
+    magic_normsize: 20
+    magic: 0.8
+    trend_range: 24
+    description: "Conservative filesystem usage thresholds"
+    use_case: "Critical filesystems where space exhaustion is dangerous"
+    
+  # Aggressive filesystem thresholds
+  aggressive:
+    warning: 85
+    critical: 95
+    magic_normsize: 50
+    magic: 0.7
+    trend_range: 48
+    description: "Aggressive filesystem thresholds for large storage"
+    use_case: "Large filesystems with good space management"
+    
+  # Log filesystem thresholds
+  logs:
+    warning: 90
+    critical: 95
+    magic_normsize: 10
+    magic: 0.9
+    trend_range: 12
+    description: "Thresholds optimized for log filesystems"
+    use_case: "Log directories that can be cleaned up quickly"
+    
+  # Backup filesystem thresholds
+  backup:
+    warning: 85
+    critical: 92
+    magic_normsize: 100
+    magic: 0.6
+    trend_range: 72
+    description: "Thresholds for backup storage systems"
+    use_case: "Backup destinations with predictable growth patterns"
+
+# Network interface monitoring templates
+network_templates:
+  # Standard network interface thresholds
+  standard:
+    warning: 80
+    critical: 90
+    speed: "auto"
+    unit: "percent"
+    description: "Standard network utilization thresholds"
+    use_case: "General network interfaces"
+    
+  # High-bandwidth interface thresholds
+  high_bandwidth:
+    warning: 85
+    critical: 95
+    speed: "auto"
+    unit: "percent"
+    description: "Thresholds for high-bandwidth interfaces"
+    use_case: "Backbone links and high-traffic interfaces"
+    
+  # Management interface thresholds
+  management:
+    warning: 70
+    critical: 85
+    speed: "auto"
+    unit: "percent"
+    description: "Conservative thresholds for management interfaces"
+    use_case: "Management networks where congestion affects operations"
+
+# Environment-specific templates
+environment_templates:
+  # Production environment settings
+  production:
+    cpu:
+      warning: 80
+      critical: 90
+      average: 15
+    memory:
+      warning: 80
+      critical: 90
+      average: 5
+    filesystem:
+      warning: 80
+      critical: 90
+      magic_normsize: 20
+      magic: 0.8
+    description: "Production environment parameter set"
+    
+  # Development environment settings
+  development:
+    cpu:
+      warning: 90
+      critical: 95
+      average: 10
+    memory:
+      warning: 85
+      critical: 92
+      average: 3
+    filesystem:
+      warning: 85
+      critical: 95
+      magic_normsize: 10
+      magic: 0.9
+    description: "Development environment parameter set"
+    
+  # Testing environment settings
+  testing:
+    cpu:
+      warning: 85
+      critical: 95
+      average: 5
+    memory:
+      warning: 85
+      critical: 95
+      average: 3
+    filesystem:
+      warning: 90
+      critical: 95
+      magic_normsize: 10
+      magic: 0.9
+    description: "Testing environment parameter set"
+
+# Server role-specific templates
+role_templates:
+  # Web server thresholds
+  web_server:
+    cpu:
+      warning: 85
+      critical: 95
+      average: 10
+    memory:
+      warning: 80
+      critical: 90
+      average: 3
+    filesystem:
+      warning: 85
+      critical: 92
+      magic_normsize: 20
+      magic: 0.8
+    description: "Web server parameter set"
+    services:
+      - "CPU utilization"
+      - "Memory usage" 
+      - "Filesystem /"
+      - "Filesystem /var"
+    
+  # Database server thresholds
+  database_server:
+    cpu:
+      warning: 80
+      critical: 95
+      average: 15
+    memory:
+      warning: 85
+      critical: 92
+      average: 5
+    filesystem:
+      warning: 90
+      critical: 95
+      magic_normsize: 50
+      magic: 0.7
+    description: "Database server parameter set"
+    services:
+      - "CPU utilization"
+      - "Memory usage"
+      - "Filesystem /data"
+      - "Filesystem /logs"
+    
+  # Application server thresholds
+  app_server:
+    cpu:
+      warning: 85
+      critical: 95
+      average: 10
+    memory:
+      warning: 82
+      critical: 92
+      average: 3
+    filesystem:
+      warning: 85
+      critical: 93
+      magic_normsize: 30
+      magic: 0.8
+    description: "Application server parameter set"
+    services:
+      - "CPU utilization"
+      - "Memory usage"
+      - "Filesystem /"
+      - "Filesystem /opt"
+
+# Special use case templates
+special_templates:
+  # Monitoring server (less aggressive to avoid alert storms)
+  monitoring_server:
+    cpu:
+      warning: 85
+      critical: 95
+      average: 20
+    memory:
+      warning: 85
+      critical: 95
+      average: 10
+    filesystem:
+      warning: 85
+      critical: 95
+      magic_normsize: 100
+      magic: 0.6
+    description: "Monitoring server parameter set"
+    
+  # Backup server (storage-focused)
+  backup_server:
+    cpu:
+      warning: 90
+      critical: 95
+      average: 30
+    memory:
+      warning: 80
+      critical: 90
+      average: 5
+    filesystem:
+      warning: 90
+      critical: 95
+      magic_normsize: 500
+      magic: 0.5
+    description: "Backup server parameter set"
+    
+  # Load balancer (network-focused)
+  load_balancer:
+    cpu:
+      warning: 70
+      critical: 85
+      average: 5
+    memory:
+      warning: 75
+      critical: 85
+      average: 3
+    network:
+      warning: 70
+      critical: 85
+    description: "Load balancer parameter set"
+
+# Quick override examples
+quick_overrides:
+  # Simple threshold adjustments
+  cpu_relaxed:
+    ruleset: "cpu_utilization_linux"
+    parameters:
+      levels: [85, 95]
+    description: "Relaxed CPU thresholds"
+    
+  memory_tight:
+    ruleset: "memory_linux"
+    parameters:
+      levels: [75, 85]
+    description: "Tight memory thresholds"
+    
+  disk_generous:
+    ruleset: "filesystems"
+    parameters:
+      levels: [90, 95]
+      magic_normsize: 50
+      magic: 0.7
+    description: "Generous disk space thresholds"
+
+# Template application examples
+application_examples:
+  # Apply production template to a host
+  production_host_setup:
+    command: "Apply production environment template to server01"
+    steps:
+      - "checkmk-agent services params set server01 'CPU utilization' --warning 80 --critical 90"
+      - "checkmk-agent services params set server01 'Memory usage' --warning 80 --critical 90"
+      - "checkmk-agent services params set server01 'Filesystem /' --warning 80 --critical 90"
+    
+  # Apply database server template
+  database_host_setup:
+    command: "Apply database server template to db01"
+    steps:
+      - "checkmk-agent services params set db01 'CPU utilization' --warning 80 --critical 95"
+      - "checkmk-agent services params set db01 'Memory usage' --warning 85 --critical 92"
+      - "checkmk-agent services params set db01 'Filesystem /data' --warning 90 --critical 95"
+    
+  # Quick single service override
+  single_service_override:
+    command: "Override CPU thresholds for high-performance server"
+    steps:
+      - "checkmk-agent services params set perf01 'CPU utilization' --warning 85 --critical 95 --comment 'High-performance server adjustment'"
+
+# Natural language command examples
+natural_language_examples:
+  basic_commands:
+    - "set CPU warning to 85% for server01"
+    - "override disk critical to 95% for database-01"
+    - "show default memory parameters"
+    - "what are the CPU thresholds for web-server?"
+    - "list all parameter rules"
+    - "discover ruleset for CPU utilization on server01"
+  
+  advanced_commands:
+    - "apply conservative CPU thresholds to all production servers"
+    - "set database server memory parameters for db01"
+    - "create filesystem rule for log directories with 95% critical"
+    - "show all rules affecting server01"
+    - "override network thresholds for backbone interfaces"
+
+# Best practices and recommendations
+best_practices:
+  threshold_setting:
+    - "Warning thresholds should be 5-10% below critical thresholds"
+    - "Consider the normal operating range of your services"
+    - "Account for daily/weekly usage patterns"
+    - "Test thresholds in non-production environments first"
+  
+  rule_organization:
+    - "Use descriptive comments for all custom rules"
+    - "Group related rules by server role or environment"
+    - "Document the reasoning behind custom thresholds"
+    - "Review and update thresholds periodically"
+  
+  monitoring_strategy:
+    - "Start with conservative thresholds and adjust based on experience"
+    - "Monitor the effectiveness of your thresholds"
+    - "Use trending data to predict capacity needs"
+    - "Consider seasonal variations in usage patterns"
+
+# Troubleshooting common issues
+troubleshooting:
+  false_positives:
+    description: "Thresholds too aggressive, causing unnecessary alerts"
+    solutions:
+      - "Increase warning/critical percentages"
+      - "Extend averaging periods for volatile metrics"
+      - "Use magic factor for filesystem growth prediction"
+  
+  missed_issues:
+    description: "Thresholds too relaxed, missing real problems"
+    solutions:
+      - "Lower warning/critical percentages"
+      - "Reduce averaging periods for quicker detection"
+      - "Add trend monitoring for early warning"
+  
+  rule_conflicts:
+    description: "Multiple rules affecting the same service"
+    solutions:
+      - "Review rule precedence and conditions"
+      - "Use more specific host/service matching"
+      - "Consolidate overlapping rules"

@@ -84,6 +84,40 @@ class ServiceDiscoveryRequest(BaseModel):
     mode: str = Field(default="refresh", description="Discovery mode", pattern=r'^(refresh|new|remove|fixall|refresh_autochecks)$')
 
 
+class ServiceParameterRequest(BaseModel):
+    """Request model for service parameter operations."""
+    
+    host_name: str = Field(..., description="Target hostname")
+    service_pattern: str = Field(..., description="Service name pattern")
+    ruleset: str = Field(..., description="Check parameter ruleset name")
+    parameters: Dict[str, Any] = Field(..., description="Parameter values")
+    conditions: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Rule conditions")
+    rule_properties: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Rule properties")
+
+
+class ParameterRule(BaseModel):
+    """Model for service parameter rules."""
+    
+    rule_id: str = Field(..., description="Rule identifier")
+    ruleset: str = Field(..., description="Ruleset name")
+    folder: str = Field(..., description="Folder path")
+    value_raw: str = Field(..., description="Raw parameter value as JSON string")
+    conditions: Dict[str, Any] = Field(default_factory=dict, description="Rule conditions")
+    properties: Dict[str, Any] = Field(default_factory=dict, description="Rule properties")
+    effective_parameters: Optional[Dict[str, Any]] = Field(None, description="Parsed effective parameters")
+
+
+class ServiceParameterTemplate(BaseModel):
+    """Template for common service parameter configurations."""
+    
+    service_type: str = Field(..., description="Service type (cpu, memory, filesystem, etc.)")
+    ruleset: str = Field(..., description="Associated ruleset name")
+    default_parameters: Dict[str, Any] = Field(..., description="Default parameter values")
+    parameter_schema: Dict[str, Any] = Field(..., description="Parameter validation schema")
+    description: str = Field(..., description="Template description")
+    examples: List[Dict[str, Any]] = Field(default_factory=list, description="Example configurations")
+
+
 class CheckmkClient:
     """Client for interacting with Checkmk REST API."""
     
@@ -663,6 +697,163 @@ class CheckmkClient:
         self.logger.info(f"Started service discovery for host: {host_name} with mode: {mode}")
         return response
     
+    # Ruleset operations for service parameters
+    
+    def list_rulesets(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        List all available rulesets.
+        
+        Args:
+            category: Optional category filter
+            
+        Returns:
+            List of ruleset objects
+        """
+        params = {}
+        if category:
+            params['group'] = category
+        
+        response = self._make_request(
+            'GET',
+            '/domain-types/ruleset/collections/all',
+            params=params
+        )
+        
+        # Extract ruleset data from response
+        rulesets = response.get('value', [])
+        self.logger.info(f"Retrieved {len(rulesets)} rulesets")
+        return rulesets
+    
+    def get_ruleset_info(self, ruleset_name: str) -> Dict[str, Any]:
+        """
+        Get detailed information about a specific ruleset.
+        
+        Args:
+            ruleset_name: The name of the ruleset
+            
+        Returns:
+            Ruleset information object
+        """
+        response = self._make_request(
+            'GET',
+            f'/objects/ruleset/{ruleset_name}'
+        )
+        
+        self.logger.info(f"Retrieved ruleset info: {ruleset_name}")
+        return response
+    
+    def search_rules_by_host_service(self, host_name: str, 
+                                   service_name: str) -> List[Dict[str, Any]]:
+        """
+        Search for rules that might affect a specific host/service combination.
+        
+        Args:
+            host_name: The hostname
+            service_name: The service description
+            
+        Returns:
+            List of potentially matching rules
+        """
+        # Get all rules and filter client-side since API doesn't support complex filtering
+        all_rules = []
+        
+        # We need to check multiple rulesets that could affect services
+        potential_rulesets = [
+            'cpu_utilization_linux',
+            'cpu_utilization_simple', 
+            'memory_linux',
+            'memory_level_windows',
+            'filesystems',
+            'interfaces',
+            'disk_io'
+        ]
+        
+        for ruleset in potential_rulesets:
+            try:
+                rules = self.list_rules(ruleset)
+                # Filter rules that could match this host/service
+                for rule in rules:
+                    conditions = rule.get('extensions', {}).get('conditions', {})
+                    if self._rule_matches_host_service(conditions, host_name, service_name):
+                        all_rules.append(rule)
+            except CheckmkAPIError:
+                # Ruleset might not exist, continue with others
+                continue
+        
+        self.logger.info(f"Found {len(all_rules)} rules affecting {host_name}/{service_name}")
+        return all_rules
+    
+    def get_effective_parameters(self, host_name: str, 
+                               service_name: str) -> Dict[str, Any]:
+        """
+        Get effective parameters for a service (placeholder - would need service discovery).
+        
+        Args:
+            host_name: The hostname
+            service_name: The service description
+            
+        Returns:
+            Effective parameter information
+        """
+        # This is a placeholder - in practice, you'd need to query the service
+        # discovery or monitoring data to get actual effective parameters
+        rules = self.search_rules_by_host_service(host_name, service_name)
+        
+        return {
+            'host_name': host_name,
+            'service_name': service_name,
+            'affecting_rules': rules,
+            'note': 'This is a placeholder implementation'
+        }
+    
+    def _rule_matches_host_service(self, conditions: Dict[str, Any], 
+                                 host_name: str, service_name: str) -> bool:
+        """
+        Check if rule conditions could match a host/service combination.
+        
+        Args:
+            conditions: Rule conditions
+            host_name: Target hostname
+            service_name: Target service name
+            
+        Returns:
+            True if rule could match
+        """
+        # Check host name conditions
+        host_names = conditions.get('host_name', [])
+        if host_names:
+            host_match = False
+            for pattern in host_names:
+                if pattern.startswith('~'):
+                    # Regex pattern - simplified check
+                    if pattern[1:] in host_name:
+                        host_match = True
+                        break
+                elif pattern == host_name:
+                    host_match = True
+                    break
+            if not host_match:
+                return False
+        
+        # Check service description conditions
+        service_descriptions = conditions.get('service_description', [])
+        if service_descriptions:
+            service_match = False
+            for pattern in service_descriptions:
+                if pattern.startswith('~'):
+                    # Regex pattern - simplified check
+                    if pattern[1:] in service_name:
+                        service_match = True
+                        break
+                elif pattern == service_name:
+                    service_match = True
+                    break
+            if not service_match:
+                return False
+        
+        # If we get here, the rule could match
+        return True
+
     def test_connection(self) -> bool:
         """
         Test the connection to Checkmk API.

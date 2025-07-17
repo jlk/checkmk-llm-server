@@ -773,6 +773,340 @@ def service_stats(ctx):
     click.echo(result)
 
 
+# Service parameter commands
+
+@services.group('params')
+def service_params():
+    """Service parameter management commands."""
+    pass
+
+
+@service_params.command('defaults')
+@click.argument('service_type', required=False, default='cpu')
+@click.pass_context
+def view_default_parameters(ctx, service_type: str):
+    """View default parameters for a service type."""
+    service_manager = ctx.obj.get('service_manager')
+    
+    if not service_manager:
+        click.echo("❌ Service manager not available", err=True)
+        sys.exit(1)
+    
+    # Use parameter manager directly
+    from checkmk_agent.service_parameters import ServiceParameterManager
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    param_manager = ServiceParameterManager(checkmk_client, config)
+    
+    try:
+        default_params = param_manager.get_default_parameters(service_type)
+        
+        if not default_params:
+            click.echo(f"❌ No default parameters found for service type: {service_type}")
+            return
+        
+        click.echo(f"📊 Default Parameters for {service_type.upper()} services:")
+        click.echo()
+        
+        if 'levels' in default_params:
+            warning, critical = default_params['levels']
+            click.echo(f"⚠️  Warning Threshold: {warning}%")
+            click.echo(f"❌ Critical Threshold: {critical}%")
+        
+        if 'average' in default_params:
+            click.echo(f"📈 Averaging Period: {default_params['average']} minutes")
+        
+        if 'magic_normsize' in default_params:
+            click.echo(f"💾 Magic Normsize: {default_params['magic_normsize']} GB")
+        
+        if 'magic' in default_params:
+            click.echo(f"🎯 Magic Factor: {default_params['magic']}")
+        
+        # Show applicable ruleset
+        ruleset_map = param_manager.PARAMETER_RULESETS.get(service_type, {})
+        default_ruleset = ruleset_map.get('default', 'Unknown')
+        click.echo()
+        click.echo(f"📋 Default Ruleset: {default_ruleset}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error viewing default parameters: {e}", err=True)
+        sys.exit(1)
+
+
+@service_params.command('show')
+@click.argument('host_name')
+@click.argument('service_description')
+@click.pass_context
+def view_service_parameters(ctx, host_name: str, service_description: str):
+    """View effective parameters for a specific service."""
+    service_manager = ctx.obj.get('service_manager')
+    
+    if not service_manager:
+        click.echo("❌ Service manager not available", err=True)
+        sys.exit(1)
+    
+    from checkmk_agent.service_parameters import ServiceParameterManager
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    param_manager = ServiceParameterManager(checkmk_client, config)
+    
+    try:
+        param_info = param_manager.get_service_parameters(host_name, service_description)
+        
+        if param_info['source'] == 'default':
+            click.echo(f"📊 Parameters for {host_name}/{service_description}:")
+            click.echo("📋 Using default parameters (no custom rules found)")
+        else:
+            click.echo(f"📊 Effective Parameters for {host_name}/{service_description}:")
+            click.echo()
+            
+            effective_params = param_info['parameters']
+            if 'levels' in effective_params:
+                warning, critical = effective_params['levels']
+                click.echo(f"⚠️  Warning: {warning}%")
+                click.echo(f"❌ Critical: {critical}%")
+            
+            if 'average' in effective_params:
+                click.echo(f"📈 Average: {effective_params['average']} min")
+            
+            if 'magic_normsize' in effective_params:
+                click.echo(f"💾 Magic Normsize: {effective_params['magic_normsize']} GB")
+            
+            primary_rule = param_info.get('primary_rule')
+            if primary_rule:
+                rule_id = primary_rule.get('id', 'Unknown')
+                click.echo()
+                click.echo(f"🔗 Source: Rule {rule_id}")
+            
+            # Show rule precedence if multiple rules
+            all_rules = param_info.get('all_rules', [])
+            if len(all_rules) > 1:
+                click.echo()
+                click.echo(f"📊 Rule Precedence ({len(all_rules)} rules):")
+                for i, rule in enumerate(all_rules[:3], 1):
+                    rule_id = rule.get('id', 'Unknown')
+                    is_primary = i == 1
+                    status = "" if is_primary else " [OVERRIDDEN]"
+                    click.echo(f"{i}. Rule {rule_id}{status}")
+                
+                if len(all_rules) > 3:
+                    click.echo(f"... and {len(all_rules) - 3} more rules")
+        
+    except Exception as e:
+        click.echo(f"❌ Error viewing service parameters: {e}", err=True)
+        sys.exit(1)
+
+
+@service_params.command('set')
+@click.argument('host_name')
+@click.argument('service_description')
+@click.option('--warning', type=float, help='Warning threshold')
+@click.option('--critical', type=float, help='Critical threshold')
+@click.option('--comment', help='Comment for the rule')
+@click.pass_context
+def set_service_parameters(ctx, host_name: str, service_description: str, 
+                          warning: float, critical: float, comment: str):
+    """Set/override parameters for a service."""
+    if not warning and not critical:
+        click.echo("❌ Please specify at least one of --warning or --critical", err=True)
+        sys.exit(1)
+    
+    service_manager = ctx.obj.get('service_manager')
+    
+    if not service_manager:
+        click.echo("❌ Service manager not available", err=True)
+        sys.exit(1)
+    
+    from checkmk_agent.service_parameters import ServiceParameterManager
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    param_manager = ServiceParameterManager(checkmk_client, config)
+    
+    try:
+        # Get current parameters to fill in missing values
+        current_params = param_manager.get_service_parameters(host_name, service_description)
+        current_levels = current_params.get('parameters', {}).get('levels', (80.0, 90.0))
+        
+        # Use provided values or fall back to current/default
+        final_warning = warning if warning is not None else (current_levels[0] if len(current_levels) > 0 else 80.0)
+        final_critical = critical if critical is not None else (current_levels[1] if len(current_levels) > 1 else 90.0)
+        
+        # Validate thresholds
+        if final_warning >= final_critical:
+            click.echo("❌ Warning threshold must be less than critical threshold", err=True)
+            sys.exit(1)
+        
+        # Create override
+        final_comment = comment or f"Override thresholds for {service_description} on {host_name}"
+        
+        rule_id = param_manager.create_simple_override(
+            host_name=host_name,
+            service_name=service_description,
+            warning=final_warning,
+            critical=final_critical,
+            comment=final_comment
+        )
+        
+        click.echo(f"✅ Created parameter override for {host_name}/{service_description}")
+        click.echo(f"⚠️  Warning: {final_warning}%")
+        click.echo(f"❌ Critical: {final_critical}%")
+        click.echo(f"🆔 Rule ID: {rule_id}")
+        click.echo(f"💬 Comment: {final_comment}")
+        click.echo("⏱️  Changes will take effect after next service check cycle")
+        
+    except Exception as e:
+        click.echo(f"❌ Error setting service parameters: {e}", err=True)
+        sys.exit(1)
+
+
+@service_params.command('rules')
+@click.option('--ruleset', help='Show rules for specific ruleset')
+@click.pass_context
+def list_parameter_rules(ctx, ruleset: str):
+    """List parameter rules."""
+    service_manager = ctx.obj.get('service_manager')
+    
+    if not service_manager:
+        click.echo("❌ Service manager not available", err=True)
+        sys.exit(1)
+    
+    from checkmk_agent.service_parameters import ServiceParameterManager
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    param_manager = ServiceParameterManager(checkmk_client, config)
+    
+    try:
+        if not ruleset:
+            # List available rulesets
+            rulesets = param_manager.list_parameter_rulesets()
+            
+            click.echo(f"📋 Available Parameter Rulesets ({len(rulesets)}):")
+            click.echo()
+            
+            # Group by category
+            categories = {}
+            for ruleset_obj in rulesets:
+                ruleset_id = ruleset_obj.get('id', 'Unknown')
+                # Categorize based on name
+                if 'cpu' in ruleset_id:
+                    categories.setdefault('CPU', []).append(ruleset_id)
+                elif 'memory' in ruleset_id:
+                    categories.setdefault('Memory', []).append(ruleset_id)
+                elif 'filesystem' in ruleset_id:
+                    categories.setdefault('Filesystem', []).append(ruleset_id)
+                elif 'interface' in ruleset_id or 'network' in ruleset_id:
+                    categories.setdefault('Network', []).append(ruleset_id)
+                else:
+                    categories.setdefault('Other', []).append(ruleset_id)
+            
+            for category, rulesets_list in categories.items():
+                click.echo(f"📁 {category}:")
+                for ruleset_id in rulesets_list:
+                    click.echo(f"  📊 {ruleset_id}")
+                click.echo()
+            
+            click.echo("💡 Use --ruleset <name> to see rules for a specific ruleset")
+        else:
+            # List rules for specific ruleset
+            rules = checkmk_client.list_rules(ruleset)
+            
+            if not rules:
+                click.echo(f"📋 No rules found for ruleset: {ruleset}")
+                return
+            
+            click.echo(f"📋 Rules for {ruleset} ({len(rules)}):")
+            click.echo()
+            
+            for rule in rules[:10]:  # Show first 10 rules
+                rule_id = rule.get('id', 'Unknown')
+                extensions = rule.get('extensions', {})
+                conditions = extensions.get('conditions', {})
+                properties = extensions.get('properties', {})
+                
+                click.echo(f"🔧 Rule {rule_id}")
+                
+                # Show conditions
+                if conditions.get('host_name'):
+                    hosts = ', '.join(conditions['host_name'][:3])
+                    if len(conditions['host_name']) > 3:
+                        hosts += f" (and {len(conditions['host_name']) - 3} more)"
+                    click.echo(f"  🖥️  Hosts: {hosts}")
+                
+                if conditions.get('service_description'):
+                    services = ', '.join(conditions['service_description'][:2])
+                    if len(conditions['service_description']) > 2:
+                        services += f" (and {len(conditions['service_description']) - 2} more)"
+                    click.echo(f"  🔧 Services: {services}")
+                
+                if properties.get('description'):
+                    desc = properties['description'][:50]
+                    if len(properties['description']) > 50:
+                        desc += "..."
+                    click.echo(f"  💬 Description: {desc}")
+                
+                click.echo()
+            
+            if len(rules) > 10:
+                click.echo(f"... and {len(rules) - 10} more rules")
+        
+    except Exception as e:
+        click.echo(f"❌ Error listing parameter rules: {e}", err=True)
+        sys.exit(1)
+
+
+@service_params.command('discover')
+@click.argument('host_name', required=False)
+@click.argument('service_description')
+@click.pass_context
+def discover_ruleset(ctx, host_name: str, service_description: str):
+    """Discover the appropriate ruleset for a service."""
+    service_manager = ctx.obj.get('service_manager')
+    
+    if not service_manager:
+        click.echo("❌ Service manager not available", err=True)
+        sys.exit(1)
+    
+    from checkmk_agent.service_parameters import ServiceParameterManager
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    param_manager = ServiceParameterManager(checkmk_client, config)
+    
+    try:
+        # Discover ruleset
+        ruleset = param_manager.discover_service_ruleset(host_name or 'unknown', service_description)
+        
+        if not ruleset:
+            click.echo(f"❌ Could not determine appropriate ruleset for service: {service_description}")
+            return
+        
+        click.echo(f"🔍 Service: {service_description}")
+        if host_name:
+            click.echo(f"🖥️  Host: {host_name}")
+        click.echo(f"📋 Recommended Ruleset: {ruleset}")
+        click.echo()
+        
+        # Show default parameters for this ruleset
+        service_type = 'cpu' if 'cpu' in ruleset else 'memory' if 'memory' in ruleset else 'filesystem' if 'filesystem' in ruleset else 'network'
+        default_params = param_manager.get_default_parameters(service_type)
+        
+        if default_params:
+            click.echo("📊 Default Parameters:")
+            if 'levels' in default_params:
+                warning, critical = default_params['levels']
+                click.echo(f"  ⚠️  Warning: {warning}%")
+                click.echo(f"  ❌ Critical: {critical}%")
+            
+            if 'average' in default_params:
+                click.echo(f"  📈 Average: {default_params['average']} min")
+        
+        click.echo()
+        click.echo(f"💡 To override parameters: checkmk-agent services params set {host_name or 'HOSTNAME'} '{service_description}' --warning 85 --critical 95")
+        
+    except Exception as e:
+        click.echo(f"❌ Error discovering ruleset: {e}", err=True)
+        sys.exit(1)
+
+
 @cli.command()
 @click.pass_context
 def stats(ctx):
