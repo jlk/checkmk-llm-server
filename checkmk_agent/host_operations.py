@@ -37,16 +37,15 @@ class HostOperationsManager:
             
         except Exception as e:
             self.logger.error(f"Command processing failed: {e}")
-            return self.llm.format_response(
-                HostOperation.LIST,  # Default operation for error formatting
-                None,
-                success=False,
-                error=str(e)
-            )
+            # Return error message without triggering any operation
+            return f"❌ Error: {str(e)}"
     
     def _execute_operation(self, command: ParsedCommand) -> Any:
         """Execute the parsed command operation."""
-        if command.operation == HostOperation.LIST:
+        if command.operation == HostOperation.SYNTAX_ERROR:
+            raise ValueError(f"Unrecognized command: '{command.raw_text}'. Try 'help' for available commands.")
+        
+        elif command.operation == HostOperation.LIST:
             return self._list_hosts(command.parameters)
         
         elif command.operation == HostOperation.CREATE:

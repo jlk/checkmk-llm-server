@@ -88,14 +88,35 @@ class TestHostOperationsManager:
         )
         mock_llm_client.parse_command.return_value = parsed_command
         mock_checkmk_client.get_host.side_effect = CheckmkAPIError("Host not found", status_code=404)
-        mock_llm_client.format_response.return_value = "Error: Host not found"
         
         result = host_manager.process_command("get nonexistent host")
         
-        assert result == "Error: Host not found"
-        mock_llm_client.format_response.assert_called_once_with(
-            HostOperation.LIST, None, success=False, error="Host not found"
+        # Updated to match new error handling format
+        assert result == "❌ Error: Host not found"
+        # LLM format_response should not be called for errors anymore
+        mock_llm_client.format_response.assert_not_called()
+    
+    def test_process_command_syntax_error(self, host_manager, mock_llm_client, mock_checkmk_client):
+        """Test command processing with syntax error."""
+        # Setup mocks
+        parsed_command = ParsedCommand(
+            operation=HostOperation.SYNTAX_ERROR,
+            parameters={},
+            confidence=0.1,
+            raw_text="blah blah invalid command"
         )
+        mock_llm_client.parse_command.return_value = parsed_command
+        
+        result = host_manager.process_command("blah blah invalid command")
+        
+        # Should return syntax error message without executing any operations
+        assert "❌ Error: Unrecognized command: 'blah blah invalid command'" in result
+        assert "Try 'help' for available commands" in result
+        # No API calls should be made
+        mock_checkmk_client.list_hosts.assert_not_called()
+        mock_checkmk_client.get_host.assert_not_called()
+        # LLM format_response should not be called for syntax errors
+        mock_llm_client.format_response.assert_not_called()
     
     def test_list_hosts_basic(self, host_manager, mock_checkmk_client):
         """Test basic host listing."""

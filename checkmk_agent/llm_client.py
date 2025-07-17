@@ -34,6 +34,7 @@ class HostOperation(Enum):
     DELETE = "delete"
     GET = "get"
     UPDATE = "update"
+    SYNTAX_ERROR = "syntax_error"
     # Rule operations
     LIST_RULES = "list_rules"
     CREATE_RULE = "create_rule"
@@ -298,8 +299,8 @@ Examples:
             
             return ParsedCommand(HostOperation.DELETE, params, 0.7, user_input)
         
-        # Default to list
-        return ParsedCommand(HostOperation.LIST, {}, 0.5, user_input)
+        # Default to syntax error for unrecognized commands
+        return ParsedCommand(HostOperation.SYNTAX_ERROR, {}, 0.1, user_input)
     
     def chat_completion(self, prompt: str) -> str:
         """Get a direct chat completion response using OpenAI."""
@@ -539,7 +540,8 @@ Parse the user input and respond with JSON in this format:
             
             return ParsedCommand(HostOperation.DELETE, params, 0.7, user_input)
         
-        return ParsedCommand(HostOperation.LIST, {}, 0.5, user_input)
+        # Default to syntax error for unrecognized commands
+        return ParsedCommand(HostOperation.SYNTAX_ERROR, {}, 0.1, user_input)
     
     def chat_completion(self, prompt: str) -> str:
         """Get a direct chat completion response using Anthropic Claude."""
