@@ -14,12 +14,16 @@ The project is an active Checkmk LLM Agent implementation with:
 - Complete Checkmk REST API OpenAPI specification (`checkmk-rest-openapi.yaml`)
 - Host management operations (CRUD)
 - Rule management operations (CRUD)
-- **Service status and management operations** (NEW)
+- **Service status and management operations**
 - Natural language processing capabilities
 - CLI interface with interactive mode
-- Error handling and retry logic
+- **Robust error handling with syntax error detection** (UPDATED)
 - Test coverage for core functionality
 - VS Code workspace configuration
+
+## Current Focus
+
+**Interactive Mode Error Handling** - Recently completed comprehensive fix for syntax error handling in interactive mode to prevent unintended command execution and provide better user experience.
 
 ## API Architecture
 
@@ -202,6 +206,7 @@ FILES CHANGED:
 - Conversations should be stored in `docs/conversations/` organized by date (YYYY-MM/)
 - File naming convention: `YYYY-MM-DD-HHMM-[brief-topic-slug].md` 
 - **Timestamp Requirements**:
+  - Use todays date and time
   - Use **UTC timezone** for all timestamps
   - Use **24-hour format** (HHMM) 
   - Timestamp should reflect **conversation start time** (when user sends first substantive message)

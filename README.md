@@ -390,6 +390,7 @@ checkmk_llm_agent/
 ├── docs/                      # Documentation
 ├── examples/                  # Configuration examples
 ├── specs/                     # Technical specifications
+├── tasks/                     # Project-specific task tracking
 ├── venv/                      # Virtual environment (created locally)
 ├── requirements.txt           # Python dependencies
 ├── setup.py                   # Package configuration
