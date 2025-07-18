@@ -89,73 +89,113 @@ def test(ctx):
 @cli.command()
 @click.pass_context
 def interactive(ctx):
-    """Start interactive mode for natural language commands."""
+    """Start enhanced interactive mode for natural language commands."""
     host_manager = ctx.obj.get('host_manager')
+    service_manager = ctx.obj.get('service_manager')
+    checkmk_client = ctx.obj.get('checkmk_client')
     
     if not host_manager:
         click.echo("❌ LLM client not available. Check your API keys in .env file.", err=True)
         sys.exit(1)
     
-    click.echo("🤖 Checkmk LLM Agent - Interactive Mode")
-    click.echo("=" * 40)
-    click.echo("You can ask me to:")
-    click.echo("- List hosts: 'show all hosts', 'list hosts in folder /web'")
-    click.echo("- Create hosts: 'create host server01 in folder /'")
-    click.echo("- Delete hosts: 'delete host server01'")
-    click.echo("- Get host details: 'show details for server01'")
-    click.echo("- List services: 'show services for server01', 'list all services'")
-    click.echo("- Service operations: 'acknowledge CPU load on server01', 'create downtime for disk space'")
-    click.echo("- Service discovery: 'discover services on server01'")
-    click.echo("\nType 'exit' or 'quit' to exit, 'help' for more commands.\n")
+    # Initialize enhanced interactive components
+    from .interactive import ReadlineHandler, CommandParser, HelpSystem, TabCompleter, UIManager
     
-    while True:
-        try:
-            user_input = input("🔧 checkmk> ").strip()
-            
-            if not user_input:
-                continue
-            
-            if user_input.lower() in ['exit', 'quit', 'q']:
-                click.echo("👋 Goodbye!")
+    # Setup components
+    ui_manager = UIManager()
+    help_system = HelpSystem()
+    command_parser = CommandParser()
+    tab_completer = TabCompleter(checkmk_client, help_system)
+    
+    # Setup readline with history and completion
+    with ReadlineHandler() as readline_handler:
+        readline_handler.set_completer(tab_completer.complete)
+        
+        # Print welcome message
+        ui_manager.print_welcome()
+        
+        while True:
+            try:
+                # Get user input with readline support
+                user_input = readline_handler.input_with_prompt(ui_manager.format_prompt()).strip()
+                
+                if not user_input:
+                    continue
+                
+                # Parse the command
+                intent = command_parser.parse_command(user_input)
+                
+                # Handle help requests
+                if intent.is_help_request:
+                    help_text = help_system.show_help(intent.help_topic)
+                    ui_manager.print_help(help_text)
+                    continue
+                
+                # Handle exit commands
+                if intent.command == 'quit':
+                    ui_manager.print_goodbye()
+                    break
+                
+                # Handle special commands
+                if intent.command == 'stats':
+                    result = host_manager.get_host_statistics()
+                    ui_manager.print_info(result)
+                    continue
+                
+                if intent.command == 'test':
+                    result = host_manager.test_connection()
+                    ui_manager.print_info(result)
+                    continue
+                
+                # Handle low confidence commands with suggestions
+                if intent.confidence < 0.6 and intent.suggestions:
+                    error_msg = f"Command not clear: '{user_input}'"
+                    formatted_error = ui_manager.format_error_with_suggestions(error_msg, intent.suggestions)
+                    print(formatted_error)
+                    continue
+                
+                # Route command to appropriate manager
+                # First check if this is clearly a service command based on keywords
+                service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load']
+                is_service_command = any(keyword in user_input.lower() for keyword in service_keywords)
+                
+                # Check if the command has service-related parameters
+                has_service_params = 'service_description' in intent.parameters
+                
+                if is_service_command or has_service_params:
+                    if service_manager:
+                        result = service_manager.process_command(user_input)
+                        ui_manager.print_info(result)
+                    else:
+                        ui_manager.print_error("Service manager not available. Check your configuration.")
+                else:
+                    # Only route to host manager if it's clearly a host command
+                    command_type = command_parser.get_command_type(intent.command, intent.parameters, user_input)
+                    
+                    if command_type == 'host' and host_manager:
+                        result = host_manager.process_command(user_input)
+                        ui_manager.print_info(result)
+                    else:
+                        # Show error instead of defaulting to host operations
+                        ui_manager.print_error(f"Unable to process command: '{user_input}'")
+                        ui_manager.print_info("💡 Try 'help' for available commands or '? <command>' for specific help")
+                
+            except KeyboardInterrupt:
+                ui_manager.print_goodbye()
                 break
-            
-            if user_input.lower() in ['help', 'h']:
-                show_help()
-                continue
-            
-            if user_input.lower() == 'stats':
-                result = host_manager.get_host_statistics()
-                click.echo(result)
-                continue
-            
-            if user_input.lower() == 'test':
-                result = host_manager.test_connection()
-                click.echo(result)
-                continue
-            
-            # Process the command - try service commands first, then host commands
-            service_manager = ctx.obj.get('service_manager')
-            
-            # Check if it's a service-related command
-            service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load']
-            is_service_command = any(keyword in user_input.lower() for keyword in service_keywords)
-            
-            if is_service_command and service_manager:
-                result = service_manager.process_command(user_input)
-                click.echo(result)
-            else:
-                # Default to host operations
-                result = host_manager.process_command(user_input)
-                click.echo(result)
-            
-        except KeyboardInterrupt:
-            click.echo("\n👋 Goodbye!")
-            break
-        except EOFError:
-            click.echo("\n👋 Goodbye!")
-            break
-        except Exception as e:
-            click.echo(f"❌ Error: {e}", err=True)
+            except EOFError:
+                ui_manager.print_goodbye()
+                break
+            except Exception as e:
+                ui_manager.print_error(f"Error: {e}")
+                
+                # Provide helpful suggestions for common errors
+                if "connection" in str(e).lower():
+                    ui_manager.print_info("💡 Try: 'test' to check your connection")
+                elif "not found" in str(e).lower():
+                    ui_manager.print_info("💡 Try: 'list hosts' to see available hosts")
+                elif "permission" in str(e).lower():
+                    ui_manager.print_info("💡 Check your Checkmk user permissions")
 
 
 @cli.group()

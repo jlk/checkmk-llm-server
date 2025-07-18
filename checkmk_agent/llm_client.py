@@ -101,7 +101,7 @@ class OpenAIClient(LLMClient):
 
 Available operations:
 Host operations:
-- list: List all hosts or search for specific hosts
+- list: List all hosts or search for specific hosts (supports search_term for filtering with patterns like "hosts like X", "hosts containing Y", "find hosts matching Z")
 - create: Create a new host (requires folder and host_name)
 - delete: Delete an existing host (requires host_name)
 - get: Get details of a specific host (requires host_name)
@@ -134,6 +134,9 @@ Parse the user input and respond with JSON in this format:
 
 Examples:
 - "list all hosts" -> {"operation": "list", "parameters": {}, "confidence": 0.9}
+- "show hosts like piaware" -> {"operation": "list", "parameters": {"search_term": "piaware"}, "confidence": 0.9}
+- "find hosts containing web" -> {"operation": "list", "parameters": {"search_term": "web"}, "confidence": 0.9}
+- "search hosts matching db" -> {"operation": "list", "parameters": {"search_term": "db"}, "confidence": 0.9}
 - "create host server01 in folder /web" -> {"operation": "create", "parameters": {"host_name": "server01", "folder": "/web"}, "confidence": 0.95}
 - "delete host server01" -> {"operation": "delete", "parameters": {"host_name": "server01"}, "confidence": 0.9}
 - "list rules in host_groups" -> {"operation": "list_rules", "parameters": {"ruleset_name": "host_groups"}, "confidence": 0.9}
@@ -257,8 +260,29 @@ Examples:
         user_input_lower = user_input.lower()
         
         # Simple keyword matching
-        if "list" in user_input_lower or "show" in user_input_lower:
-            return ParsedCommand(HostOperation.LIST, {}, 0.6, user_input)
+        if any(keyword in user_input_lower for keyword in ["list", "show", "find", "search", "like", "containing", "matching", "similar", "called", "named"]):
+            # Try to extract search term for filtering
+            search_term = None
+            search_patterns = [
+                r'(?:hosts?|servers?|machines?)\s+(?:like|containing|matching|similar\s+to)\s+([\w\-\.]+)',
+                r'(?:like|containing|matching|similar\s+to)\s+([\w\-\.]+)',
+                r'(?:with|named?)\s+([\w\-\.]+)',
+                r'(?:called|named)\s+([\w\-\.]+)',
+                r'(?:with\s+name)\s+([\w\-\.]+)'
+            ]
+            
+            for pattern in search_patterns:
+                import re
+                search_match = re.search(pattern, user_input_lower, re.IGNORECASE)
+                if search_match:
+                    search_term = search_match.group(1)
+                    break
+            
+            params = {}
+            if search_term:
+                params["search_term"] = search_term
+            
+            return ParsedCommand(HostOperation.LIST, params, 0.6, user_input)
         elif "create" in user_input_lower or "add" in user_input_lower:
             # Try to extract host name
             words = user_input.split()
@@ -345,7 +369,7 @@ class AnthropicClient(LLMClient):
 
 Available operations:
 Host operations:
-- list: List all hosts or search for specific hosts
+- list: List all hosts or search for specific hosts (supports search_term for filtering with patterns like "hosts like X", "hosts containing Y", "find hosts matching Z")
 - create: Create a new host (requires folder and host_name)
 - delete: Delete an existing host (requires host_name)
 - get: Get details of a specific host (requires host_name)
@@ -374,7 +398,16 @@ Parse the user input and respond with JSON in this format:
         "search_term": "search term (for list)"
     },
     "confidence": 0.0-1.0
-}"""
+}
+
+Examples:
+- "list all hosts" -> {"operation": "list", "parameters": {}, "confidence": 0.9}
+- "show hosts like piaware" -> {"operation": "list", "parameters": {"search_term": "piaware"}, "confidence": 0.9}
+- "find hosts containing web" -> {"operation": "list", "parameters": {"search_term": "web"}, "confidence": 0.9}
+- "search hosts matching db" -> {"operation": "list", "parameters": {"search_term": "db"}, "confidence": 0.9}
+- "create host server01 in folder /web" -> {"operation": "create", "parameters": {"host_name": "server01", "folder": "/web"}, "confidence": 0.95}
+- "delete host server01" -> {"operation": "delete", "parameters": {"host_name": "server01"}, "confidence": 0.9}
+"""
         
         try:
             response = self.client.messages.create(

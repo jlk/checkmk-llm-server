@@ -7,6 +7,7 @@ A Python agent that connects Large Language Models (Claude/ChatGPT) to Checkmk f
 | Operation | CLI Command | Natural Language Example |
 |-----------|-------------|-------------------------|
 | **Host Management** | `hosts list` | `"list all hosts"` |
+| **Host Search** | `hosts list --search piaware` | `"show hosts like piaware"` |
 | **Service Monitoring** | `services list server01` | `"show services for server01"` |
 | **Service Parameters** | `services params set server01 "CPU utilization" --warning 85` | `"set CPU warning to 85% for server01"` |
 | **Problem Management** | `services acknowledge server01 "CPU utilization"` | `"acknowledge CPU load on server01"` |
@@ -22,9 +23,18 @@ A Python agent that connects Large Language Models (Claude/ChatGPT) to Checkmk f
 - ⚙️ **Service Parameters**: Override thresholds and configure service monitoring
 - 📊 **Rule Management**: Create, modify, and delete Checkmk rules
 - 🌐 **Multiple LLM Support**: Works with OpenAI GPT and Anthropic Claude
-- 📊 **Interactive CLI**: Command-line interface with both direct commands and interactive mode
+- 📊 **Enhanced Interactive Mode**: Rich CLI with help system, command history, and tab completion
 - 🔒 **Secure**: Environment-based configuration with credential management
 - 📈 **Comprehensive**: Full support for Checkmk REST API operations
+
+### Interactive Mode Features
+- **Enhanced Help System**: Type `?` for contextual help on all commands
+- **Command History**: Persistent command history with Up/Down arrow navigation
+- **Tab Completion**: Intelligent auto-completion for commands, hosts, and services
+- **Fuzzy Matching**: Automatic correction of typos in commands
+- **Rich Output**: Colored, formatted output with icons and clear status indicators
+- **Natural Language Processing**: Improved understanding of natural language commands
+- **Smart Search**: Natural language search with patterns like "hosts like piaware", "find hosts containing web"
 
 ## Quick Start
 
@@ -195,30 +205,74 @@ python -m checkmk_agent.cli rules create filesystem --folder /web --comment "Web
 python -m checkmk_agent.cli rules delete rule_id_123
 ```
 
-### Interactive Mode Examples
+### Enhanced Interactive Mode
 
-Once in interactive mode, you can use natural language:
+The interactive mode now features enhanced usability with:
+
+- **Enhanced Help System**: Type `?` for help, `? <command>` for specific help
+- **Command History**: Use Up/Down arrows to navigate previous commands
+- **Tab Completion**: Press Tab to autocomplete commands and parameters
+- **Fuzzy Matching**: Commands with typos are automatically corrected
+- **Rich Output**: Colored output and improved formatting
 
 ```
+🔧 checkmk> ?
+🔧 Checkmk LLM Agent - Interactive Mode
+==================================================
+
+🆘 Getting Help:
+  • ?                    - Show this help
+  • ? <command>          - Show help for specific command
+  • Tab                  - Auto-complete commands
+  • Up/Down arrows       - Navigate command history
+
+🔧 checkmk> ? hosts
+🔧 Host Management Commands
+==================================================
+
+📝 Description:
+Commands for managing Checkmk hosts
+
+💡 Examples:
+  🔧 checkmk> list all hosts
+  🔧 checkmk> create host server01 in folder /web with ip 192.168.1.10
+  🔧 checkmk> delete host server01
+
 🔧 checkmk> list all hosts
-Found 5 hosts:
-- web01 (folder: /web)
-- db01 (folder: /database)
-- app01 (folder: /applications)
+📦 Found 5 hosts:
+
+  📦 web01
+     📁 Folder: /web
+     🌐 IP: 192.168.1.10
+
+  📦 db01
+     📁 Folder: /database
+     🌐 IP: 192.168.1.20
 
 🔧 checkmk> create host server02 in folder /web with ip 192.168.1.20
-Successfully created host: server02
+✅ Successfully created host: server02
 
-🔧 checkmk> show details for web01
-Host Details:
-- Name: web01
-- Folder: /web
-- IP Address: 192.168.1.10
-- Cluster: No
-- Offline: No
+🔧 checkmk> show hosts like piaware  # Smart search
+📦 Found 1 host:
 
-🔧 checkmk> delete host server02
-Host deleted successfully.
+  📦 piaware-01
+     📁 Folder: /network
+     🌐 IP: 192.168.1.50
+
+🔧 checkmk> find hosts containing web  # Natural language search
+📦 Found 3 hosts:
+
+  📦 web01
+     📁 Folder: /web
+     🌐 IP: 192.168.1.10
+
+  📦 web02
+     📁 Folder: /web
+     🌐 IP: 192.168.1.11
+
+🔧 checkmk> lst hsts  # Typo gets corrected
+📦 Found 6 hosts:
+...
 ```
 
 **Service Operations:**
