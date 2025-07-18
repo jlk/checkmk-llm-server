@@ -2,56 +2,26 @@
 
 import sys
 from typing import Optional, List, Dict, Any
-from enum import Enum
-
-
-class MessageType(Enum):
-    """Types of messages for formatting."""
-    INFO = "info"
-    SUCCESS = "success"
-    WARNING = "warning"
-    ERROR = "error"
-    HELP = "help"
-    PROMPT = "prompt"
+from .color_manager import ColorManager, MessageType
 
 
 class UIManager:
     """Manages UI formatting and user interaction."""
     
-    def __init__(self, use_colors: bool = True):
+    def __init__(self, theme: str = "default", use_colors: Optional[bool] = None, custom_colors: Optional[Dict[str, str]] = None):
         """Initialize UI manager.
         
         Args:
-            use_colors: Whether to use colored output
+            theme: Color theme to use
+            use_colors: Whether to use colored output (auto-detect if None)
+            custom_colors: Custom color overrides
         """
-        self.use_colors = use_colors and sys.stdout.isatty()
-        
-        # Color codes
-        self.colors = {
-            'reset': '\033[0m',
-            'bold': '\033[1m',
-            'dim': '\033[2m',
-            'red': '\033[31m',
-            'green': '\033[32m',
-            'yellow': '\033[33m',
-            'blue': '\033[34m',
-            'magenta': '\033[35m',
-            'cyan': '\033[36m',
-            'white': '\033[37m',
-            'bg_red': '\033[41m',
-            'bg_green': '\033[42m',
-            'bg_yellow': '\033[43m',
-        }
-        
-        # Message type styling
-        self.message_styles = {
-            MessageType.INFO: {'color': 'blue', 'icon': 'ℹ️'},
-            MessageType.SUCCESS: {'color': 'green', 'icon': '✅'},
-            MessageType.WARNING: {'color': 'yellow', 'icon': '⚠️'},
-            MessageType.ERROR: {'color': 'red', 'icon': '❌'},
-            MessageType.HELP: {'color': 'cyan', 'icon': '🔧'},
-            MessageType.PROMPT: {'color': 'magenta', 'icon': '🔧'},
-        }
+        self.color_manager = ColorManager(
+            theme=theme,
+            use_colors=use_colors,
+            custom_colors=custom_colors
+        )
+        self.use_colors = self.color_manager.use_colors
     
     def colorize(self, text: str, color: str) -> str:
         """Apply color to text.
@@ -63,10 +33,7 @@ class UIManager:
         Returns:
             Colored text or original text if colors disabled
         """
-        if not self.use_colors or color not in self.colors:
-            return text
-        
-        return f"{self.colors[color]}{text}{self.colors['reset']}"
+        return self.color_manager.colorize(text, color)
     
     def format_message(self, message: str, msg_type: MessageType = MessageType.INFO) -> str:
         """Format a message with appropriate styling.
@@ -78,9 +45,8 @@ class UIManager:
         Returns:
             Formatted message
         """
-        style = self.message_styles.get(msg_type, self.message_styles[MessageType.INFO])
-        icon = style['icon']
-        color = style['color']
+        icon = self.color_manager.get_message_icon(msg_type)
+        color = self.color_manager.get_message_color(msg_type)
         
         # Format the message
         if self.use_colors:
@@ -128,10 +94,11 @@ class UIManager:
         Returns:
             Formatted prompt
         """
-        icon = "🔧"
+        icon = self.color_manager.get_message_icon(MessageType.PROMPT)
+        prompt_color = self.color_manager.get_message_color(MessageType.PROMPT)
         
         if self.use_colors:
-            colored_prompt = self.colorize(prompt, 'cyan')
+            colored_prompt = self.colorize(prompt, prompt_color)
             return f"{icon} {colored_prompt}> "
         else:
             return f"{icon} {prompt}> "
@@ -390,3 +357,55 @@ class UIManager:
             return text
         
         return text[:max_length - 3] + "..."
+    
+    # Theme management methods
+    def set_theme(self, theme_name: str) -> bool:
+        """Change current theme.
+        
+        Args:
+            theme_name: Name of theme to set
+            
+        Returns:
+            True if theme was set successfully, False otherwise
+        """
+        return self.color_manager.set_theme(theme_name)
+    
+    def get_current_theme(self) -> str:
+        """Get current theme name.
+        
+        Returns:
+            Current theme name
+        """
+        return self.color_manager.get_current_theme_name()
+    
+    def list_themes(self) -> List[Dict[str, str]]:
+        """List available themes.
+        
+        Returns:
+            List of theme info dictionaries
+        """
+        return self.color_manager.list_themes()
+    
+    def preview_colors(self) -> str:
+        """Generate color preview text.
+        
+        Returns:
+            Formatted preview text showing all colors
+        """
+        return self.color_manager.preview_colors()
+    
+    def test_colors(self) -> str:
+        """Test color combinations.
+        
+        Returns:
+            Test output with various color combinations
+        """
+        return self.color_manager.test_colors()
+    
+    def get_terminal_info(self) -> str:
+        """Get terminal capability information.
+        
+        Returns:
+            Formatted terminal information
+        """
+        return self.color_manager.get_terminal_info()

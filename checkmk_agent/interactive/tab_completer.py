@@ -30,7 +30,21 @@ class TabCompleter:
             'discover', 'find', 'scan',
             'stats', 'statistics',
             'test', 'check',
+            'theme', 'colors',
             'exit', 'quit', 'q'
+        ]
+        
+        # Theme and color commands
+        self.theme_commands = [
+            'theme list', 'theme current', 'theme set'
+        ]
+        
+        self.theme_names = [
+            'default', 'dark', 'light', 'minimal', 'high_contrast', 'colorful'
+        ]
+        
+        self.color_commands = [
+            'colors show', 'colors test', 'colors terminal'
         ]
         
         self.host_related = [
@@ -129,6 +143,11 @@ class TabCompleter:
             if cmd.startswith(text):
                 matches.append(cmd)
         
+        # Theme and color commands
+        for cmd in self.theme_commands + self.color_commands:
+            if cmd.startswith(text):
+                matches.append(cmd)
+        
         # Host and service related words
         for word in self.host_related + self.service_related:
             if word.startswith(text):
@@ -161,6 +180,21 @@ class TabCompleter:
         # Help command completions
         if lower_tokens[0] in ['help', 'h', '?', 'man']:
             return self._complete_help_topics(text)
+        
+        # Theme command completions
+        if lower_tokens[0] == 'theme':
+            if len(tokens) == 1:
+                # Complete theme subcommands
+                return [cmd for cmd in ['list', 'current', 'set'] if cmd.startswith(text)]
+            elif len(tokens) == 2 and lower_tokens[1] == 'set':
+                # Complete theme names
+                return [name for name in self.theme_names if name.startswith(text)]
+        
+        # Color command completions
+        if lower_tokens[0] in ['colors', 'color']:
+            if len(tokens) == 1:
+                # Complete color subcommands
+                return [cmd for cmd in ['show', 'test', 'terminal'] if cmd.startswith(text)]
         
         # Host-related completions
         if any(word in lower_tokens for word in ['host', 'hosts', 'server', 'servers']):

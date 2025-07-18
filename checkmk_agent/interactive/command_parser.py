@@ -110,6 +110,24 @@ class CommandParser:
                 suggestions=[]
             )
         
+        # Handle theme commands
+        if user_input.lower().startswith('theme'):
+            return CommandIntent(
+                command=user_input.lower(),
+                confidence=1.0,
+                parameters={},
+                suggestions=[]
+            )
+        
+        # Handle color commands
+        if user_input.lower().startswith('colors') or user_input.lower().startswith('color '):
+            return CommandIntent(
+                command=user_input.lower(),
+                confidence=1.0,
+                parameters={},
+                suggestions=[]
+            )
+        
         # Parse natural language command
         return self._parse_natural_language(user_input)
     
@@ -361,14 +379,35 @@ class CommandParser:
         if parameters and 'service_description' in parameters:
             return 'service'
         
-        # Check original input for service keywords
+        # Check original input for explicit keywords
         if original_input:
+            original_lower = original_input.lower()
+            
+            # Check for explicit service keywords
             service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load']
-            if any(keyword in original_input.lower() for keyword in service_keywords):
+            if any(keyword in original_lower for keyword in service_keywords):
                 return 'service'
+            
+            # Check for explicit host keywords
+            host_keywords = ['host', 'hosts', 'server', 'servers', 'machine', 'machines']
+            if any(keyword in original_lower for keyword in host_keywords):
+                return 'host'
         
-        # Check command against defined sets
-        if command in self.service_commands:
+        # For ambiguous commands (like 'list'), use context to decide
+        if command == 'list':
+            # If no specific context, default to host for 'list' commands
+            # This handles cases like "list hosts" vs "list services"
+            if original_input:
+                original_lower = original_input.lower()
+                if 'service' in original_lower:
+                    return 'service'
+                elif 'host' in original_lower or not any(s in original_lower for s in ['service']):
+                    return 'host'
+            return 'host'  # Default 'list' to host operations
+        
+        # Check command against defined sets (service-specific commands first)
+        service_only_commands = {'acknowledge', 'downtime', 'discover', 'ack', 'dt'}
+        if command in service_only_commands:
             return 'service'
         elif command in self.host_commands:
             return 'host'

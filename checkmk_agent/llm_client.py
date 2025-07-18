@@ -114,9 +114,15 @@ Rule operations:
 - get_rule: Get details of a specific rule (requires rule_id)
 - move_rule: Move a rule position (requires rule_id, position)
 
+IMPORTANT VALIDATION RULES:
+- For "list" operations, the command must explicitly mention "hosts", "host", "servers", "machines", or be clearly about listing hosts
+- Commands like "list asdflkjasdf", "list invalid_thing", "show potato salad" are INVALID and should return "syntax_error"
+- Only return "list" operation for commands that are clearly about listing hosts or have valid search terms
+- If the command doesn't make sense or mentions invalid/nonsensical targets, return "syntax_error"
+
 Parse the user input and respond with JSON in this format:
 {
-    "operation": "list|create|delete|get|update|list_rules|create_rule|delete_rule|get_rule|move_rule",
+    "operation": "list|create|delete|get|update|list_rules|create_rule|delete_rule|get_rule|move_rule|syntax_error",
     "parameters": {
         "host_name": "hostname (for host operations)",
         "rule_id": "rule ID (for rule operations)",
@@ -133,12 +139,22 @@ Parse the user input and respond with JSON in this format:
 }
 
 Examples:
+VALID commands:
 - "list all hosts" -> {"operation": "list", "parameters": {}, "confidence": 0.9}
+- "list hosts" -> {"operation": "list", "parameters": {}, "confidence": 0.9}
 - "show hosts like piaware" -> {"operation": "list", "parameters": {"search_term": "piaware"}, "confidence": 0.9}
 - "find hosts containing web" -> {"operation": "list", "parameters": {"search_term": "web"}, "confidence": 0.9}
 - "search hosts matching db" -> {"operation": "list", "parameters": {"search_term": "db"}, "confidence": 0.9}
 - "create host server01 in folder /web" -> {"operation": "create", "parameters": {"host_name": "server01", "folder": "/web"}, "confidence": 0.95}
 - "delete host server01" -> {"operation": "delete", "parameters": {"host_name": "server01"}, "confidence": 0.9}
+
+INVALID commands that should return syntax_error:
+- "list asdflkjasdf" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
+- "list invalid_thing" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
+- "show potato salad" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
+- "list nonexistent_resource" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
+
+RULE examples:
 - "list rules in host_groups" -> {"operation": "list_rules", "parameters": {"ruleset_name": "host_groups"}, "confidence": 0.9}
 - "create rule for web servers" -> {"operation": "create_rule", "parameters": {"ruleset": "host_groups", "folder": "/", "value_raw": "{\"group_name\": \"web_servers\"}"}, "confidence": 0.8}
 - "delete rule abc123" -> {"operation": "delete_rule", "parameters": {"rule_id": "abc123"}, "confidence": 0.9}
@@ -382,9 +398,15 @@ Rule operations:
 - get_rule: Get details of a specific rule (requires rule_id)
 - move_rule: Move a rule position (requires rule_id, position)
 
+IMPORTANT VALIDATION RULES:
+- For "list" operations, the command must explicitly mention "hosts", "host", "servers", "machines", or be clearly about listing hosts
+- Commands like "list asdflkjasdf", "list invalid_thing", "show potato salad" are INVALID and should return "syntax_error"
+- Only return "list" operation for commands that are clearly about listing hosts or have valid search terms
+- If the command doesn't make sense or mentions invalid/nonsensical targets, return "syntax_error"
+
 Parse the user input and respond with JSON in this format:
 {
-    "operation": "list|create|delete|get|update|list_rules|create_rule|delete_rule|get_rule|move_rule",
+    "operation": "list|create|delete|get|update|list_rules|create_rule|delete_rule|get_rule|move_rule|syntax_error",
     "parameters": {
         "host_name": "hostname (for host operations)",
         "rule_id": "rule ID (for rule operations)",
@@ -401,12 +423,20 @@ Parse the user input and respond with JSON in this format:
 }
 
 Examples:
+VALID commands:
 - "list all hosts" -> {"operation": "list", "parameters": {}, "confidence": 0.9}
+- "list hosts" -> {"operation": "list", "parameters": {}, "confidence": 0.9}
 - "show hosts like piaware" -> {"operation": "list", "parameters": {"search_term": "piaware"}, "confidence": 0.9}
 - "find hosts containing web" -> {"operation": "list", "parameters": {"search_term": "web"}, "confidence": 0.9}
 - "search hosts matching db" -> {"operation": "list", "parameters": {"search_term": "db"}, "confidence": 0.9}
 - "create host server01 in folder /web" -> {"operation": "create", "parameters": {"host_name": "server01", "folder": "/web"}, "confidence": 0.95}
 - "delete host server01" -> {"operation": "delete", "parameters": {"host_name": "server01"}, "confidence": 0.9}
+
+INVALID commands that should return syntax_error:
+- "list asdflkjasdf" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
+- "list invalid_thing" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
+- "show potato salad" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
+- "list nonexistent_resource" -> {"operation": "syntax_error", "parameters": {}, "confidence": 0.1}
 """
         
         try:

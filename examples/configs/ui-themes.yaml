@@ -1,0 +1,112 @@
+# UI Themes and Color Customization Examples
+# This configuration file demonstrates all available UI customization options
+
+checkmk:
+  server_url: "https://checkmk.example.com"
+  username: "automation"
+  password: "${CHECKMK_PASSWORD}"
+  site: "cmk"
+
+llm:
+  openai_api_key: "${OPENAI_API_KEY}"
+  default_model: "gpt-3.5-turbo"
+
+# ====================
+# UI Configuration
+# ====================
+
+ui:
+  # Available themes: default, dark, light, minimal, high_contrast, colorful
+  theme: "dark"
+  
+  # Enable/disable colored output
+  use_colors: true
+  
+  # Auto-detect terminal capabilities (256-color, RGB support, etc.)
+  auto_detect_terminal: true
+  
+  # Custom color overrides (optional)
+  # These override the theme's default colors
+  custom_colors:
+    info: "bright_blue"      # Information messages
+    success: "bright_green"  # Success messages  
+    warning: "orange"        # Warning messages
+    error: "bright_red"      # Error messages
+    help: "bright_cyan"      # Help messages
+    prompt: "purple"         # Command prompt
+
+# ====================
+# Theme Examples
+# ====================
+
+# Example 1: High contrast theme for accessibility
+# ui:
+#   theme: "high_contrast"
+#   use_colors: true
+#   auto_detect_terminal: true
+
+# Example 2: Minimal theme for cleaner output
+# ui:
+#   theme: "minimal"
+#   use_colors: true
+#   auto_detect_terminal: true
+
+# Example 3: Light theme for light terminals
+# ui:
+#   theme: "light"
+#   use_colors: true
+#   auto_detect_terminal: true
+
+# Example 4: Colorful theme with custom overrides
+# ui:
+#   theme: "colorful"
+#   use_colors: true
+#   auto_detect_terminal: true
+#   custom_colors:
+#     info: "bright_blue"
+#     success: "bright_green"
+#     warning: "orange"
+#     error: "bright_red"
+#     help: "purple"
+#     prompt: "pink"
+
+# Example 5: Disable colors completely
+# ui:
+#   theme: "default"
+#   use_colors: false
+#   auto_detect_terminal: false
+
+# ====================
+# Environment Variable Overrides
+# ====================
+
+# You can also set these via environment variables:
+# export CHECKMK_UI_THEME="dark"
+# export CHECKMK_UI_USE_COLORS="true"
+# export CHECKMK_UI_AUTO_DETECT_TERMINAL="true"
+# export CHECKMK_UI_INFO_COLOR="bright_blue"
+# export CHECKMK_UI_SUCCESS_COLOR="bright_green"
+# export CHECKMK_UI_WARNING_COLOR="orange"
+# export CHECKMK_UI_ERROR_COLOR="bright_red"
+# export CHECKMK_UI_HELP_COLOR="bright_cyan"
+# export CHECKMK_UI_PROMPT_COLOR="purple"
+
+# ====================
+# Available Colors
+# ====================
+
+# Basic colors:
+# - black, red, green, yellow, blue, magenta, cyan, white, gray
+#
+# Bright colors:
+# - bright_black, bright_red, bright_green, bright_yellow
+# - bright_blue, bright_magenta, bright_cyan, bright_white
+#
+# Extended colors (256-color support):
+# - orange, purple, pink, dark_gray, light_gray
+#
+# Text effects:
+# - bold, dim, underline, strikethrough
+
+default_folder: "/"
+log_level: "INFO"

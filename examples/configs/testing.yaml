@@ -14,5 +14,12 @@ llm:
   openai_api_key: "sk-test-key"
   default_model: "gpt-3.5-turbo"
 
+# UI Configuration for testing
+ui:
+  theme: "minimal"  # Reduced output for CI/CD logs
+  use_colors: false  # Disable colors for cleaner CI/CD output
+  auto_detect_terminal: false
+  # No custom colors needed for testing
+
 default_folder: "/testing"
 log_level: "ERROR"

@@ -40,11 +40,21 @@ class LLMConfig(BaseModel):
     default_model: str = Field(default="gpt-3.5-turbo", description="Default LLM model")
 
 
+class UIConfig(BaseModel):
+    """Configuration for UI appearance."""
+    
+    theme: str = Field(default="default", description="Color theme name")
+    use_colors: bool = Field(default=True, description="Enable colored output")
+    auto_detect_terminal: bool = Field(default=True, description="Auto-detect terminal capabilities")
+    custom_colors: Optional[Dict[str, str]] = Field(None, description="Custom color overrides")
+
+
 class AppConfig(BaseModel):
     """Main application configuration."""
     
     checkmk: CheckmkConfig
     llm: LLMConfig
+    ui: UIConfig = Field(default_factory=UIConfig, description="UI configuration")
     default_folder: str = Field(default="/", description="Default folder for host creation")
     log_level: str = Field(default="INFO", description="Logging level")
 
@@ -166,6 +176,19 @@ def load_config(config_file: Optional[Union[str, Path]] = None) -> AppConfig:
             "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
             "default_model": os.getenv("DEFAULT_MODEL"),
         },
+        "ui": {
+            "theme": os.getenv("CHECKMK_UI_THEME"),
+            "use_colors": os.getenv("CHECKMK_UI_USE_COLORS"),
+            "auto_detect_terminal": os.getenv("CHECKMK_UI_AUTO_DETECT_TERMINAL"),
+            "custom_colors": {
+                "info": os.getenv("CHECKMK_UI_INFO_COLOR"),
+                "success": os.getenv("CHECKMK_UI_SUCCESS_COLOR"),
+                "warning": os.getenv("CHECKMK_UI_WARNING_COLOR"),
+                "error": os.getenv("CHECKMK_UI_ERROR_COLOR"),
+                "help": os.getenv("CHECKMK_UI_HELP_COLOR"),
+                "prompt": os.getenv("CHECKMK_UI_PROMPT_COLOR"),
+            }
+        },
         "default_folder": os.getenv("DEFAULT_FOLDER"),
         "log_level": os.getenv("LOG_LEVEL"),
     }
@@ -199,9 +222,33 @@ def load_config(config_file: Optional[Union[str, Path]] = None) -> AppConfig:
         default_model=llm_data.get("default_model", "gpt-3.5-turbo")
     )
     
+    ui_data = final_config.get("ui", {})
+    # Handle boolean environment variables
+    use_colors = ui_data.get("use_colors", True)
+    if isinstance(use_colors, str):
+        use_colors = use_colors.lower() in ('true', '1', 'yes', 'on')
+    
+    auto_detect_terminal = ui_data.get("auto_detect_terminal", True)
+    if isinstance(auto_detect_terminal, str):
+        auto_detect_terminal = auto_detect_terminal.lower() in ('true', '1', 'yes', 'on')
+    
+    # Handle custom colors
+    custom_colors = ui_data.get("custom_colors", {})
+    if custom_colors:
+        # Remove None values from custom colors
+        custom_colors = {k: v for k, v in custom_colors.items() if v is not None}
+    
+    ui_config = UIConfig(
+        theme=ui_data.get("theme", "default"),
+        use_colors=use_colors,
+        auto_detect_terminal=auto_detect_terminal,
+        custom_colors=custom_colors if custom_colors else None
+    )
+    
     return AppConfig(
         checkmk=checkmk_config,
         llm=llm_config,
+        ui=ui_config,
         default_folder=final_config.get("default_folder", "/"),
         log_level=final_config.get("log_level", "INFO")
     )

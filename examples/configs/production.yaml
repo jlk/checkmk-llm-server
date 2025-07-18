@@ -16,5 +16,12 @@ llm:
   anthropic_api_key: "${ANTHROPIC_API_KEY}"
   default_model: "gpt-4"
 
+# UI Configuration for production
+ui:
+  theme: "default"  # Conservative theme for production
+  use_colors: true
+  auto_detect_terminal: true
+  # No custom colors - use theme defaults
+
 default_folder: "/automation"
 log_level: "WARNING"

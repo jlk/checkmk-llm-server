@@ -93,6 +93,7 @@ def interactive(ctx):
     host_manager = ctx.obj.get('host_manager')
     service_manager = ctx.obj.get('service_manager')
     checkmk_client = ctx.obj.get('checkmk_client')
+    app_config = ctx.obj.get('config')
     
     if not host_manager:
         click.echo("❌ LLM client not available. Check your API keys in .env file.", err=True)
@@ -101,8 +102,13 @@ def interactive(ctx):
     # Initialize enhanced interactive components
     from .interactive import ReadlineHandler, CommandParser, HelpSystem, TabCompleter, UIManager
     
-    # Setup components
-    ui_manager = UIManager()
+    # Setup components with UI configuration
+    ui_config = app_config.ui if app_config else None
+    ui_manager = UIManager(
+        theme=ui_config.theme if ui_config else "default",
+        use_colors=ui_config.use_colors if ui_config else None,
+        custom_colors=ui_config.custom_colors if ui_config else None
+    )
     help_system = HelpSystem()
     command_parser = CommandParser()
     tab_completer = TabCompleter(checkmk_client, help_system)
@@ -145,6 +151,55 @@ def interactive(ctx):
                 if intent.command == 'test':
                     result = host_manager.test_connection()
                     ui_manager.print_info(result)
+                    continue
+                
+                # Handle theme commands
+                if intent.command.startswith('theme'):
+                    args = intent.command.split()[1:] if len(intent.command.split()) > 1 else []
+                    if not args:
+                        ui_manager.print_info("Usage: theme [list|set <name>|current]")
+                        continue
+                    
+                    subcommand = args[0].lower()
+                    if subcommand == "list":
+                        themes = ui_manager.list_themes()
+                        ui_manager.print_info("🎨 Available themes:")
+                        for theme in themes:
+                            current = " (current)" if theme['name'] == ui_manager.get_current_theme() else ""
+                            ui_manager.print_info(f"  • {theme['display_name']}{current}: {theme['description']}")
+                    elif subcommand == "set" and len(args) > 1:
+                        theme_name = args[1]
+                        if ui_manager.set_theme(theme_name):
+                            ui_manager.print_success(f"Theme changed to: {theme_name}")
+                        else:
+                            available = [t['name'] for t in ui_manager.list_themes()]
+                            ui_manager.print_error(f"Unknown theme: {theme_name}. Available: {', '.join(available)}")
+                    elif subcommand == "current":
+                        current = ui_manager.get_current_theme()
+                        ui_manager.print_info(f"Current theme: {current}")
+                    else:
+                        ui_manager.print_info("Usage: theme [list|set <name>|current]")
+                    continue
+                
+                # Handle color commands
+                if intent.command.startswith('colors'):
+                    args = intent.command.split()[1:] if len(intent.command.split()) > 1 else []
+                    if not args:
+                        ui_manager.print_info("Usage: colors [show|test|terminal]")
+                        continue
+                    
+                    subcommand = args[0].lower()
+                    if subcommand == "show":
+                        preview = ui_manager.preview_colors()
+                        print(preview)
+                    elif subcommand == "test":
+                        test_output = ui_manager.test_colors()
+                        print(test_output)
+                    elif subcommand == "terminal":
+                        terminal_info = ui_manager.get_terminal_info()
+                        print(terminal_info)
+                    else:
+                        ui_manager.print_info("Usage: colors [show|test|terminal]")
                     continue
                 
                 # Handle low confidence commands with suggestions

@@ -14,5 +14,15 @@ llm:
   openai_api_key: "sk-dev-api-key"
   default_model: "gpt-3.5-turbo"
 
+# UI Configuration for development
+ui:
+  theme: "colorful"  # Vibrant colors for development
+  use_colors: true
+  auto_detect_terminal: true
+  custom_colors:
+    # Override some colors for better development visibility
+    info: "bright_blue"
+    success: "bright_green"
+
 default_folder: "/development"
 log_level: "DEBUG"

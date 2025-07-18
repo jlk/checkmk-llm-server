@@ -26,6 +26,7 @@ class HelpSystem:
             'Host Management': ['list', 'create', 'delete', 'get', 'show'],
             'Service Management': ['services', 'acknowledge', 'downtime', 'discover', 'status'],
             'System': ['help', 'stats', 'test', 'exit', 'quit'],
+            'UI Customization': ['theme', 'colors'],
             'Special': ['?', 'h', 'man']
         }
     
@@ -335,6 +336,41 @@ class HelpSystem:
                 ],
                 related=[],
                 aliases=['quit', 'q']
+            ),
+            
+            'theme': HelpContent(
+                title="Theme Management",
+                description="Manage color themes for the interface",
+                usage=[
+                    "theme list",
+                    "theme set <theme_name>",
+                    "theme current"
+                ],
+                examples=[
+                    "theme list",
+                    "theme set dark",
+                    "theme set high_contrast",
+                    "theme current"
+                ],
+                related=['colors'],
+                aliases=['themes']
+            ),
+            
+            'colors': HelpContent(
+                title="Color Management",
+                description="View and test color settings",
+                usage=[
+                    "colors show",
+                    "colors test",
+                    "colors terminal"
+                ],
+                examples=[
+                    "colors show",
+                    "colors test",
+                    "colors terminal"
+                ],
+                related=['theme'],
+                aliases=['color']
             )
         }
     
