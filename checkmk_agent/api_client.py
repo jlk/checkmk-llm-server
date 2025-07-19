@@ -527,6 +527,41 @@ class CheckmkClient:
         self.logger.info(f"Retrieved {len(services)} services for host: {host_name}")
         return services
     
+    def get_service_monitoring_data(self, host_name: str, service_description: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get service monitoring data including state, output, and performance data.
+        
+        Args:
+            host_name: The hostname
+            service_description: Optional service description filter
+            
+        Returns:
+            List of service monitoring objects with state information
+        """
+        params = {
+            'columns': ['description', 'state', 'plugin_output', 'perf_data', 'check_command']
+        }
+        
+        response = self._make_request(
+            'GET',
+            f'/objects/host/{host_name}/collections/services',
+            params=params
+        )
+        
+        services = response.get('value', [])
+        
+        # Filter by service description if provided
+        if service_description:
+            filtered_services = []
+            for service in services:
+                svc_desc = service.get('extensions', {}).get('description', '')
+                if svc_desc.lower() == service_description.lower():
+                    filtered_services.append(service)
+            services = filtered_services
+        
+        self.logger.info(f"Retrieved {len(services)} service monitoring records for host: {host_name}")
+        return services
+
     def list_all_services(self, host_name: Optional[str] = None, sites: Optional[List[str]] = None,
                          query: Optional[str] = None, columns: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """

@@ -2,7 +2,7 @@
 
 import logging
 import json
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 from datetime import datetime, timedelta
 
 from .api_client import CheckmkClient, CheckmkAPIError
@@ -176,6 +176,9 @@ class ServiceOperationsManager:
         - "list services for server01" -> {{"action": "list_services", "parameters": {{"host_name": "server01"}}}}
         - "show default CPU parameters" -> {{"action": "view_default_parameters", "parameters": {{"service_type": "cpu"}}}}
         - "what are CPU thresholds for server01?" -> {{"action": "view_service_parameters", "parameters": {{"host_name": "server01", "service_description": "CPU utilization"}}}}
+        - "show parameters for \"Temperature Zone 0\" on piaware" -> {{"action": "view_service_parameters", "parameters": {{"host_name": "piaware", "service_description": "Temperature Zone 0"}}}}
+        - "show parameters for CPU on server01" -> {{"action": "view_service_parameters", "parameters": {{"host_name": "server01", "service_description": "CPU"}}}}
+        - "view thresholds for \"Filesystem /\" on server01" -> {{"action": "view_service_parameters", "parameters": {{"host_name": "server01", "service_description": "Filesystem /"}}}}
         - "set CPU warning to 85% for server01" -> {{"action": "set_service_parameters", "parameters": {{"host_name": "server01", "service_description": "CPU utilization", "parameter_type": "warning", "warning_value": 85}}}}
         - "override disk critical to 95% for server01" -> {{"action": "set_service_parameters", "parameters": {{"host_name": "server01", "service_description": "Filesystem", "parameter_type": "critical", "critical_value": 95}}}}
         - "create memory rule for production hosts" -> {{"action": "create_parameter_rule", "parameters": {{"service_type": "memory", "comment": "production hosts rule"}}}}
@@ -660,46 +663,119 @@ Type your question to get detailed instructions for any service operation."""
             if not host_name or not service_description:
                 return "❌ Please specify both host name and service description"
             
-            # Get effective parameters
-            param_info = self.parameter_manager.get_service_parameters(host_name, service_description)
-            
-            if param_info['source'] == 'default':
-                result = f"📊 Parameters for {host_name}/{service_description}:\n"
-                result += "📋 Using default parameters (no custom rules found)\n"
-            else:
-                result = f"📊 Effective Parameters for {host_name}/{service_description}:\n\n"
+            # Try to get actual service monitoring data with real thresholds
+            try:
+                # Get service monitoring data including state, output, and performance data
+                services = self.checkmk_client.get_service_monitoring_data(host_name, service_description)
                 
-                effective_params = param_info['parameters']
-                if 'levels' in effective_params:
-                    warning, critical = effective_params['levels']
-                    result += f"⚠️  Warning: {warning:.1f}%\n"
-                    result += f"❌ Critical: {critical:.1f}%\n"
-                
-                if 'average' in effective_params:
-                    result += f"📈 Average: {effective_params['average']} min\n"
-                
-                if 'magic_normsize' in effective_params:
-                    result += f"💾 Magic Normsize: {effective_params['magic_normsize']} GB\n"
-                
-                primary_rule = param_info.get('primary_rule')
-                if primary_rule:
-                    rule_id = primary_rule.get('id', 'Unknown')
-                    result += f"\n🔗 Source: Rule {rule_id}"
-                
-                # Show rule precedence if multiple rules
-                all_rules = param_info.get('all_rules', [])
-                if len(all_rules) > 1:
-                    result += f"\n\n📊 Rule Precedence ({len(all_rules)} rules):"
-                    for i, rule in enumerate(all_rules[:3], 1):
-                        rule_id = rule.get('id', 'Unknown')
-                        is_primary = i == 1
-                        status = "" if is_primary else " [OVERRIDDEN]"
-                        result += f"\n{i}. Rule {rule_id}{status}"
+                # The API call already filtered by service description
+                if services and len(services) > 0:
+                    target_service = services[0]  # Take the first match
+                    # Debug: Let's see what the service object actually contains
+                    self.logger.debug(f"Service object structure: {target_service}")
                     
-                    if len(all_rules) > 3:
-                        result += f"\n... and {len(all_rules) - 3} more rules"
+                    # Extract real threshold values from monitoring data
+                    # The exact structure depends on what the Checkmk API returns
+                    extensions = target_service.get('extensions', {})
+                    
+                    # Extract monitoring data from the columns we requested
+                    output = extensions.get('plugin_output', '')
+                    perf_data = extensions.get('perf_data', '')
+                    state = extensions.get('state', 0)
+                    check_command = extensions.get('check_command', '')
+                    
+                    result = f"📊 Current Parameters for {host_name}/{service_description}:\n\n"
+                    
+                    # Debug: Show what data we found
+                    if output:
+                        self.logger.debug(f"Found output: {output}")
+                    if perf_data:
+                        self.logger.debug(f"Found perf_data: {perf_data}")
+                    
+                    # If we don't have monitoring data, show what we do have
+                    if not output and not perf_data:
+                        result += "🔍 Service found, but checking available data...\n"
+                        result += f"📋 Service structure: {list(target_service.keys())}\n"
+                        if extensions:
+                            result += f"📋 Extensions available: {list(extensions.keys())}\n"
+                        result += "💡 May need to check service state or use different API endpoint.\n"
+                        return result
+                    
+                    # Parse performance data for thresholds (format: metric=value;warn;crit;min;max)
+                    thresholds_found = False
+                    
+                    if perf_data:
+                        # Parse performance data to extract warning/critical thresholds
+                        metrics = perf_data.split()
+                        for metric in metrics:
+                            if '=' in metric:
+                                parts = metric.split('=')
+                                if len(parts) == 2:
+                                    metric_name = parts[0]
+                                    values = parts[1].split(';')
+                                    if len(values) >= 3:
+                                        current_value = values[0]
+                                        warn_threshold = values[1] if values[1] else None
+                                        crit_threshold = values[2] if values[2] else None
+                                        
+                                        if warn_threshold and crit_threshold:
+                                            # Determine unit from metric name or service description
+                                            unit = ''
+                                            if any(temp_word in service_description.lower() for temp_word in ['temperature', 'temp']):
+                                                unit = '°C'
+                                            elif any(util_word in service_description.lower() for util_word in ['cpu', 'memory', 'disk', 'utilization']):
+                                                unit = '%'
+                                            
+                                            result += f"📈 Metric: {metric_name}\n"
+                                            result += f"📊 Current Value: {current_value}{unit}\n"
+                                            result += f"⚠️  Warning Threshold: {warn_threshold}{unit}\n"
+                                            result += f"❌ Critical Threshold: {crit_threshold}{unit}\n"
+                                            thresholds_found = True
+                                            break
+                    
+                    # If no thresholds in perf_data, try to parse from output text
+                    if not thresholds_found and output:
+                        result += f"📊 Service Status: {output}\n"
+                        
+                        # Look for threshold patterns in output
+                        import re
+                        threshold_patterns = [
+                            r'warn/crit at ([\d.]+)[°%]?[^/]*/?([\d.]+)[°%]?',
+                            r'warning at ([\d.]+)[°%]?.*critical at ([\d.]+)[°%]?',
+                            r'warn: ([\d.]+)[°%]?.*crit: ([\d.]+)[°%]?'
+                        ]
+                        
+                        for pattern in threshold_patterns:
+                            match = re.search(pattern, output, re.IGNORECASE)
+                            if match:
+                                warn_val = match.group(1)
+                                crit_val = match.group(2)
+                                unit = '°C' if 'temperature' in service_description.lower() or 'temp' in service_description.lower() else '%'
+                                result += f"\n⚠️  Warning Threshold: {warn_val}{unit}\n"
+                                result += f"❌ Critical Threshold: {crit_val}{unit}\n"
+                                thresholds_found = True
+                                break
+                    
+                    if thresholds_found:
+                        result += f"\n✅ These are the ACTUAL values from your Checkmk system!"
+                        return result
+                    else:
+                        result += "\n💡 No threshold information found in monitoring data.\n"
+                        result += "   The service may not have warning/critical thresholds configured.\n"
+                        return result
+                
+                else:
+                    result = f"📊 Parameters for {host_name}/{service_description}:\n"
+                    result += f"❌ Service '{service_description}' not found on host '{host_name}'\n"
+                    result += "   Please check the service name and host name.\n"
+                    return result
+                    
+            except CheckmkAPIError as e:
+                self.logger.error(f"Error getting service monitoring data: {e}")
+                result = f"📊 Parameters for {host_name}/{service_description}:\n"
+                result += f"❌ Could not retrieve service monitoring data: {e}\n"
+                return result
             
-            return result
             
         except Exception as e:
             self.logger.error(f"Error viewing service parameters: {e}")

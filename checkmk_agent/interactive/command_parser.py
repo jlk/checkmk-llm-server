@@ -294,6 +294,21 @@ class CommandParser:
         if service_match:
             parameters['service_description'] = service_match.group(1).strip()
         
+        # Extract service names from parameter patterns like "parameters for X on Y" or "parameters for X for Y"
+        param_patterns = [
+            r'(?:parameters?|thresholds?)\s+for\s+["\']?([^"\']+?)["\']?\s+on\s+([\w\-\.]+)',
+            r'(?:parameters?|thresholds?)\s+for\s+["\']?([^"\']+?)["\']?\s+for\s+([\w\-\.]+)',
+            r'(?:parameters?|thresholds?)\s+(?:values?\s+)?for\s+([\w\s]+?)\s+on\s+([\w\-\.]+)',
+            r'(?:parameters?|thresholds?)\s+(?:values?\s+)?for\s+([\w\s]+?)\s+for\s+([\w\-\.]+)'
+        ]
+        
+        for pattern in param_patterns:
+            param_match = re.search(pattern, text, re.IGNORECASE)
+            if param_match:
+                parameters['service_description'] = param_match.group(1).strip()
+                parameters['host_name'] = param_match.group(2).strip()
+                break
+        
         # Extract folder paths
         folder_pattern = r'(?:folder|path)\s+([/\w]+)'
         folder_match = re.search(folder_pattern, text)
@@ -384,7 +399,7 @@ class CommandParser:
             original_lower = original_input.lower()
             
             # Check for explicit service keywords
-            service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load']
+            service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load', 'parameters', 'parameter', 'threshold', 'thresholds']
             if any(keyword in original_lower for keyword in service_keywords):
                 return 'service'
             
