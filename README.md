@@ -4,26 +4,31 @@ A Python agent that connects Large Language Models (Claude/ChatGPT) to Checkmk f
 
 ## What Can It Do?
 
-| Operation | CLI Command | Natural Language Example |
-|-----------|-------------|-------------------------|
-| **Host Management** | `hosts list` | `"list all hosts"` |
-| **Host Search** | `hosts list --search piaware` | `"show hosts like piaware"` |
-| **Service Monitoring** | `services list server01` | `"show services for server01"` |
-| **Service Parameters** | `services params set server01 "CPU utilization" --warning 85` | `"set CPU warning to 85% for server01"` |
-| **Problem Management** | `services acknowledge server01 "CPU utilization"` | `"acknowledge CPU load on server01"` |
-| **Downtime Scheduling** | `services downtime server01 "disk space" --hours 4` | `"create 4 hour downtime for disk space on server01"` |
-| **Rule Management** | `rules create filesystem --folder /web` | `"create filesystem rule for web servers"` |
-| **Discovery** | `services discover server01` | `"discover services on server01"` |
+| Operation                     | CLI Command                                                   | Natural Language Example                              |
+| ----------------------------- | ------------------------------------------------------------- | ----------------------------------------------------- |
+| **Host Management**           | `hosts list`                                                  | `"list all hosts"`                                    |
+| **Host Search**               | `hosts list --search piaware`                                 | `"show hosts like piaware"`                           |
+| **Service Status Monitoring** | `status overview`                                             | `"show health dashboard"`                             |
+| **Problem Analysis**          | `status problems`, `status critical`                         | `"show critical problems"`, `"list warning issues"`  |
+| **Service Monitoring**        | `services list server01`                                      | `"show services for server01"`                        |
+| **Service Parameters**        | `services params set server01 "CPU utilization" --warning 85` | `"set CPU warning to 85% for server01"`               |
+| **Problem Management**        | `services acknowledge server01 "CPU utilization"`             | `"acknowledge CPU load on server01"`                  |
+| **Downtime Scheduling**       | `services downtime server01 "disk space" --hours 4`           | `"create 4 hour downtime for disk space on server01"` |
+| **Rule Management**           | `rules create filesystem --folder /web`                       | `"create filesystem rule for web servers"`            |
+| **Discovery**                 | `services discover server01`                                  | `"discover services on server01"`                     |
 
 ## Features
 
 - 🤖 **Natural Language Interface**: Talk to Checkmk using plain English
+- 📊 **Service Status Monitoring**: Real-time health dashboards with color-coded indicators
+- 🎯 **Problem Analysis**: Intelligent categorization and urgency scoring of service issues
 - 🔧 **Host Management**: List, create, delete, and manage hosts
 - 🚀 **Service Operations**: Monitor, acknowledge, and manage service status
 - ⚙️ **Service Parameters**: Override thresholds and configure service monitoring
 - 📊 **Rule Management**: Create, modify, and delete Checkmk rules
 - 🌐 **Multiple LLM Support**: Works with OpenAI GPT and Anthropic Claude
 - 📊 **Enhanced Interactive Mode**: Rich CLI with help system, command history, and tab completion
+- 🎨 **Rich UI**: Progress bars, health indicators, and color themes
 - 🔒 **Secure**: Environment-based configuration with credential management
 - 📈 **Comprehensive**: Full support for Checkmk REST API operations
 
@@ -173,6 +178,27 @@ python -m checkmk_agent.cli hosts delete server01
 python -m checkmk_agent.cli hosts get server01
 ```
 
+Service status monitoring:
+```bash
+# Service health dashboard
+python -m checkmk_agent.cli status overview
+
+# View critical services only
+python -m checkmk_agent.cli status critical
+
+# Show all service problems  
+python -m checkmk_agent.cli status problems
+
+# Show acknowledged services
+python -m checkmk_agent.cli status acknowledged
+
+# Service status for specific host
+python -m checkmk_agent.cli status host server01
+
+# Detailed service status
+python -m checkmk_agent.cli status service server01 "CPU utilization"
+```
+
 Service operations:
 ```bash
 # List services
@@ -275,6 +301,46 @@ Commands for managing Checkmk hosts
 ...
 ```
 
+**Service Status Monitoring:**
+```
+🔧 checkmk> show health dashboard
+📊 Service Health Dashboard
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🟢 Overall Health: 92.5% [██████████████████░░]
+📈 Total Services: 200
+✅ No problems detected!
+
+📊 Service States:
+  ✅ OK: 185 services
+  ⚠️  WARNING: 12 services
+  ❌ CRITICAL: 3 services
+
+🔧 checkmk> show critical problems
+🔴 Critical Services (3):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ web01/Database Connection
+❌ app02/Memory Usage
+❌ db01/Disk Space /var
+
+🔧 checkmk> show warning issues
+🟡 Warning Services (5):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  web01/CPU utilization
+⚠️  app01/Memory Usage
+⚠️  web02/Load Average
+⚠️  db01/Connections
+⚠️  mail01/Queue Size
+
+🔧 checkmk> health overview
+🟢 Overall Health: 92.5%
+📈 Total Services: 200 
+🚨 3 urgent problem(s) require immediate attention
+💡 15 unacknowledged problem(s) need review
+```
+
 **Service Operations:**
 ```
 🔧 checkmk> list services for web01
@@ -331,6 +397,7 @@ from checkmk_agent.llm_client import create_llm_client
 from checkmk_agent.host_operations import HostOperationsManager
 from checkmk_agent.service_operations import ServiceOperationsManager
 from checkmk_agent.service_parameters import ServiceParameterManager
+from checkmk_agent.service_status import ServiceStatusManager
 
 # Load configuration
 config = load_config()
@@ -343,15 +410,23 @@ llm_client = create_llm_client(config.llm)
 host_manager = HostOperationsManager(checkmk_client, llm_client, config)
 service_manager = ServiceOperationsManager(checkmk_client, llm_client, config)
 parameter_manager = ServiceParameterManager(checkmk_client, config)
+status_manager = ServiceStatusManager(checkmk_client, config)
 
 # Process natural language commands
 result = host_manager.process_command("list all hosts")
 service_result = service_manager.process_command("list services for web01")
 param_result = parameter_manager.get_default_parameters("cpu")
 
+# Service status monitoring
+health_dashboard = status_manager.get_service_health_dashboard()
+status_summary = status_manager.generate_status_summary()
+problem_analysis = status_manager.analyze_service_problems()
+
 print(result)
 print(service_result)
 print(param_result)
+print(f"Health: {status_summary['health_percentage']}%")
+print(f"Problems: {status_summary['problems']}")
 ```
 
 ## Architecture
@@ -362,9 +437,11 @@ The agent consists of several key components:
 - **LLMClient**: Processes natural language using OpenAI or Anthropic APIs
 - **HostOperationsManager**: Host management operations with natural language processing
 - **ServiceOperationsManager**: Service monitoring, acknowledgment, and downtime management
+- **ServiceStatusManager**: Real-time service status monitoring and health dashboards
 - **ServiceParameterManager**: Service parameter and threshold management
 - **RuleOperationsManager**: Checkmk rule creation and management
 - **CLI**: Command-line interface for user interaction
+- **Interactive UI**: Enhanced interactive mode with rich formatting and status visualization
 
 ## API Coverage
 
@@ -386,6 +463,16 @@ Currently supports the following Checkmk operations:
 - ✅ Create service downtime (`POST /domain-types/downtime/collections/service`)
 - ✅ Service discovery (`POST /objects/host/{host_name}/actions/discover_services`)
 - ✅ Service statistics and monitoring
+
+### Service Status Monitoring
+- ✅ Real-time health dashboards with service state distribution
+- ✅ Problem analysis with severity categorization and urgency scoring
+- ✅ Service health percentage calculations
+- ✅ Critical, warning, and unknown service identification
+- ✅ Acknowledged and downtime service tracking
+- ✅ Livestatus query integration for advanced filtering
+- ✅ Rich UI formatting with color-coded status indicators
+- ✅ Natural language status queries
 
 ### Rule Management
 - ✅ List rules (`GET /domain-types/rule/collections/all`)
@@ -430,17 +517,28 @@ cp config.yaml.example config.yaml
 checkmk_llm_agent/
 ├── checkmk_agent/
 │   ├── __init__.py
-│   ├── api_client.py          # Checkmk REST API client
+│   ├── api_client.py          # Checkmk REST API client with status methods
 │   ├── llm_client.py          # LLM integration
 │   ├── host_operations.py     # Host operations logic
 │   ├── service_operations.py  # Service operations logic
+│   ├── service_status.py      # Service status monitoring and health dashboards
 │   ├── service_parameters.py  # Service parameter management
 │   ├── rule_operations.py     # Rule management operations
-│   ├── cli.py                 # Command-line interface
+│   ├── cli.py                 # Command-line interface with status commands
 │   ├── config.py              # Configuration management
 │   ├── logging_utils.py       # Logging utilities
-│   └── utils.py               # Common utilities
-├── tests/                     # Test suite (159 tests)
+│   ├── utils.py               # Common utilities
+│   └── interactive/           # Enhanced interactive mode
+│       ├── __init__.py
+│       ├── color_manager.py   # Color theme management
+│       ├── command_parser.py  # Enhanced command parsing with status routing
+│       ├── help_system.py     # Contextual help system
+│       ├── readline_handler.py # Command history and completion
+│       ├── tab_completer.py   # Tab completion functionality
+│       └── ui_manager.py      # Rich UI formatting with status indicators
+├── tests/                     # Test suite (212+ tests)
+│   ├── test_service_status.py # Service status monitoring tests
+│   └── test_api_client_status.py # API client status method tests
 ├── docs/                      # Documentation
 ├── examples/                  # Configuration examples
 ├── specs/                     # Technical specifications
@@ -458,7 +556,7 @@ Always activate the virtual environment first:
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-Run the full test suite (159 tests):
+Run the full test suite (212+ tests):
 ```bash
 pytest tests/
 ```
@@ -466,6 +564,8 @@ pytest tests/
 Run specific test categories:
 ```bash
 pytest tests/test_api_client.py              # API client tests
+pytest tests/test_api_client_status.py       # API client status method tests
+pytest tests/test_service_status.py          # Service status monitoring tests
 pytest tests/test_host_operations.py         # Host operation tests
 pytest tests/test_service_operations.py      # Service operation tests
 pytest tests/test_service_parameters.py      # Service parameter tests

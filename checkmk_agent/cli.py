@@ -210,30 +210,42 @@ def interactive(ctx):
                     continue
                 
                 # Route command to appropriate manager
-                # First check if this is clearly a service command based on keywords
-                service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load']
-                is_service_command = any(keyword in user_input.lower() for keyword in service_keywords)
+                # Determine command type using the enhanced parser
+                command_type = command_parser.get_command_type(intent.command, intent.parameters, user_input)
                 
-                # Check if the command has service-related parameters
-                has_service_params = 'service_description' in intent.parameters
+                # Check for status-related commands first
+                if command_type == 'status':
+                    # Initialize status manager for this command
+                    from .service_status import ServiceStatusManager
+                    status_manager = ServiceStatusManager(checkmk_client, app_config)
+                    
+                    try:
+                        # Process status commands
+                        result = process_status_command(user_input, status_manager, intent)
+                        ui_manager.print_info(result)
+                    except Exception as e:
+                        ui_manager.print_error(f"Status command error: {e}")
                 
-                if is_service_command or has_service_params:
+                # Route to service manager for service operations
+                elif command_type == 'service':
                     if service_manager:
                         result = service_manager.process_command(user_input)
                         ui_manager.print_info(result)
                     else:
                         ui_manager.print_error("Service manager not available. Check your configuration.")
-                else:
-                    # Only route to host manager if it's clearly a host command
-                    command_type = command_parser.get_command_type(intent.command, intent.parameters, user_input)
-                    
-                    if command_type == 'host' and host_manager:
+                
+                # Route to host manager for host operations
+                elif command_type == 'host':
+                    if host_manager:
                         result = host_manager.process_command(user_input)
                         ui_manager.print_info(result)
                     else:
-                        # Show error instead of defaulting to host operations
-                        ui_manager.print_error(f"Unable to process command: '{user_input}'")
-                        ui_manager.print_info("💡 Try 'help' for available commands or '? <command>' for specific help")
+                        ui_manager.print_error("Host manager not available. Check your configuration.")
+                
+                else:
+                    # Show error for unrecognized commands
+                    ui_manager.print_error(f"Unable to process command: '{user_input}'")
+                    ui_manager.print_info("💡 Try 'help' for available commands or '? <command>' for specific help")
                 
             except KeyboardInterrupt:
                 ui_manager.print_goodbye()
@@ -1220,6 +1232,1116 @@ def stats(ctx):
     
     result = host_manager.get_host_statistics()
     click.echo(result)
+
+
+@cli.group()
+def status():
+    """Service status monitoring commands."""
+    pass
+
+
+@status.command('overview')
+@click.option('--format', type=click.Choice(['table', 'json', 'detailed']), default='detailed', 
+              help='Output format (default: detailed)')
+@click.pass_context
+def status_overview(ctx, format: str):
+    """Show comprehensive service health dashboard."""
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    
+    try:
+        from .service_status import ServiceStatusManager
+        status_manager = ServiceStatusManager(checkmk_client, config)
+        
+        dashboard = status_manager.get_service_health_dashboard()
+        
+        if format == 'json':
+            import json
+            click.echo(json.dumps(dashboard, indent=2))
+            return
+        
+        # Display detailed dashboard
+        overall_health = dashboard['overall_health']
+        problem_analysis = dashboard['problem_analysis']
+        
+        click.echo("📊 Service Health Dashboard")
+        click.echo("━" * 80)
+        click.echo()
+        
+        # Overall health section
+        health_pct = overall_health['health_percentage']
+        total_services = overall_health['total_services']
+        problems = overall_health['problems']
+        
+        health_icon = "🟢" if health_pct >= 95 else "🟡" if health_pct >= 90 else "🟠" if health_pct >= 80 else "🔴"
+        click.echo(f"🏥 Overall Health: {health_pct:.1f}% {health_icon}")
+        click.echo(f"📈 Total Services: {total_services}")
+        
+        if problems > 0:
+            click.echo(f"⚠️  Problems: {problems} services need attention")
+        else:
+            click.echo("✅ No problems detected!")
+        click.echo()
+        
+        # Service state distribution
+        states = overall_health['states']
+        click.echo("📊 Service States:")
+        click.echo(f"  ✅ OK: {states['ok']} services")
+        if states['warning'] > 0:
+            click.echo(f"  ⚠️  WARNING: {states['warning']} services")
+        if states['critical'] > 0:
+            click.echo(f"  ❌ CRITICAL: {states['critical']} services")
+        if states['unknown'] > 0:
+            click.echo(f"  ❓ UNKNOWN: {states['unknown']} services")
+        click.echo()
+        
+        # Critical issues
+        critical_issues = problem_analysis.get('critical', [])
+        if critical_issues:
+            click.echo("🔥 Critical Issues:")
+            for issue in critical_issues[:5]:  # Show top 5
+                host = issue['host_name']
+                service = issue['description']
+                output = issue['output'][:60] + '...' if len(issue['output']) > 60 else issue['output']
+                ack_icon = "🔕" if issue['acknowledged'] else ""
+                downtime_icon = "⏸️" if issue['in_downtime'] else ""
+                click.echo(f"  ❌ {host}/{service} {ack_icon}{downtime_icon}")
+                if output:
+                    click.echo(f"     {output}")
+            if len(critical_issues) > 5:
+                click.echo(f"     ... and {len(critical_issues) - 5} more critical issues")
+            click.echo()
+        
+        # Warning issues
+        warning_issues = problem_analysis.get('warning', [])
+        if warning_issues:
+            click.echo("⚠️  Warning Issues:")
+            for issue in warning_issues[:3]:  # Show top 3
+                host = issue['host_name']
+                service = issue['description']
+                ack_icon = "🔕" if issue['acknowledged'] else ""
+                downtime_icon = "⏸️" if issue['in_downtime'] else ""
+                click.echo(f"  ⚠️  {host}/{service} {ack_icon}{downtime_icon}")
+            if len(warning_issues) > 3:
+                click.echo(f"     ... and {len(warning_issues) - 3} more warnings")
+            click.echo()
+        
+        # Recommendations
+        if dashboard.get('urgent_problems'):
+            urgent_count = len(dashboard['urgent_problems'])
+            click.echo(f"🚨 {urgent_count} urgent problem(s) require immediate attention")
+            click.echo("   Use 'checkmk-agent status critical' for details")
+            click.echo()
+        
+        unhandled = dashboard.get('needs_attention', 0)
+        if unhandled > 0:
+            click.echo(f"💡 {unhandled} unacknowledged problem(s) need review")
+            click.echo("   Use 'checkmk-agent status problems' to see all issues")
+        
+    except Exception as e:
+        click.echo(f"❌ Error generating status overview: {e}", err=True)
+        sys.exit(1)
+
+
+@status.command('problems')
+@click.option('--host', help='Filter by hostname')
+@click.option('--format', type=click.Choice(['table', 'json', 'detailed']), default='table',
+              help='Output format (default: table)')
+@click.pass_context
+def status_problems(ctx, host: Optional[str], format: str):
+    """Show all service problems (WARNING, CRITICAL, UNKNOWN)."""
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    
+    try:
+        from .service_status import ServiceStatusManager
+        status_manager = ServiceStatusManager(checkmk_client, config)
+        
+        analysis = status_manager.analyze_service_problems(host)
+        
+        if format == 'json':
+            import json
+            click.echo(json.dumps(analysis, indent=2))
+            return
+        
+        total_problems = analysis['total_problems']
+        
+        if total_problems == 0:
+            click.echo("🎉 No service problems detected!")
+            if host:
+                click.echo(f"   All services on host '{host}' are OK")
+            else:
+                click.echo("   All services across all hosts are OK")
+            return
+        
+        click.echo(f"🚨 Service Problems Report")
+        if host:
+            click.echo(f"   Host: {host}")
+        click.echo(f"   Total Problems: {total_problems}")
+        click.echo("━" * 60)
+        click.echo()
+        
+        categories = analysis['categories']
+        
+        # Critical issues
+        critical_issues = categories.get('critical_issues', [])
+        if critical_issues:
+            click.echo(f"❌ CRITICAL ({len(critical_issues)}):")
+            for service_key in critical_issues:
+                click.echo(f"  🔴 {service_key}")
+            click.echo()
+        
+        # Warning issues  
+        warning_issues = categories.get('warning_issues', [])
+        if warning_issues:
+            click.echo(f"⚠️  WARNING ({len(warning_issues)}):")
+            for service_key in warning_issues:
+                click.echo(f"  🟡 {service_key}")
+            click.echo()
+        
+        # Problem categories
+        disk_problems = categories.get('disk_problems', [])
+        if disk_problems:
+            click.echo(f"💾 Disk/Storage Issues ({len(disk_problems)}):")
+            for service_key in disk_problems[:5]:
+                click.echo(f"  💾 {service_key}")
+            if len(disk_problems) > 5:
+                click.echo(f"     ... and {len(disk_problems) - 5} more")
+            click.echo()
+        
+        network_problems = categories.get('network_problems', [])
+        if network_problems:
+            click.echo(f"🌐 Network Issues ({len(network_problems)}):")
+            for service_key in network_problems[:5]:
+                click.echo(f"  🌐 {service_key}")
+            if len(network_problems) > 5:
+                click.echo(f"     ... and {len(network_problems) - 5} more")
+            click.echo()
+        
+        # Show recommendations
+        recommendations = analysis.get('recommendations', [])
+        if recommendations:
+            click.echo("💡 Recommendations:")
+            for rec in recommendations:
+                click.echo(f"  • {rec}")
+            click.echo()
+        
+        unhandled_count = analysis.get('unhandled_count', 0)
+        if unhandled_count > 0:
+            click.echo(f"📋 {unhandled_count} problem(s) are unacknowledged and not in downtime")
+            click.echo("   Consider acknowledging or creating downtime for ongoing issues")
+        
+    except Exception as e:
+        click.echo(f"❌ Error listing service problems: {e}", err=True)
+        sys.exit(1)
+
+
+@status.command('host')
+@click.argument('host_name')
+@click.option('--format', type=click.Choice(['table', 'json', 'detailed', 'dashboard']), default='detailed',
+              help='Output format (default: detailed)')
+@click.option('--dashboard', is_flag=True, help='Show enhanced dashboard view')
+@click.option('--problems-only', is_flag=True, help='Show only services with problems')
+@click.option('--critical-only', is_flag=True, help='Show only critical services')
+@click.option('--category', type=click.Choice(['disk', 'network', 'performance', 'connectivity', 'monitoring', 'other']),
+              help='Filter by problem category')
+@click.option('--sort-by', type=click.Choice(['severity', 'name', 'state']), default='severity',
+              help='Sort services by (default: severity)')
+@click.option('--compact', is_flag=True, help='Show compact output without details')
+@click.option('--no-ok-services', is_flag=True, help='Hide OK services from output')
+@click.option('--limit', type=int, help='Limit number of services shown')
+@click.pass_context
+def status_host(ctx, host_name: str, format: str, dashboard: bool, problems_only: bool, 
+                critical_only: bool, category: str, sort_by: str, compact: bool, 
+                no_ok_services: bool, limit: int):
+    """Show service status for a specific host."""
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    
+    try:
+        from .service_status import ServiceStatusManager
+        status_manager = ServiceStatusManager(checkmk_client, config)
+        
+        # Use enhanced dashboard if requested
+        if dashboard or format == 'dashboard':
+            host_dashboard = status_manager.get_host_status_dashboard(host_name)
+            
+            if format == 'json':
+                import json
+                click.echo(json.dumps(host_dashboard, indent=2))
+                return
+            
+            # Use UI manager for rich formatting
+            from .interactive.ui_manager import UIManager
+            ui_manager = UIManager()
+            formatted_output = ui_manager.format_host_status_dashboard(host_dashboard)
+            click.echo(formatted_output)
+            return
+        
+        # Original detailed view
+        host_status = status_manager.get_service_status_details(host_name, None)
+        
+        if format == 'json':
+            import json
+            click.echo(json.dumps(host_status, indent=2))
+            return
+        
+        if not host_status.get('found', True):
+            click.echo(f"❌ Host '{host_name}' not found or has no services")
+            return
+        
+        services = host_status.get('services', [])
+        
+        # Apply filtering options
+        if problems_only or critical_only or category or no_ok_services:
+            filtered_services = []
+            
+            for service in services:
+                extensions = service.get('extensions', {})
+                state = extensions.get('state', 0)
+                description = extensions.get('description', '').lower()
+                output = extensions.get('plugin_output', '').lower()
+                
+                # Apply filters
+                if critical_only and state != 2:
+                    continue
+                
+                if problems_only and state == 0:
+                    continue
+                
+                if no_ok_services and state == 0:
+                    continue
+                
+                if category:
+                    if not _service_matches_category(description, output, category):
+                        continue
+                
+                filtered_services.append(service)
+            
+            services = filtered_services
+            # Update host_status with filtered services
+            host_status['services'] = services
+        
+        # Apply sorting
+        if sort_by:
+            services = _sort_services(services, sort_by)
+            host_status['services'] = services
+        
+        # Apply limit
+        if limit and limit > 0:
+            services = services[:limit]
+            host_status['services'] = services
+        
+        service_count = len(services)
+        
+        click.echo(f"🖥️  Service Status for Host: {host_name}")
+        click.echo(f"   Total Services: {service_count}")
+        click.echo("━" * 60)
+        click.echo()
+        
+        # Group services by state
+        states = {'ok': [], 'warning': [], 'critical': [], 'unknown': []}
+        
+        for service in services:
+            extensions = service.get('extensions', {})
+            state = extensions.get('state', 0)
+            description = extensions.get('description', 'Unknown')
+            acknowledged = extensions.get('acknowledged', 0) > 0
+            in_downtime = extensions.get('scheduled_downtime_depth', 0) > 0
+            output = extensions.get('plugin_output', '')
+            
+            service_info = {
+                'description': description,
+                'acknowledged': acknowledged,
+                'in_downtime': in_downtime,
+                'output': output[:80] + '...' if len(output) > 80 else output
+            }
+            
+            if state == 0:
+                states['ok'].append(service_info)
+            elif state == 1:
+                states['warning'].append(service_info)
+            elif state == 2:
+                states['critical'].append(service_info)
+            elif state == 3:
+                states['unknown'].append(service_info)
+        
+        # Display by state (problems first)
+        if compact:
+            # Compact mode - just show service names with icons
+            if states['critical']:
+                click.echo(f"❌ CRITICAL ({len(states['critical'])}):")
+                for svc in states['critical']:
+                    ack_icon = " 🔕" if svc['acknowledged'] else ""
+                    downtime_icon = " ⏸️" if svc['in_downtime'] else ""
+                    click.echo(f"  🔴 {svc['description']}{ack_icon}{downtime_icon}")
+                click.echo()
+            
+            if states['warning']:
+                click.echo(f"⚠️  WARNING ({len(states['warning'])}):")
+                for svc in states['warning']:
+                    ack_icon = " 🔕" if svc['acknowledged'] else ""
+                    downtime_icon = " ⏸️" if svc['in_downtime'] else ""
+                    click.echo(f"  🟡 {svc['description']}{ack_icon}{downtime_icon}")
+                click.echo()
+            
+            if states['unknown']:
+                click.echo(f"❓ UNKNOWN ({len(states['unknown'])}):")
+                for svc in states['unknown']:
+                    ack_icon = " 🔕" if svc['acknowledged'] else ""
+                    downtime_icon = " ⏸️" if svc['in_downtime'] else ""
+                    click.echo(f"  🟤 {svc['description']}{ack_icon}{downtime_icon}")
+                click.echo()
+            
+            if states['ok'] and not no_ok_services:
+                display_count = min(5, len(states['ok']))
+                click.echo(f"✅ OK ({len(states['ok'])}) - showing first {display_count}:")
+                for svc in states['ok'][:display_count]:
+                    click.echo(f"  🟢 {svc['description']}")
+                if len(states['ok']) > display_count:
+                    click.echo(f"     ... and {len(states['ok']) - display_count} more OK services")
+        else:
+            # Detailed mode - show full output
+            if states['critical']:
+                click.echo(f"❌ CRITICAL ({len(states['critical'])}):")
+                for svc in states['critical']:
+                    ack_icon = " 🔕" if svc['acknowledged'] else ""
+                    downtime_icon = " ⏸️" if svc['in_downtime'] else ""
+                    click.echo(f"  🔴 {svc['description']}{ack_icon}{downtime_icon}")
+                    if svc['output']:
+                        click.echo(f"     {svc['output']}")
+                click.echo()
+            
+            if states['warning']:
+                click.echo(f"⚠️  WARNING ({len(states['warning'])}):")
+                for svc in states['warning']:
+                    ack_icon = " 🔕" if svc['acknowledged'] else ""
+                    downtime_icon = " ⏸️" if svc['in_downtime'] else ""
+                    click.echo(f"  🟡 {svc['description']}{ack_icon}{downtime_icon}")
+                    if svc['output']:
+                        click.echo(f"     {svc['output']}")
+                click.echo()
+            
+            if states['unknown']:
+                click.echo(f"❓ UNKNOWN ({len(states['unknown'])}):")
+                for svc in states['unknown']:
+                    ack_icon = " 🔕" if svc['acknowledged'] else ""
+                    downtime_icon = " ⏸️" if svc['in_downtime'] else ""
+                    click.echo(f"  🟤 {svc['description']}{ack_icon}{downtime_icon}")
+                click.echo()
+            
+            if states['ok'] and not no_ok_services:
+                click.echo(f"✅ OK ({len(states['ok'])}):")
+                for svc in states['ok'][:10]:  # Show first 10 OK services
+                    click.echo(f"  🟢 {svc['description']}")
+                if len(states['ok']) > 10:
+                    click.echo(f"     ... and {len(states['ok']) - 10} more OK services")
+        
+        # Summary
+        problem_count = len(states['critical']) + len(states['warning']) + len(states['unknown'])
+        if problem_count == 0:
+            click.echo()
+            click.echo(f"🎉 All {service_count} services on {host_name} are OK!")
+        else:
+            click.echo()
+            click.echo(f"📊 Summary: {problem_count} problem(s), {len(states['ok'])} OK")
+        
+    except Exception as e:
+        click.echo(f"❌ Error getting host status: {e}", err=True)
+        sys.exit(1)
+
+
+@status.command('service')
+@click.argument('host_name')
+@click.argument('service_description')
+@click.option('--format', type=click.Choice(['table', 'json', 'detailed']), default='detailed',
+              help='Output format (default: detailed)')
+@click.pass_context
+def status_service(ctx, host_name: str, service_description: str, format: str):
+    """Show detailed status for a specific service."""
+    checkmk_client = ctx.obj['checkmk_client']
+    config = ctx.obj['config']
+    
+    try:
+        from .service_status import ServiceStatusManager
+        status_manager = ServiceStatusManager(checkmk_client, config)
+        
+        service_details = status_manager.get_service_status_details(host_name, service_description)
+        
+        if format == 'json':
+            import json
+            click.echo(json.dumps(service_details, indent=2))
+            return
+        
+        if not service_details.get('found'):
+            click.echo(f"❌ Service '{service_description}' not found on host '{host_name}'")
+            return
+        
+        state = service_details['state']
+        state_name = service_details['state_name']
+        acknowledged = service_details['acknowledged']
+        in_downtime = service_details['in_downtime']
+        output = service_details['plugin_output']
+        analysis = service_details['analysis']
+        
+        # State icon
+        state_icons = {0: "🟢", 1: "🟡", 2: "🔴", 3: "🟤"}
+        state_icon = state_icons.get(state, "❓")
+        
+        click.echo(f"📊 Service Status Details")
+        click.echo("━" * 50)
+        click.echo(f"🖥️  Host: {host_name}")
+        click.echo(f"🔧 Service: {service_description}")
+        click.echo(f"{state_icon} State: {state_name}")
+        
+        if acknowledged:
+            click.echo("🔕 Acknowledged: Yes")
+        if in_downtime:
+            click.echo("⏸️  In Downtime: Yes")
+        
+        click.echo(f"⏰ Last Check: {analysis.get('last_check_ago', 'Unknown')}")
+        
+        if analysis.get('is_problem'):
+            severity = analysis.get('severity', 'Unknown')
+            urgency = analysis.get('urgency_score', 0)
+            click.echo(f"⚡ Severity: {severity}")
+            click.echo(f"🎯 Urgency Score: {urgency}/10")
+            
+            if analysis.get('requires_action'):
+                click.echo("🚨 Requires Action: Yes (unacknowledged problem)")
+            else:
+                click.echo("✅ Handled: Problem is acknowledged or in downtime")
+        
+        click.echo()
+        click.echo("💬 Service Output:")
+        if output:
+            # Format output nicely
+            lines = output.split('\n')
+            for line in lines[:5]:  # Show first 5 lines
+                click.echo(f"   {line}")
+            if len(lines) > 5:
+                click.echo(f"   ... and {len(lines) - 5} more lines")
+        else:
+            click.echo("   No output available")
+        
+        # Show action suggestions
+        if analysis.get('requires_action'):
+            click.echo()
+            click.echo("💡 Suggested Actions:")
+            click.echo(f"   • Acknowledge: checkmk-agent services acknowledge {host_name} '{service_description}'")
+            click.echo(f"   • Create downtime: checkmk-agent services downtime {host_name} '{service_description}' --hours 2")
+        
+    except Exception as e:
+        click.echo(f"❌ Error getting service status: {e}", err=True)
+        sys.exit(1)
+
+
+@status.command('critical')
+@click.option('--host', help='Filter by hostname')
+@click.option('--format', type=click.Choice(['table', 'json', 'list']), default='list',
+              help='Output format (default: list)')
+@click.pass_context  
+def status_critical(ctx, host: Optional[str], format: str):
+    """Show only critical services."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        critical_services = checkmk_client.get_services_by_state(2, host)  # State 2 = CRITICAL
+        
+        if format == 'json':
+            import json
+            click.echo(json.dumps(critical_services, indent=2))
+            return
+        
+        if not critical_services:
+            if host:
+                click.echo(f"🎉 No critical services found on host: {host}")
+            else:
+                click.echo("🎉 No critical services found!")
+            return
+        
+        click.echo(f"🔴 Critical Services ({len(critical_services)}):")
+        if host:
+            click.echo(f"   Host Filter: {host}")
+        click.echo("━" * 60)
+        click.echo()
+        
+        for service in critical_services:
+            extensions = service.get('extensions', {})
+            host_name = extensions.get('host_name', 'Unknown')
+            description = extensions.get('description', 'Unknown')
+            output = extensions.get('plugin_output', '')
+            acknowledged = extensions.get('acknowledged', 0) > 0
+            in_downtime = extensions.get('scheduled_downtime_depth', 0) > 0
+            
+            # Status indicators
+            ack_icon = " 🔕" if acknowledged else ""
+            downtime_icon = " ⏸️" if in_downtime else ""
+            
+            click.echo(f"❌ {host_name}/{description}{ack_icon}{downtime_icon}")
+            
+            if output:
+                # Show first line of output
+                first_line = output.split('\n')[0]
+                if len(first_line) > 70:
+                    first_line = first_line[:67] + "..."
+                click.echo(f"   {first_line}")
+            click.echo()
+        
+        # Show summary with action suggestions
+        unhandled = len([s for s in critical_services 
+                        if not (s.get('extensions', {}).get('acknowledged', 0) > 0 or 
+                               s.get('extensions', {}).get('scheduled_downtime_depth', 0) > 0)])
+        
+        if unhandled > 0:
+            click.echo(f"🚨 {unhandled} critical service(s) need immediate attention!")
+            click.echo("💡 Consider acknowledging ongoing issues or creating downtime for maintenance")
+        else:
+            click.echo("✅ All critical services are acknowledged or in planned downtime")
+        
+    except Exception as e:
+        click.echo(f"❌ Error listing critical services: {e}", err=True)
+        sys.exit(1)
+
+
+@status.command('acknowledged')
+@click.option('--format', type=click.Choice(['table', 'json', 'list']), default='list',
+              help='Output format (default: list)')
+@click.pass_context
+def status_acknowledged(ctx, format: str):
+    """Show acknowledged service problems."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        ack_services = checkmk_client.get_acknowledged_services()
+        
+        if format == 'json':
+            import json
+            click.echo(json.dumps(ack_services, indent=2))
+            return
+        
+        if not ack_services:
+            click.echo("📋 No acknowledged service problems found")
+            return
+        
+        click.echo(f"🔕 Acknowledged Service Problems ({len(ack_services)}):")
+        click.echo("━" * 60)
+        click.echo()
+        
+        for service in ack_services:
+            extensions = service.get('extensions', {})
+            host_name = extensions.get('host_name', 'Unknown')
+            description = extensions.get('description', 'Unknown')
+            state = extensions.get('state', 0)
+            output = extensions.get('plugin_output', '')
+            
+            # State icon
+            state_icons = {0: "🟢", 1: "🟡", 2: "🔴", 3: "🟤"}
+            state_icon = state_icons.get(state, "❓")
+            
+            click.echo(f"{state_icon} {host_name}/{description} 🔕")
+            
+            if output:
+                first_line = output.split('\n')[0]
+                if len(first_line) > 70:
+                    first_line = first_line[:67] + "..."
+                click.echo(f"   {first_line}")
+            click.echo()
+        
+        click.echo("💡 Acknowledged problems are being tracked but notifications are suppressed")
+        
+    except Exception as e:
+        click.echo(f"❌ Error listing acknowledged services: {e}", err=True)
+        sys.exit(1)
+
+
+@status.command('downtime')
+@click.option('--format', type=click.Choice(['table', 'json', 'list']), default='list',
+              help='Output format (default: list)')
+@click.pass_context
+def status_downtime(ctx, format: str):
+    """Show services currently in scheduled downtime."""
+    checkmk_client = ctx.obj['checkmk_client']
+    
+    try:
+        downtime_services = checkmk_client.get_services_in_downtime()
+        
+        if format == 'json':
+            import json
+            click.echo(json.dumps(downtime_services, indent=2))
+            return
+        
+        if not downtime_services:
+            click.echo("📋 No services currently in scheduled downtime")
+            return
+        
+        click.echo(f"⏸️  Services in Scheduled Downtime ({len(downtime_services)}):")
+        click.echo("━" * 60)
+        click.echo()
+        
+        for service in downtime_services:
+            extensions = service.get('extensions', {})
+            host_name = extensions.get('host_name', 'Unknown')
+            description = extensions.get('description', 'Unknown')
+            state = extensions.get('state', 0)
+            downtime_depth = extensions.get('scheduled_downtime_depth', 0)
+            
+            # State icon
+            state_icons = {0: "🟢", 1: "🟡", 2: "🔴", 3: "🟤"}
+            state_icon = state_icons.get(state, "❓")
+            
+            depth_info = f" (depth: {downtime_depth})" if downtime_depth > 1 else ""
+            click.echo(f"{state_icon} {host_name}/{description} ⏸️ {depth_info}")
+        
+        click.echo()
+        click.echo("💡 Services in downtime suppress notifications during maintenance windows")
+        
+    except Exception as e:
+        click.echo(f"❌ Error listing services in downtime: {e}", err=True)
+        sys.exit(1)
+
+
+def process_status_command(user_input: str, status_manager, intent) -> str:
+    """
+    Process natural language status commands using the ServiceStatusManager.
+    
+    Args:
+        user_input: Original user input
+        status_manager: ServiceStatusManager instance
+        intent: Parsed command intent
+        
+    Returns:
+        Formatted status response
+    """
+    user_lower = user_input.lower()
+    
+    # Dashboard/overview commands
+    if any(keyword in user_lower for keyword in ['dashboard', 'overview', 'health']):
+        dashboard = status_manager.get_service_health_dashboard()
+        return format_dashboard_output(dashboard)
+    
+    # Check for specific critical patterns first (before general problems)
+    if any(pattern in user_lower for pattern in ['critical problems', 'critical issues', 'show critical', 'list critical']):
+        host_filter = intent.parameters.get('host_name')
+        critical_services = status_manager.find_services_by_criteria({'state': 2, 'host_filter': host_filter})
+        return format_critical_services_output(critical_services, host_filter)
+    
+    # Check for specific warning patterns
+    if any(pattern in user_lower for pattern in ['warning problems', 'warning issues', 'show warning', 'list warning']):
+        host_filter = intent.parameters.get('host_name')
+        warning_services = status_manager.find_services_by_criteria({'state': 1, 'host_filter': host_filter})
+        return format_warning_services_output(warning_services, host_filter)
+    
+    # General problem analysis commands (after specific patterns)
+    if any(keyword in user_lower for keyword in ['problems', 'issues', 'errors']) and not any(specific in user_lower for specific in ['critical', 'warning']):
+        host_filter = intent.parameters.get('host_name')
+        analysis = status_manager.analyze_service_problems(host_filter)
+        return format_problems_output(analysis, host_filter)
+    
+    # Critical services commands (fallback for just "critical")
+    if 'critical' in user_lower and not any(word in user_lower for word in ['problems', 'issues']):
+        host_filter = intent.parameters.get('host_name')
+        critical_services = status_manager.find_services_by_criteria({'state': 2, 'host_filter': host_filter})
+        return format_critical_services_output(critical_services, host_filter)
+    
+    # Acknowledged services commands
+    if 'acknowledged' in user_lower:
+        ack_services = status_manager.find_services_by_criteria({'acknowledged': True})
+        return format_acknowledged_services_output(ack_services)
+    
+    # Downtime services commands
+    if 'downtime' in user_lower:
+        downtime_services = status_manager.find_services_by_criteria({'in_downtime': True})
+        return format_downtime_services_output(downtime_services)
+    
+    # Host-specific status commands
+    host_name = intent.parameters.get('host_name')
+    if host_name:
+        service_name = intent.parameters.get('service_description')
+        if service_name:
+            # Specific service status
+            details = status_manager.get_service_status_details(host_name, service_name)
+            return format_service_details_output(details)
+        else:
+            # Check if this is a request for enhanced dashboard
+            original_input = getattr(intent, 'original_input', '').lower()
+            if any(keyword in original_input for keyword in ['dashboard', 'health', 'enhanced', 'detailed']):
+                # Use enhanced dashboard for richer analysis
+                from .interactive.ui_manager import UIManager
+                ui_manager = UIManager()
+                host_dashboard = status_manager.get_host_status_dashboard(host_name)
+                return ui_manager.format_host_status_dashboard(host_dashboard)
+            else:
+                # All services on host (original format)
+                host_status = status_manager.get_service_status_details(host_name, None)
+                return format_host_status_output(host_status)
+    
+    # Default to general summary
+    summary = status_manager.generate_status_summary()
+    return format_status_summary_output(summary)
+
+
+def format_dashboard_output(dashboard: dict) -> str:
+    """Format service health dashboard for display."""
+    overall_health = dashboard['overall_health']
+    problem_analysis = dashboard['problem_analysis']
+    
+    result = "📊 Service Health Dashboard\n"
+    result += "━" * 50 + "\n\n"
+    
+    # Overall health
+    health_pct = overall_health['health_percentage']
+    total_services = overall_health['total_services']
+    problems = overall_health['problems']
+    
+    health_icon = "🟢" if health_pct >= 95 else "🟡" if health_pct >= 90 else "🟠" if health_pct >= 80 else "🔴"
+    result += f"🏥 Overall Health: {health_pct:.1f}% {health_icon}\n"
+    result += f"📈 Total Services: {total_services}\n"
+    
+    if problems > 0:
+        result += f"⚠️  Problems: {problems} services need attention\n"
+    else:
+        result += "✅ No problems detected!\n"
+    result += "\n"
+    
+    # Service states
+    states = overall_health['states']
+    result += "📊 Service States:\n"
+    result += f"  ✅ OK: {states['ok']} services\n"
+    if states['warning'] > 0:
+        result += f"  ⚠️  WARNING: {states['warning']} services\n"
+    if states['critical'] > 0:
+        result += f"  ❌ CRITICAL: {states['critical']} services\n"
+    if states['unknown'] > 0:
+        result += f"  ❓ UNKNOWN: {states['unknown']} services\n"
+    
+    # Critical issues
+    critical_issues = problem_analysis.get('critical', [])
+    if critical_issues:
+        result += "\n🔥 Critical Issues:\n"
+        for issue in critical_issues[:5]:
+            host = issue['host_name']
+            service = issue['description']
+            ack_icon = "🔕" if issue['acknowledged'] else ""
+            downtime_icon = "⏸️" if issue['in_downtime'] else ""
+            result += f"  ❌ {host}/{service} {ack_icon}{downtime_icon}\n"
+        if len(critical_issues) > 5:
+            result += f"     ... and {len(critical_issues) - 5} more critical issues\n"
+    
+    return result
+
+
+def format_problems_output(analysis: dict, host_filter: str = None) -> str:
+    """Format service problems analysis for display."""
+    total_problems = analysis['total_problems']
+    
+    if total_problems == 0:
+        result = "🎉 No service problems detected!\n"
+        if host_filter:
+            result += f"   All services on host '{host_filter}' are OK"
+        else:
+            result += "   All services across all hosts are OK"
+        return result
+    
+    result = "🚨 Service Problems Report\n"
+    if host_filter:
+        result += f"   Host: {host_filter}\n"
+    result += f"   Total Problems: {total_problems}\n"
+    result += "━" * 40 + "\n\n"
+    
+    categories = analysis['categories']
+    
+    # Critical issues
+    critical_issues = categories.get('critical_issues', [])
+    if critical_issues:
+        result += f"❌ CRITICAL ({len(critical_issues)}):\n"
+        for service_key in critical_issues[:10]:
+            result += f"  🔴 {service_key}\n"
+        if len(critical_issues) > 10:
+            result += f"     ... and {len(critical_issues) - 10} more\n"
+        result += "\n"
+    
+    # Warning issues
+    warning_issues = categories.get('warning_issues', [])
+    if warning_issues:
+        result += f"⚠️  WARNING ({len(warning_issues)}):\n"
+        for service_key in warning_issues[:10]:
+            result += f"  🟡 {service_key}\n"
+        if len(warning_issues) > 10:
+            result += f"     ... and {len(warning_issues) - 10} more\n"
+        result += "\n"
+    
+    # Recommendations
+    recommendations = analysis.get('recommendations', [])
+    if recommendations:
+        result += "💡 Recommendations:\n"
+        for rec in recommendations:
+            result += f"  • {rec}\n"
+    
+    return result
+
+
+def format_critical_services_output(services: list, host_filter: str = None) -> str:
+    """Format critical services list for display."""
+    if not services:
+        if host_filter:
+            return f"🎉 No critical services found on host: {host_filter}"
+        else:
+            return "🎉 No critical services found!"
+    
+    result = f"🔴 Critical Services ({len(services)}):\n"
+    if host_filter:
+        result += f"   Host Filter: {host_filter}\n"
+    result += "━" * 40 + "\n\n"
+    
+    for service in services:
+        extensions = service.get('extensions', {})
+        host_name = extensions.get('host_name', 'Unknown')
+        description = extensions.get('description', 'Unknown')
+        acknowledged = extensions.get('acknowledged', 0) > 0
+        in_downtime = extensions.get('scheduled_downtime_depth', 0) > 0
+        
+        ack_icon = " 🔕" if acknowledged else ""
+        downtime_icon = " ⏸️" if in_downtime else ""
+        result += f"❌ {host_name}/{description}{ack_icon}{downtime_icon}\n"
+    
+    return result
+
+
+def format_warning_services_output(services: list, host_filter: str = None) -> str:
+    """Format warning services list for display."""
+    if not services:
+        if host_filter:
+            return f"🎉 No warning services found on host: {host_filter}"
+        else:
+            return "🎉 No warning services found!"
+    
+    result = f"🟡 Warning Services ({len(services)}):\n"
+    if host_filter:
+        result += f"   Host Filter: {host_filter}\n"
+    result += "━" * 40 + "\n\n"
+    
+    for service in services:
+        extensions = service.get('extensions', {})
+        host_name = extensions.get('host_name', 'Unknown')
+        description = extensions.get('description', 'Unknown')
+        acknowledged = extensions.get('acknowledged', 0) > 0
+        in_downtime = extensions.get('scheduled_downtime_depth', 0) > 0
+        
+        ack_icon = " 🔕" if acknowledged else ""
+        downtime_icon = " ⏸️" if in_downtime else ""
+        result += f"⚠️  {host_name}/{description}{ack_icon}{downtime_icon}\n"
+    
+    return result
+
+
+def format_acknowledged_services_output(services: list) -> str:
+    """Format acknowledged services list for display."""
+    if not services:
+        return "📋 No acknowledged service problems found"
+    
+    result = f"🔕 Acknowledged Service Problems ({len(services)}):\n"
+    result += "━" * 40 + "\n\n"
+    
+    for service in services:
+        extensions = service.get('extensions', {})
+        host_name = extensions.get('host_name', 'Unknown')
+        description = extensions.get('description', 'Unknown')
+        state = extensions.get('state', 0)
+        
+        state_icons = {0: "🟢", 1: "🟡", 2: "🔴", 3: "🟤"}
+        state_icon = state_icons.get(state, "❓")
+        result += f"{state_icon} {host_name}/{description} 🔕\n"
+    
+    return result
+
+
+def format_downtime_services_output(services: list) -> str:
+    """Format services in downtime list for display."""
+    if not services:
+        return "📋 No services currently in scheduled downtime"
+    
+    result = f"⏸️  Services in Scheduled Downtime ({len(services)}):\n"
+    result += "━" * 40 + "\n\n"
+    
+    for service in services:
+        extensions = service.get('extensions', {})
+        host_name = extensions.get('host_name', 'Unknown')
+        description = extensions.get('description', 'Unknown')
+        state = extensions.get('state', 0)
+        
+        state_icons = {0: "🟢", 1: "🟡", 2: "🔴", 3: "🟤"}
+        state_icon = state_icons.get(state, "❓")
+        result += f"{state_icon} {host_name}/{description} ⏸️\n"
+    
+    return result
+
+
+def format_service_details_output(details: dict) -> str:
+    """Format detailed service status for display."""
+    if not details.get('found'):
+        return f"❌ Service '{details.get('service_description')}' not found on host '{details.get('host_name')}'"
+    
+    state = details['state']
+    state_name = details['state_name']
+    host_name = details['host_name']
+    service_description = details['service_description']
+    acknowledged = details['acknowledged']
+    in_downtime = details['in_downtime']
+    output = details['plugin_output']
+    analysis = details['analysis']
+    
+    state_icons = {0: "🟢", 1: "🟡", 2: "🔴", 3: "🟤"}
+    state_icon = state_icons.get(state, "❓")
+    
+    result = f"📊 Service Status Details\n"
+    result += "━" * 30 + "\n"
+    result += f"🖥️  Host: {host_name}\n"
+    result += f"🔧 Service: {service_description}\n"
+    result += f"{state_icon} State: {state_name}\n"
+    
+    if acknowledged:
+        result += "🔕 Acknowledged: Yes\n"
+    if in_downtime:
+        result += "⏸️  In Downtime: Yes\n"
+    
+    result += f"⏰ Last Check: {analysis.get('last_check_ago', 'Unknown')}\n"
+    
+    if analysis.get('is_problem'):
+        severity = analysis.get('severity', 'Unknown')
+        urgency = analysis.get('urgency_score', 0)
+        result += f"⚡ Severity: {severity}\n"
+        result += f"🎯 Urgency Score: {urgency}/10\n"
+    
+    if output:
+        result += f"\n💬 Output: {output[:100]}"
+        if len(output) > 100:
+            result += "..."
+    
+    return result
+
+
+def _service_matches_category(description: str, output: str, category: str) -> bool:
+    """Check if a service matches the specified problem category."""
+    category_keywords = {
+        'disk': ['disk', 'filesystem', 'storage', 'mount', 'space', 'df'],
+        'network': ['network', 'interface', 'ping', 'port', 'tcp', 'udp', 'connection'],
+        'performance': ['cpu', 'memory', 'load', 'performance', 'utilization', 'usage'],
+        'connectivity': ['connection', 'timeout', 'refused', 'unreachable', 'down'],
+        'monitoring': ['check_mk', 'agent', 'monitoring', 'snmp', 'checkmk'],
+        'other': []  # Will match anything not in other categories
+    }
+    
+    if category == 'other':
+        # Check if it doesn't match any other category
+        for cat, keywords in category_keywords.items():
+            if cat != 'other' and any(keyword in description or keyword in output for keyword in keywords):
+                return False
+        return True
+    
+    keywords = category_keywords.get(category, [])
+    return any(keyword in description or keyword in output for keyword in keywords)
+
+
+def _sort_services(services: list, sort_by: str) -> list:
+    """Sort services by the specified criteria."""
+    if sort_by == 'severity':
+        # Sort by state (critical first), then by name
+        state_priority = {2: 0, 1: 1, 3: 2, 0: 3}  # Critical, Warning, Unknown, OK
+        return sorted(services, key=lambda s: (
+            state_priority.get(s.get('extensions', {}).get('state', 0), 3),
+            s.get('extensions', {}).get('description', '').lower()
+        ))
+    elif sort_by == 'name':
+        # Sort alphabetically by service description
+        return sorted(services, key=lambda s: s.get('extensions', {}).get('description', '').lower())
+    elif sort_by == 'state':
+        # Sort by state value (0=OK, 1=WARNING, 2=CRITICAL, 3=UNKNOWN)
+        return sorted(services, key=lambda s: s.get('extensions', {}).get('state', 0))
+    else:
+        return services
+
+
+def format_host_status_output(host_status: dict) -> str:
+    """Format host service status for display."""
+    if not host_status.get('found', True):
+        return f"❌ Host '{host_status.get('host_name')}' not found or has no services"
+    
+    host_name = host_status['host_name']
+    services = host_status.get('services', [])
+    service_count = len(services)
+    
+    result = f"🖥️  Service Status for Host: {host_name}\n"
+    result += f"   Total Services: {service_count}\n"
+    result += "━" * 40 + "\n\n"
+    
+    # Group by state
+    states = {'ok': 0, 'warning': 0, 'critical': 0, 'unknown': 0}
+    problem_services = []
+    
+    for service in services:
+        extensions = service.get('extensions', {})
+        state = extensions.get('state', 0)
+        description = extensions.get('description', 'Unknown')
+        
+        if state == 0:
+            states['ok'] += 1
+        elif state == 1:
+            states['warning'] += 1
+            problem_services.append(f"⚠️  {description}")
+        elif state == 2:
+            states['critical'] += 1
+            problem_services.append(f"❌ {description}")
+        elif state == 3:
+            states['unknown'] += 1
+            problem_services.append(f"❓ {description}")
+    
+    # Show summary
+    result += f"📊 Summary:\n"
+    result += f"  ✅ OK: {states['ok']} services\n"
+    if states['warning'] > 0:
+        result += f"  ⚠️  WARNING: {states['warning']} services\n"
+    if states['critical'] > 0:
+        result += f"  ❌ CRITICAL: {states['critical']} services\n"
+    if states['unknown'] > 0:
+        result += f"  ❓ UNKNOWN: {states['unknown']} services\n"
+    
+    # Show problem services
+    if problem_services:
+        result += f"\n🚨 Problem Services:\n"
+        for svc in problem_services[:10]:
+            result += f"  {svc}\n"
+        if len(problem_services) > 10:
+            result += f"     ... and {len(problem_services) - 10} more\n"
+    else:
+        result += f"\n🎉 All {service_count} services on {host_name} are OK!"
+    
+    return result
+
+
+def format_status_summary_output(summary: dict) -> str:
+    """Format status summary for display."""
+    total_services = summary['total_services']
+    health_pct = summary['health_percentage']
+    problems = summary['problems']
+    status_icon = summary['status_icon']
+    status_message = summary['status_message']
+    
+    result = f"📊 Status Summary\n"
+    result += "━" * 20 + "\n"
+    result += f"{status_icon} Health: {health_pct}%\n"
+    result += f"📈 Total Services: {total_services}\n"
+    result += f"📋 {status_message}\n"
+    
+    if problems > 0:
+        critical = summary.get('critical', 0)
+        warning = summary.get('warning', 0)
+        if critical > 0:
+            result += f"❌ Critical: {critical}\n"
+        if warning > 0:
+            result += f"⚠️  Warning: {warning}\n"
+    
+    return result
 
 
 def show_help():

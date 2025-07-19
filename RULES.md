@@ -15,6 +15,7 @@ This document defines mandatory operating principles for all AI instances. It en
 1. Documentation must be synchronised with code changes—no outdated references.
 1. Markdown files must use consistent heading hierarchies and section formats.
 1. Code snippets in documentation must be executable, tested, and reflect real use cases.
+1. Example commands must be real and tested.
 1. Each doc must clearly outline: purpose, usage, parameters, and examples.
 1. Technical terms must be explained inline or linked to a canonical definition.
 

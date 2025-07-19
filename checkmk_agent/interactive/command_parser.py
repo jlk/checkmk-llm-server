@@ -15,6 +15,7 @@ class CommandIntent:
     suggestions: List[str]
     is_help_request: bool = False
     help_topic: Optional[str] = None
+    original_input: Optional[str] = None
 
 
 class CommandParser:
@@ -22,6 +23,11 @@ class CommandParser:
     
     def __init__(self):
         """Initialize the command parser."""
+        self.conversation_context = {
+            'last_host': None,
+            'last_service': None,
+            'last_command': None
+        }
         self.command_aliases = {
             'ls': 'list',
             'rm': 'delete',
@@ -93,7 +99,8 @@ class CommandParser:
                 command='',
                 confidence=0.0,
                 parameters={},
-                suggestions=[]
+                suggestions=[],
+                original_input=user_input
             )
         
         # Check for help requests first
@@ -107,7 +114,8 @@ class CommandParser:
                 command='quit',
                 confidence=1.0,
                 parameters={},
-                suggestions=[]
+                suggestions=[],
+                original_input=user_input
             )
         
         # Handle theme commands
@@ -116,7 +124,8 @@ class CommandParser:
                 command=user_input.lower(),
                 confidence=1.0,
                 parameters={},
-                suggestions=[]
+                suggestions=[],
+                original_input=user_input
             )
         
         # Handle color commands
@@ -125,7 +134,8 @@ class CommandParser:
                 command=user_input.lower(),
                 confidence=1.0,
                 parameters={},
-                suggestions=[]
+                suggestions=[],
+                original_input=user_input
             )
         
         # Parse natural language command
@@ -151,7 +161,8 @@ class CommandParser:
                     parameters={'topic': help_topic},
                     suggestions=[],
                     is_help_request=True,
-                    help_topic=help_topic
+                    help_topic=help_topic,
+                    original_input=user_input
                 )
         
         return None
@@ -182,7 +193,8 @@ class CommandParser:
             command=command,
             confidence=confidence,
             parameters=parameters,
-            suggestions=suggestions
+            suggestions=suggestions,
+            original_input=user_input
         )
     
     def _extract_command(self, tokens: List[str]) -> Tuple[str, float]:
@@ -224,6 +236,26 @@ class CommandParser:
         # Check for action patterns
         text = ' '.join(tokens)
         
+        # Enhanced status query patterns (but avoid interfering with compound commands)
+        status_query_patterns = [
+            r'(?:how\s+is|what\'s\s+wrong\s+with|health\s+of|status\s+of)',
+            r'(?:how\'s\s+)?\w+\s+(?:doing|performing|working)',
+            r'(?:is\s+)?\w+\s+(?:ok|okay|working|healthy|up)',
+            r'(?:what\'s\s+)?(?:happening\s+(?:with\s+|on\s+))?'
+        ]
+        
+        # Only apply status patterns if no explicit action word is present
+        has_action_word = any(word in text for word in ['show', 'list', 'display', 'get', 'find', 'search'])
+        
+        if not has_action_word:
+            for pattern in status_query_patterns:
+                if re.search(pattern, text, re.IGNORECASE):
+                    return 'status', 0.9
+            
+            # Check for simple health/status/problems words only when no action word
+            if any(word in text for word in ['health', 'status', 'problems', 'issues']) and len(tokens) <= 2:
+                return 'status', 0.8
+        
         # Host operations
         if any(word in text for word in ['host', 'server', 'machine']):
             if any(word in text for word in ['list', 'show', 'display', 'all', 'like', 'containing', 'matching', 'similar', 'find', 'search']):
@@ -234,6 +266,8 @@ class CommandParser:
                 return 'delete', 0.8
             elif any(word in text for word in ['details', 'info', 'get']):
                 return 'get', 0.8
+            elif any(word in text for word in ['status', 'health', 'problems', 'issues']):
+                return 'status', 0.8
         
         # Search operations (even without explicit host/server keywords)
         if any(word in text for word in ['like', 'containing', 'matching', 'similar', 'find', 'search']):
@@ -273,6 +307,37 @@ class CommandParser:
         if host_match:
             parameters['host_name'] = host_match.group(1)
         
+        # Extract host names from status queries - enhanced patterns
+        # Exclude action words that shouldn't be treated as hostnames
+        action_words = {'show', 'list', 'display', 'get', 'find', 'search', 'check', 'what', 'how', 'is'}
+        
+        status_host_patterns = [
+            r'(?:service\s+status|status)\s+for\s+(\w+)',
+            r'(?:how\s+is|what\'s\s+wrong\s+with|health\s+of|status\s+of)\s+(\w+)',
+            r'(?:show\s+|check\s+)?(?:health|status)\s+(?:of\s+|for\s+)?(\w+)',
+            r'(?:what\'s\s+)?(?:happening\s+(?:with\s+|on\s+))?(\w+)',
+            r'(\w+)\s+(?:doing|running)',
+            r'(?:how\'s\s+)?(\w+)\s+(?:doing|performing|working)',
+            r'(?:is\s+)?(\w+)\s+(?:ok|okay|working|healthy|up)',
+        ]
+        
+        for pattern in status_host_patterns:
+            status_host_match = re.search(pattern, text, re.IGNORECASE)
+            if status_host_match:
+                hostname = status_host_match.group(1)
+                # Apply fuzzy matching for hostname if it doesn't look like a service word or action word
+                if (not self._is_service_keyword(hostname) and 
+                    hostname.lower() not in action_words):
+                    parameters['host_name'] = self._apply_fuzzy_hostname_matching(hostname)
+                    break
+        
+        # Extract service and host from "service X on host" pattern
+        service_on_host_pattern = r'(?:status\s+for\s+)?([^\s]+(?:\s+[^\s]+)*?)\s+on\s+(\w+)'
+        service_on_host_match = re.search(service_on_host_pattern, text)
+        if service_on_host_match:
+            parameters['service_description'] = service_on_host_match.group(1).strip()
+            parameters['host_name'] = service_on_host_match.group(2)
+        
         # Extract search terms from "like", "containing", "matching", "similar to" patterns
         search_patterns = [
             r'(?:hosts?|servers?|machines?)\s+(?:like|containing|matching|similar\s+to)\s+([\w\-\.]+)',
@@ -289,10 +354,15 @@ class CommandParser:
                 break
         
         # Extract service names (look for service descriptions)
+        # But exclude status-related words which should be handled by status module
         service_pattern = r'(?:service|services)\s+(.+?)(?:\s+(?:on|for|of)\s+|$)'
         service_match = re.search(service_pattern, text)
         if service_match:
-            parameters['service_description'] = service_match.group(1).strip()
+            service_desc = service_match.group(1).strip()
+            # Don't extract status-related words as service descriptions
+            status_words = ['status', 'health', 'problems', 'critical', 'warning', 'overview', 'dashboard']
+            if service_desc.lower() not in status_words:
+                parameters['service_description'] = service_desc
         
         # Extract service names from parameter patterns like "parameters for X on Y" or "parameters for X for Y"
         param_patterns = [
@@ -343,6 +413,27 @@ class CommandParser:
         elif 'network' in text:
             parameters['service_description'] = 'Network Interface'
         
+        # Handle contextual references
+        contextual_patterns = [
+            r'(?:that|this|the)\s+host',
+            r'(?:same|previous)\s+host',
+            r'(?:it|that)\s+(?:host|server|machine)',
+            r'(?:show|check|status)\s+(?:problems|issues|health)\s+(?:on|for)\s+(?:that|this|it)'
+        ]
+        
+        for pattern in contextual_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                if self.conversation_context['last_host'] and not parameters.get('host_name'):
+                    parameters['host_name'] = self.conversation_context['last_host']
+                    parameters['_contextual_reference'] = True
+                break
+        
+        # Update conversation context based on extracted parameters
+        if parameters.get('host_name'):
+            self.conversation_context['last_host'] = parameters['host_name']
+        if parameters.get('service_description'):
+            self.conversation_context['last_service'] = parameters['service_description']
+        
         return parameters
     
     def _generate_suggestions(self, user_input: str, tokens: List[str]) -> List[str]:
@@ -377,7 +468,97 @@ class CommandParser:
         if any(word in text for word in ['service', 'services']):
             suggestions.extend(['list services', 'acknowledge service', 'downtime service', 'discover services'])
         
-        return suggestions[:5]  # Limit to 5 suggestions
+        # Enhanced suggestions based on natural language patterns
+        if any(word in text for word in ['how', 'health', 'status', 'doing', 'working']):
+            suggestions.extend([
+                'show health dashboard',
+                'status host <hostname>',
+                'how is server01 doing',
+                'health of piaware'
+            ])
+        
+        # Context-aware suggestions
+        if self.conversation_context['last_host']:
+            last_host = self.conversation_context['last_host']
+            suggestions.extend([
+                f'status host {last_host}',
+                f'problems on {last_host}',
+                f'health of {last_host}'
+            ])
+        
+        return suggestions[:7]  # Increased limit for enhanced suggestions
+    
+    def _is_service_keyword(self, word: str) -> bool:
+        """Check if a word is likely a service-related keyword rather than a hostname."""
+        service_keywords = {
+            'status', 'health', 'problems', 'issues', 'critical', 'warning', 
+            'services', 'service', 'cpu', 'memory', 'disk', 'network',
+            'load', 'filesystem', 'interface', 'ping', 'monitoring'
+        }
+        return word.lower() in service_keywords
+    
+    def _apply_fuzzy_hostname_matching(self, hostname: str) -> str:
+        """Apply fuzzy matching to hostname to handle typos."""
+        # In a real implementation, this would query the Checkmk API for known hostnames
+        # and apply fuzzy matching. For now, we'll do simple cleanup and return as-is.
+        
+        # Basic cleanup
+        cleaned_hostname = hostname.lower().strip()
+        
+        # Remove common typos and variations
+        hostname_corrections = {
+            'server': 'server',
+            'srv': 'server',
+            'host': 'host',
+            'machine': 'machine',
+            'node': 'node'
+        }
+        
+        # Apply corrections for common variations
+        for typo, correction in hostname_corrections.items():
+            if cleaned_hostname.startswith(typo):
+                cleaned_hostname = cleaned_hostname.replace(typo, correction, 1)
+        
+        return cleaned_hostname
+    
+    def _extract_contextual_hostnames(self, tokens: List[str], text: str) -> List[str]:
+        """Extract potential hostnames from context using multiple strategies."""
+        potential_hostnames = []
+        
+        # Look for patterns that suggest hostnames
+        hostname_patterns = [
+            r'\b([a-zA-Z][\w\-\.]{2,})\b',  # Basic hostname pattern
+            r'\b(server\d+|srv\d+|host\d+|node\d+)\b',  # Numbered servers
+            r'\b([a-zA-Z]+\-\d+)\b',  # Dash-separated with numbers
+            r'\b(\w+\.\w+\.\w+)\b'  # Domain-like patterns
+        ]
+        
+        for pattern in hostname_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                # Filter out obvious non-hostnames
+                if not self._is_service_keyword(match) and len(match) > 2:
+                    potential_hostnames.append(match.lower())
+        
+        return list(set(potential_hostnames))  # Remove duplicates
+    
+    def clear_context(self):
+        """Clear conversation context."""
+        self.conversation_context = {
+            'last_host': None,
+            'last_service': None,
+            'last_command': None
+        }
+    
+    def get_context_info(self) -> Dict[str, Optional[str]]:
+        """Get current conversation context information."""
+        return self.conversation_context.copy()
+    
+    def set_context(self, **kwargs):
+        """Set specific context values."""
+        for key, value in kwargs.items():
+            if key in self.conversation_context:
+                self.conversation_context[key] = value
     
     def get_command_type(self, command: str, parameters: dict = None, original_input: str = "") -> str:
         """Determine if command is host or service related based on command and context.
@@ -390,17 +571,44 @@ class CommandParser:
         Returns:
             'host', 'service', or 'general'
         """
+        # Check original input for status keywords first (even if service_description is present)
+        if original_input:
+            original_lower = original_input.lower()
+            status_keywords = ['status', 'health', 'problems', 'critical', 'warning', 'dashboard', 'overview', 'issues']
+            
+            # Enhanced host status detection patterns
+            host_status_patterns = [
+                r'(?:how\s+is|what\'s\s+wrong\s+with|health\s+of|status\s+of)\s+\w+',
+                r'\w+\s+(?:health|status|problems|issues|doing|running)',
+                r'(?:show\s+|check\s+)?(?:health|status)\s+(?:of\s+|for\s+)?\w+',
+                r'(?:how\'s\s+)?\w+\s+(?:doing|performing|working)',
+                r'(?:is\s+)?\w+\s+(?:ok|okay|working|healthy|up)',
+                r'(?:what\'s\s+)?(?:happening\s+(?:with\s+|on\s+))?\w+'
+            ]
+            
+            # Check for host status patterns first
+            for pattern in host_status_patterns:
+                if re.search(pattern, original_lower, re.IGNORECASE):
+                    return 'status'
+            
+            # Fallback to general status keywords
+            if any(keyword in original_lower for keyword in status_keywords):
+                return 'status'
+        
         # Check parameters for service indicators
         if parameters and 'service_description' in parameters:
             return 'service'
         
-        # Check original input for explicit keywords
+        # Check original input for explicit keywords (but status already checked above)
         if original_input:
             original_lower = original_input.lower()
             
-            # Check for explicit service keywords
-            service_keywords = ['service', 'services', 'acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load', 'parameters', 'parameter', 'threshold', 'thresholds']
-            if any(keyword in original_lower for keyword in service_keywords):
+            # Check for explicit service keywords (but exclude status-related phrases)
+            service_keywords = ['acknowledge', 'downtime', 'discover', 'cpu', 'disk', 'memory', 'load', 'parameters', 'parameter', 'threshold', 'thresholds']
+            # Only check for 'service' or 'services' if 'status' is not present
+            if 'status' not in original_lower and any(keyword in original_lower for keyword in ['service', 'services']):
+                return 'service'
+            elif any(keyword in original_lower for keyword in service_keywords):
                 return 'service'
             
             # Check for explicit host keywords

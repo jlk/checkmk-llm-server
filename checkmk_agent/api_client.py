@@ -121,6 +121,14 @@ class ServiceParameterTemplate(BaseModel):
 class CheckmkClient:
     """Client for interacting with Checkmk REST API."""
     
+    # Standard columns for service status queries
+    STATUS_COLUMNS = [
+        "host_name", "description", "state", "state_type", 
+        "acknowledged", "plugin_output", "last_check", 
+        "scheduled_downtime_depth", "perf_data", "check_interval",
+        "current_attempt", "max_check_attempts", "notifications_enabled"
+    ]
+    
     def __init__(self, config: CheckmkConfig):
         self.config = config
         self.base_url = f"{config.server_url}/{config.site}/check_mk/api/1.0"
@@ -888,6 +896,348 @@ class CheckmkClient:
         
         # If we get here, the rule could match
         return True
+    
+    # Service Status Operations
+    
+    def _build_livestatus_query(self, operator: str, field: str, value: Any) -> Dict[str, Any]:
+        """
+        Build a Livestatus query expression.
+        
+        Args:
+            operator: Query operator (=, !=, <, >, <=, >=, ~)
+            field: Field name to query
+            value: Value to compare against
+            
+        Returns:
+            Livestatus query expression
+        """
+        return {
+            "op": operator,
+            "left": field,
+            "right": value
+        }
+    
+    def _build_combined_query(self, expressions: List[Dict[str, Any]], 
+                            logical_op: str = "and") -> Dict[str, Any]:
+        """
+        Combine multiple Livestatus query expressions.
+        
+        Args:
+            expressions: List of query expressions
+            logical_op: Logical operator (and, or)
+            
+        Returns:
+            Combined Livestatus query expression
+        """
+        if len(expressions) == 1:
+            return expressions[0]
+        
+        return {
+            "op": logical_op,
+            "expr": expressions
+        }
+    
+    def get_service_status(self, host_name: str, service_description: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get detailed status for a specific service or all services on a host.
+        
+        Args:
+            host_name: The hostname
+            service_description: Optional service description filter
+            
+        Returns:
+            Service status information with detailed monitoring data
+        """
+        try:
+            if service_description:
+                # Get specific service using host-based endpoint with filtering
+                params = {
+                    'columns': self.STATUS_COLUMNS
+                }
+                
+                response = self._make_request(
+                    'GET',
+                    f'/objects/host/{host_name}/collections/services',
+                    params=params
+                )
+                
+                services = response.get('value', [])
+                
+                # Filter by service description
+                for service in services:
+                    svc_desc = service.get('extensions', {}).get('description', '')
+                    if svc_desc.lower() == service_description.lower():
+                        return {
+                            'host_name': host_name,
+                            'service_description': service_description,
+                            'status': service,
+                            'found': True
+                        }
+                
+                return {
+                    'host_name': host_name,
+                    'service_description': service_description,
+                    'status': None,
+                    'found': False
+                }
+            else:
+                # Get all services for the host
+                services = self.list_host_services(
+                    host_name=host_name,
+                    columns=self.STATUS_COLUMNS
+                )
+                
+                return {
+                    'host_name': host_name,
+                    'services': services,
+                    'service_count': len(services)
+                }
+                
+        except CheckmkAPIError as e:
+            self.logger.error(f"Error getting service status for {host_name}: {e}")
+            raise
+    
+    def list_problem_services(self, host_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        List all services that are not in OK state.
+        
+        Args:
+            host_filter: Optional hostname filter
+            
+        Returns:
+            List of services with problems (WARNING, CRITICAL, UNKNOWN)
+        """
+        try:
+            # Use simple approach - get all services and filter locally
+            # (Livestatus queries have compatibility issues with some Checkmk versions)
+            self.logger.debug("Using fallback approach for service filtering")
+            
+            # Get all services with status columns for filtering
+            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            if host_filter:
+                # Simple host-specific endpoint if host filter provided
+                response = self._make_request(
+                    'GET',
+                    f'/objects/host/{host_filter}/collections/services',
+                    params=basic_params
+                )
+            else:
+                # All services endpoint
+                response = self._make_request(
+                    'GET',
+                    '/domain-types/service/collections/all',
+                    params=basic_params
+                )
+            
+            all_services = response.get('value', [])
+            
+            # Filter for problem services locally
+            problem_services = []
+            for service in all_services:
+                extensions = service.get('extensions', {})
+                state = extensions.get('state', 0)
+                if isinstance(state, str):
+                    # Convert string states to numbers
+                    state_map = {'OK': 0, 'WARNING': 1, 'CRITICAL': 2, 'UNKNOWN': 3}
+                    state = state_map.get(state, 0)
+                
+                if state != 0:  # Not OK
+                    problem_services.append(service)
+            
+            self.logger.info(f"Retrieved {len(problem_services)} problem services using fallback")
+            return problem_services
+            
+        except CheckmkAPIError as e:
+            self.logger.error(f"Error listing problem services: {e}")
+            raise
+    
+    def get_service_health_summary(self) -> Dict[str, Any]:
+        """
+        Get overall service health summary with state distribution.
+        
+        Returns:
+            Summary of service health including counts by state
+        """
+        try:
+            # Get all services with state information
+            params = {
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
+            }
+            
+            response = self._make_request(
+                'GET',
+                '/domain-types/service/collections/all',
+                params=params
+            )
+            
+            services = response.get('value', [])
+            
+            # Calculate health statistics
+            summary = {
+                'total_services': len(services),
+                'states': {
+                    'ok': 0,
+                    'warning': 0,
+                    'critical': 0,
+                    'unknown': 0
+                },
+                'acknowledged': 0,
+                'in_downtime': 0,
+                'problems': 0
+            }
+            
+            for service in services:
+                extensions = service.get('extensions', {})
+                state = extensions.get('state', 0)
+                acknowledged = extensions.get('acknowledged', 0)
+                downtime_depth = extensions.get('scheduled_downtime_depth', 0)
+                
+                # Count by state
+                if state == 0:
+                    summary['states']['ok'] += 1
+                elif state == 1:
+                    summary['states']['warning'] += 1
+                    summary['problems'] += 1
+                elif state == 2:
+                    summary['states']['critical'] += 1
+                    summary['problems'] += 1
+                elif state == 3:
+                    summary['states']['unknown'] += 1
+                    summary['problems'] += 1
+                
+                # Count acknowledged and downtime
+                if acknowledged:
+                    summary['acknowledged'] += 1
+                if downtime_depth > 0:
+                    summary['in_downtime'] += 1
+            
+            # Calculate health percentage
+            if summary['total_services'] > 0:
+                summary['health_percentage'] = (summary['states']['ok'] / summary['total_services']) * 100
+            else:
+                summary['health_percentage'] = 100.0
+            
+            self.logger.info(f"Generated health summary for {summary['total_services']} services")
+            return summary
+            
+        except CheckmkAPIError as e:
+            self.logger.error(f"Error getting service health summary: {e}")
+            raise
+    
+    def get_services_by_state(self, state: int, host_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get all services in a specific state.
+        
+        Args:
+            state: Service state (0=OK, 1=WARNING, 2=CRITICAL, 3=UNKNOWN)
+            host_filter: Optional hostname filter
+            
+        Returns:
+            List of services in the specified state
+        """
+        try:
+            # Use simple approach - get all services and filter locally
+            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            if host_filter:
+                response = self._make_request(
+                    'GET',
+                    f'/objects/host/{host_filter}/collections/services',
+                    params=basic_params
+                )
+            else:
+                response = self._make_request(
+                    'GET',
+                    '/domain-types/service/collections/all',
+                    params=basic_params
+                )
+            
+            all_services = response.get('value', [])
+            
+            # Filter for services in specific state locally
+            filtered_services = []
+            for service in all_services:
+                extensions = service.get('extensions', {})
+                service_state = extensions.get('state', 0)
+                if isinstance(service_state, str):
+                    state_map = {'OK': 0, 'WARNING': 1, 'CRITICAL': 2, 'UNKNOWN': 3}
+                    service_state = state_map.get(service_state, 0)
+                
+                if service_state == state:
+                    filtered_services.append(service)
+            
+            state_name = ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN'][state]
+            self.logger.info(f"Retrieved {len(filtered_services)} services in {state_name} state")
+            return filtered_services
+            
+        except CheckmkAPIError as e:
+            self.logger.error(f"Error getting services by state {state}: {e}")
+            raise
+    
+    def get_acknowledged_services(self) -> List[Dict[str, Any]]:
+        """
+        Get all acknowledged services.
+        
+        Returns:
+            List of acknowledged services
+        """
+        try:
+            # Use simple approach - get all services and filter locally
+            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            response = self._make_request(
+                'GET',
+                '/domain-types/service/collections/all',
+                params=basic_params
+            )
+            
+            all_services = response.get('value', [])
+            
+            # Filter for acknowledged services locally
+            ack_services = []
+            for service in all_services:
+                extensions = service.get('extensions', {})
+                acknowledged = extensions.get('acknowledged', 0)
+                if acknowledged > 0:
+                    ack_services.append(service)
+            
+            self.logger.info(f"Retrieved {len(ack_services)} acknowledged services")
+            return ack_services
+            
+        except CheckmkAPIError as e:
+            self.logger.error(f"Error getting acknowledged services: {e}")
+            raise
+    
+    def get_services_in_downtime(self) -> List[Dict[str, Any]]:
+        """
+        Get all services currently in scheduled downtime.
+        
+        Returns:
+            List of services in downtime
+        """
+        try:
+            # Use simple approach - get all services and filter locally
+            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            response = self._make_request(
+                'GET',
+                '/domain-types/service/collections/all',
+                params=basic_params
+            )
+            
+            all_services = response.get('value', [])
+            
+            # Filter for services in downtime locally
+            downtime_services = []
+            for service in all_services:
+                extensions = service.get('extensions', {})
+                downtime_depth = extensions.get('scheduled_downtime_depth', 0)
+                if downtime_depth > 0:
+                    downtime_services.append(service)
+            
+            self.logger.info(f"Retrieved {len(downtime_services)} services in downtime")
+            return downtime_services
+            
+        except CheckmkAPIError as e:
+            self.logger.error(f"Error getting services in downtime: {e}")
+            raise
 
     def test_connection(self) -> bool:
         """
