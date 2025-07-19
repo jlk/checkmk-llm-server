@@ -32,6 +32,17 @@ class ServiceOperationsManager:
             Human-readable response
         """
         try:
+            # Handle direct compound commands first (from CLI-style interactive commands)
+            command_lower = command.lower().strip()
+            if command_lower.startswith('services list'):
+                # Extract hostname from "services list hostname"
+                parts = command.split()
+                if len(parts) >= 3:
+                    host_name = parts[2]
+                    return self._handle_list_services({'parameters': {'host_name': host_name}})
+                else:
+                    return self._handle_list_services({'parameters': {}})
+            
             # Analyze the command using LLM
             analysis = self._analyze_command(command)
             
@@ -226,17 +237,36 @@ class ServiceOperationsManager:
             host_name = params.get('host_name')
             
             if host_name:
-                # List services for specific host
-                services = self.checkmk_client.list_host_services(host_name)
+                # List services for specific host with status columns
+                services = self.checkmk_client.list_host_services(
+                    host_name, 
+                    columns=['description', 'state', 'plugin_output']
+                )
                 if not services:
                     return f"📦 No services found for host: {host_name}"
                 
                 result = f"📦 Found {len(services)} services for host: {host_name}\n\n"
                 for service in services:
-                    service_desc = service.get('extensions', {}).get('description', 'Unknown')
-                    service_state = service.get('extensions', {}).get('state', 'Unknown')
-                    state_emoji = self._get_state_emoji(service_state)
-                    result += f"  {state_emoji} {service_desc}\n"
+                    extensions = service.get('extensions', {})
+                    service_desc = extensions.get('description', 'Unknown')
+                    service_state = extensions.get('state', 'Unknown')
+                    plugin_output = extensions.get('plugin_output', '')
+                    
+                    # Convert numeric state to text and get emoji
+                    if isinstance(service_state, int):
+                        state_map = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
+                        state_text = state_map.get(service_state, f'STATE_{service_state}')
+                        state_emoji = {'OK': '✅', 'WARNING': '⚠️', 'CRITICAL': '❌', 'UNKNOWN': '❓'}.get(state_text, '❓')
+                    else:
+                        state_text = str(service_state)
+                        state_emoji = '✅' if state_text == 'OK' else '❌'
+                    
+                    # Show service with status and brief output
+                    output_snippet = plugin_output[:50] + '...' if len(plugin_output) > 50 else plugin_output
+                    if output_snippet:
+                        result += f"  {state_emoji} {host_name}/{service_desc} - {state_text} ({output_snippet})\n"
+                    else:
+                        result += f"  {state_emoji} {host_name}/{service_desc} - {state_text}\n"
                 
                 return result
             else:

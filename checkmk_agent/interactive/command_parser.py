@@ -209,6 +209,29 @@ class CommandParser:
         if not tokens:
             return '', 0.0
         
+        # Check for compound commands first (services list, hosts list, etc.)
+        text = ' '.join(tokens).lower()
+        compound_commands = {
+            'services list': 'list_services',
+            'services status': 'get_service_status', 
+            'services acknowledge': 'acknowledge_service',
+            'services downtime': 'create_downtime',
+            'services discover': 'discover_services',
+            'services stats': 'service_stats',
+            'hosts list': 'list_hosts',
+            'hosts create': 'create_host',
+            'hosts delete': 'delete_host',
+            'hosts get': 'get_host',
+            'status host': 'status_host',
+            'status overview': 'status_overview',
+            'status problems': 'status_problems',
+            'status critical': 'status_critical'
+        }
+        
+        for compound_pattern, command in compound_commands.items():
+            if text.startswith(compound_pattern):
+                return command, 1.0
+        
         # Check for direct command matches
         for token in tokens:
             if token in self.command_aliases:
@@ -579,31 +602,56 @@ class CommandParser:
             original_input: Original user input for context
             
         Returns:
-            'host', 'service', or 'general'
+            'host', 'service', 'status', or 'general'
         """
+        # Handle compound commands directly
+        compound_command_types = {
+            'list_services': 'service',
+            'get_service_status': 'service', 
+            'acknowledge_service': 'service',
+            'create_downtime': 'service',
+            'discover_services': 'service',
+            'service_stats': 'service',
+            'list_hosts': 'host',
+            'create_host': 'host',
+            'delete_host': 'host',
+            'get_host': 'host',
+            'status_host': 'status',
+            'status_overview': 'status',
+            'status_problems': 'status',
+            'status_critical': 'status'
+        }
+        
+        if command in compound_command_types:
+            return compound_command_types[command]
         # Check original input for status keywords first (even if service_description is present)
         if original_input:
             original_lower = original_input.lower()
             status_keywords = ['status', 'health', 'problems', 'critical', 'warning', 'dashboard', 'overview', 'issues']
             
-            # Enhanced host status detection patterns
+            # Enhanced host status detection patterns - but avoid matching service commands
             host_status_patterns = [
                 r'(?:how\s+is|what\'s\s+wrong\s+with|health\s+of|status\s+of)\s+\w+',
                 r'\w+\s+(?:health|status|problems|issues|doing|running)',
-                r'(?:show\s+|check\s+)?(?:health|status)\s+(?:of\s+|for\s+)?\w+',
+                r'(?:show\s+|check\s+)(?:health|status)\s+(?:of\s+|for\s+)?\w+',  # Removed optional group to be more specific
                 r'(?:how\'s\s+)?\w+\s+(?:doing|performing|working)',
                 r'(?:is\s+)?\w+\s+(?:ok|okay|working|healthy|up)',
                 r'(?:what\'s\s+)?(?:happening\s+(?:with\s+|on\s+))?\w+'
             ]
             
-            # Check for host status patterns first
-            for pattern in host_status_patterns:
-                if re.search(pattern, original_lower, re.IGNORECASE):
-                    return 'status'
+            # Skip status pattern matching if this is clearly a service or host listing command
+            is_service_listing = 'service' in original_lower and any(word in original_lower for word in ['show', 'list', 'get', 'find'])
+            is_host_listing = 'host' in original_lower and any(word in original_lower for word in ['show', 'list', 'get', 'find'])
             
-            # Fallback to general status keywords
-            if any(keyword in original_lower for keyword in status_keywords):
-                return 'status'
+            if not (is_service_listing or is_host_listing):
+                # Check for host status patterns first
+                for pattern in host_status_patterns:
+                    if re.search(pattern, original_lower, re.IGNORECASE):
+                        return 'status'
+                
+                # Fallback to general status keywords
+                if any(keyword in original_lower for keyword in status_keywords):
+                    return 'status'
         
         # Check parameters for service indicators
         if parameters and 'service_description' in parameters:

@@ -667,7 +667,7 @@ def list_services(ctx, host_name: Optional[str], sites: tuple, query: Optional[s
                 host_name=host_name,
                 sites=list(sites) if sites else None,
                 query=query,
-                columns=list(columns) if columns else None
+                columns=list(columns) if columns else ['description', 'state', 'plugin_output']
             )
         else:
             # List all services
@@ -694,10 +694,24 @@ def list_services(ctx, host_name: Optional[str], sites: tuple, query: Optional[s
             extensions = service.get('extensions', {})
             service_desc = extensions.get('description', 'Unknown')
             service_state = extensions.get('state', 'Unknown')
+            plugin_output = extensions.get('plugin_output', '')
             host = extensions.get('host_name', host_name or 'Unknown')
             
-            state_emoji = '✅' if service_state == 'OK' or service_state == 0 else '❌'
-            click.echo(f"  {state_emoji} {host}/{service_desc} - {service_state}")
+            # Convert numeric state to text
+            if isinstance(service_state, int):
+                state_map = {0: 'OK', 1: 'WARNING', 2: 'CRITICAL', 3: 'UNKNOWN'}
+                state_text = state_map.get(service_state, f'STATE_{service_state}')
+                state_emoji = {'OK': '✅', 'WARNING': '⚠️', 'CRITICAL': '❌', 'UNKNOWN': '❓'}.get(state_text, '❓')
+            else:
+                state_text = str(service_state)
+                state_emoji = '✅' if state_text == 'OK' else '❌'
+            
+            # Show service with status and brief output
+            output_snippet = plugin_output[:60] + '...' if len(plugin_output) > 60 else plugin_output
+            if output_snippet:
+                click.echo(f"  {state_emoji} {host}/{service_desc} - {state_text} ({output_snippet})")
+            else:
+                click.echo(f"  {state_emoji} {host}/{service_desc} - {state_text}")
             
     except Exception as e:
         click.echo(f"❌ Error listing services: {e}", err=True)
