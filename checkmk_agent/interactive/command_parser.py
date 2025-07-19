@@ -331,12 +331,21 @@ class CommandParser:
                     parameters['host_name'] = self._apply_fuzzy_hostname_matching(hostname)
                     break
         
-        # Extract service and host from "service X on host" pattern
-        service_on_host_pattern = r'(?:status\s+for\s+)?([^\s]+(?:\s+[^\s]+)*?)\s+on\s+(\w+)'
-        service_on_host_match = re.search(service_on_host_pattern, text)
-        if service_on_host_match:
-            parameters['service_description'] = service_on_host_match.group(1).strip()
-            parameters['host_name'] = service_on_host_match.group(2)
+        # Extract hostname from "list/show services on hostname" patterns
+        list_services_pattern = r'(?:list|show|get|find)\s+(?:all\s+)?services\s+(?:on|for)\s+(\w+)'
+        list_services_match = re.search(list_services_pattern, text)
+        if list_services_match:
+            parameters['host_name'] = list_services_match.group(1)
+        else:
+            # Extract service and host from "service X on host" pattern for other operations
+            service_on_host_pattern = r'(?:status\s+for\s+|acknowledge\s+|ack\s+|downtime\s+|check\s+)?([^\s]+(?:\s+[^\s]+)*?)\s+on\s+(\w+)'
+            service_on_host_match = re.search(service_on_host_pattern, text)
+            if service_on_host_match:
+                potential_service = service_on_host_match.group(1).strip()
+                # Don't match "list services", "show services", etc.
+                if not potential_service.lower().endswith(('services', 'service')):
+                    parameters['service_description'] = potential_service
+                    parameters['host_name'] = service_on_host_match.group(2)
         
         # Extract search terms from "like", "containing", "matching", "similar to" patterns
         search_patterns = [
@@ -354,8 +363,9 @@ class CommandParser:
                 break
         
         # Extract service names (look for service descriptions)
-        # But exclude status-related words which should be handled by status module
-        service_pattern = r'(?:service|services)\s+(.+?)(?:\s+(?:on|for|of)\s+|$)'
+        # But only for specific service operations, not for "list services" type commands
+        # This pattern matches things like "acknowledge CPU on server01" but not "list services on server01"
+        service_pattern = r'(?:acknowledge|ack|downtime|check|status)\s+(.+?)\s+(?:on|for|of)\s+'
         service_match = re.search(service_pattern, text)
         if service_match:
             service_desc = service_match.group(1).strip()

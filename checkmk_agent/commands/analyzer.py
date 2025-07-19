@@ -81,9 +81,9 @@ class PatternMatcher:
     def __init__(self):
         self.patterns = [
             # Service operations
-            (r'list services(?:\s+for\s+(\w+))?', 'list_services', {'host_name': 1}),
-            (r'show services(?:\s+for\s+(\w+))?', 'list_services', {'host_name': 1}),
-            (r'get services(?:\s+for\s+(\w+))?', 'list_services', {'host_name': 1}),
+            (r'list services(?:\s+(?:for|on)\s+(\w+))?', 'list_services', {'host_name': 1}),
+            (r'show services(?:\s+(?:for|on)\s+(\w+))?', 'list_services', {'host_name': 1}),
+            (r'get services(?:\s+(?:for|on)\s+(\w+))?', 'list_services', {'host_name': 1}),
             
             (r'(?:check|status)\s+(.+?)\s+on\s+(\w+)', 'get_service_status', 
              {'service_description': 1, 'host_name': 2}),
