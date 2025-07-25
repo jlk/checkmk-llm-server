@@ -150,14 +150,12 @@ class TestCheckMkClientStatusMethods:
         
         result = self.client.list_problem_services()
         
-        # Verify API call
-        expected_query = {"op": "!=", "left": "state", "right": "0"}
+        # Verify API call - using simplified columns
         mock_request.assert_called_once_with(
             'GET',
             '/domain-types/service/collections/all',
             params={
-                'columns': self.client.STATUS_COLUMNS,
-                'query': expected_query
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
         )
         
@@ -174,20 +172,12 @@ class TestCheckMkClientStatusMethods:
         
         self.client.list_problem_services('server01')
         
-        # Verify API call with combined query
-        expected_query = {
-            "op": "and",
-            "expr": [
-                {"op": "!=", "left": "state", "right": "0"},
-                {"op": "=", "left": "host_name", "right": "server01"}
-            ]
-        }
+        # Verify API call - host-specific endpoint is used
         mock_request.assert_called_once_with(
             'GET',
-            '/domain-types/service/collections/all',
+            '/objects/host/server01/collections/services',
             params={
-                'columns': self.client.STATUS_COLUMNS,
-                'query': expected_query
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
         )
     
@@ -280,20 +270,12 @@ class TestCheckMkClientStatusMethods:
         
         self.client.get_services_by_state(1, 'server01')
         
-        # Verify combined query
-        expected_query = {
-            "op": "and",
-            "expr": [
-                {"op": "=", "left": "state", "right": "1"},
-                {"op": "=", "left": "host_name", "right": "server01"}
-            ]
-        }
+        # Verify API call - host-specific endpoint is used
         mock_request.assert_called_once_with(
             'GET',
-            '/domain-types/service/collections/all',
+            '/objects/host/server01/collections/services',
             params={
-                'columns': self.client.STATUS_COLUMNS,
-                'query': expected_query
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
         )
     
