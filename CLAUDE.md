@@ -10,28 +10,32 @@ This is a **Checkmk LLM Agent** project designed to integrate with Checkmk's RES
 
 ## Current State
 
-The project is an active Checkmk LLM Agent implementation with:
+The project is a **FULLY OPERATIONAL** Checkmk LLM Agent implementation with:
 - Complete Checkmk REST API OpenAPI specification (`checkmk-rest-openapi.yaml`)
 - Host management operations (CRUD)
 - Rule management operations (CRUD)
 - **Service status and management operations**
 - Natural language processing capabilities
 - CLI interface with interactive mode
-- **Robust error handling with syntax error detection** (UPDATED)
+- **MCP Server Integration** - Both basic and enhanced servers fully functional with Claude
+- **Robust error handling with syntax error detection**
 - Test coverage for core functionality
 - VS Code workspace configuration
 
 ## Current Focus
 
-**Enhanced Host Service Status Functionality** - Recently completed comprehensive enhancement of host service status capabilities with:
-- Rich host status dashboards with health metrics, grades (A+ through F), and infrastructure comparison
-- Advanced problem categorization by type (disk, network, performance, connectivity, monitoring)
-- Enhanced natural language support for conversational host queries like "How is server01 doing?"
-- Comprehensive CLI filtering options (--problems-only, --critical-only, --category, --sort-by, --compact)
-- Urgent issues identification with criticality scoring and recommended actions
-- Conversation context tracking for follow-up queries ("show problems on that host")
-- Fixed critical command routing issues for "show critical problems" and related commands
-- Maintenance recommendations tailored to specific host problems and service dependencies
+**MCP Server Integration Completed** - Recently completed comprehensive MCP server implementation and bug fixes:
+- **Tool Registration**: Both basic and enhanced MCP servers now properly expose all tools (14 and 18 tools respectively)
+- **Error Resolution**: Fixed all JSON serialization, parameter validation, and CallToolResult construction issues
+- **Claude Integration**: Successfully tested with Claude - all tools functional and returning real infrastructure data
+- **Missing Methods**: Implemented 6 missing StatusService methods for complete API coverage
+- **Bug Workarounds**: Resolved MCP SDK v1.12.0 compatibility issues
+- **Real-time Monitoring**: Verified through live log monitoring - zero errors in current session
+
+**Previously Completed**:
+- Enhanced host service status functionality with rich dashboards and problem categorization
+- Advanced CLI filtering and natural language query support
+- Comprehensive service operations and discovery capabilities
 
 ## API Architecture
 
@@ -100,17 +104,27 @@ checkmk_agent/
 ├── config.py                 # Configuration management
 ├── host_operations.py        # Host management operations
 ├── service_operations.py     # Service management operations
-├── service_parameters.py     # Service parameter management (NEW)
+├── service_parameters.py     # Service parameter management
 ├── llm_client.py            # LLM integration
 ├── logging_utils.py         # Logging utilities
 ├── utils.py                 # Utility functions
-└── interactive/             # Enhanced interactive mode components (NEW)
+├── interactive/             # Enhanced interactive mode components
+│   ├── __init__.py
+│   ├── readline_handler.py   # Command history and readline integration
+│   ├── command_parser.py     # Enhanced command parsing with fuzzy matching
+│   ├── help_system.py        # Comprehensive contextual help system
+│   ├── tab_completer.py      # Tab completion for commands and parameters
+│   └── ui_manager.py         # Rich UI formatting and messaging
+├── mcp_server/              # MCP Server Integration (FULLY FUNCTIONAL)
+│   ├── __init__.py
+│   ├── server.py             # Basic MCP server - 14 tools exposed
+│   └── enhanced_server.py    # Enhanced MCP server - 18 tools exposed
+└── services/                # Service Layer Architecture
     ├── __init__.py
-    ├── readline_handler.py   # Command history and readline integration
-    ├── command_parser.py     # Enhanced command parsing with fuzzy matching
-    ├── help_system.py        # Comprehensive contextual help system
-    ├── tab_completer.py      # Tab completion for commands and parameters
-    └── ui_manager.py         # Rich UI formatting and messaging
+    ├── status_service.py     # Status operations with all methods implemented
+    ├── cache_service.py      # Caching and performance optimization
+    ├── batch_service.py      # Batch processing capabilities
+    └── streaming_service.py  # Real-time streaming operations
 
 tests/
 ├── __init__.py
@@ -118,9 +132,13 @@ tests/
 ├── test_api_client.py
 ├── test_cli.py
 ├── test_host_operations.py
-├── test_service_operations.py # Service operations tests (NEW)
+├── test_service_operations.py # Service operations tests
 ├── test_integration.py
-└── test_llm_client.py
+├── test_llm_client.py
+├── test_batch.py             # Batch processing tests
+├── test_cache.py             # Caching functionality tests
+├── test_performance.py       # Performance optimization tests
+└── test_streaming.py         # Streaming operations tests
 
 examples/
 ├── README.md
@@ -135,8 +153,30 @@ examples/
 1. **API Client**: ✅ Checkmk REST API client with host/rule/service operations
 2. **LLM Integration**: ✅ Natural language processing capabilities
 3. **Agent Logic**: ✅ Conversation flow and command routing for hosts/rules/services
-4. **Testing**: ✅ Test coverage for core operations
-5. **Documentation**: ✅ Setup and usage guides
+4. **MCP Server Integration**: ✅ Both basic and enhanced servers fully functional
+5. **Testing**: ✅ Test coverage for core operations
+6. **Documentation**: ✅ Setup and usage guides
+
+## MCP Server Integration
+
+The project includes comprehensive MCP (Model Context Protocol) server integration for seamless Claude AI integration:
+
+### Basic MCP Server (`checkmk_agent/mcp_server/server.py`)
+- **14 Tools Exposed**: Complete coverage of core Checkmk operations
+- **Status**: ✅ Fully Functional - Successfully tested with Claude
+- **Features**: Host operations, service management, status monitoring, problem analysis
+
+### Enhanced MCP Server (`checkmk_agent/mcp_server/enhanced_server.py`) 
+- **18 Tools Exposed**: All basic tools plus advanced features
+- **Status**: ✅ Fully Functional - Advanced capabilities verified
+- **Features**: Batch processing, streaming operations, caching, performance metrics
+
+### Recent Fixes (2025-07-25)
+- Fixed tool registration using proper MCP SDK decorators (`@server.list_tools()`, `@server.call_tool()`)
+- Implemented 6 missing StatusService methods for complete API coverage
+- Added custom JSON serialization handling for datetime objects
+- Worked around MCP SDK v1.12.0 CallToolResult construction bug
+- Verified zero errors through real-time log monitoring
 
 ## Service Operations Architecture
 
