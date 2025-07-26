@@ -532,7 +532,115 @@ class CheckmkClient:
         
         # Extract service data from response
         services = response.get('value', [])
+        
+        # Debug: Log the structure of the first service to understand field names
+        if services:
+            self.logger.debug(f"Sample service data structure: {list(services[0].keys()) if services[0] else 'Empty service'}")
+            if len(services) > 0:
+                self.logger.debug(f"First service sample: {services[0]}")
+        
         self.logger.info(f"Retrieved {len(services)} services for host: {host_name}")
+        return services
+    
+    def list_host_services_with_monitoring_data(self, host_name: str, sites: Optional[List[str]] = None, 
+                          query: Optional[str] = None, columns: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        List all services for a specific host WITH monitoring data (state, output, etc.).
+        
+        This uses the /domain-types/service/collections/all endpoint which returns
+        livestatus monitoring data, not just service configuration objects.
+        
+        Args:
+            host_name: The hostname
+            sites: Restrict to specific sites
+            query: Livestatus query expressions
+            columns: Desired columns (default: host_name, description, state, plugin_output)
+            
+        Returns:
+            List of service monitoring objects with state information
+        """
+        params = {"host_name": host_name}
+        if sites:
+            params['sites'] = sites
+        if query:
+            params['query'] = query
+        if columns:
+            params['columns'] = columns
+        else:
+            # Default columns that include monitoring state
+            params['columns'] = ['host_name', 'description', 'state', 'plugin_output', 'state_type']
+        
+        self.logger.info(f"CLI DEBUG: Calling /domain-types/service/collections/all with params: {params}")
+        response = self._make_request(
+            'GET',
+            '/domain-types/service/collections/all',
+            params=params
+        )
+        self.logger.info(f"CLI DEBUG: Got response with {len(response.get('value', []))} services")
+        
+        # Extract service data from response
+        # Monitoring endpoint returns data in 'members' not 'value'
+        services = response.get('members', response.get('value', []))
+        
+        # Debug: Log the structure of the first service to understand field names
+        if services:
+            self.logger.debug(f"Monitoring service data structure: {list(services[0].keys()) if services[0] else 'Empty service'}")
+            if len(services) > 0:
+                self.logger.debug(f"First monitoring service sample: {services[0]}")
+        
+        self.logger.info(f"Retrieved {len(services)} services with monitoring data for host: {host_name}")
+        return services
+    
+    def list_all_services_with_monitoring_data(self, host_filter: Optional[str] = None, 
+                          sites: Optional[List[str]] = None, query: Optional[str] = None, 
+                          columns: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        List all services WITH monitoring data (state, output, etc.).
+        
+        This uses the /domain-types/service/collections/all endpoint which returns
+        livestatus monitoring data, not just service configuration objects.
+        
+        Args:
+            host_filter: Filter services by host name pattern  
+            sites: Restrict to specific sites  
+            query: Livestatus query expressions
+            columns: Desired columns (default: host_name, description, state, plugin_output)
+            
+        Returns:
+            List of service monitoring objects with state information
+        """
+        params = {}
+        if host_filter:
+            params['host_name'] = host_filter
+        if sites:
+            params['sites'] = sites
+        if query:
+            params['query'] = query
+        if columns:
+            params['columns'] = columns
+        else:
+            # Default columns that include monitoring state
+            params['columns'] = ['host_name', 'description', 'state', 'plugin_output', 'state_type']
+        
+        self.logger.info(f"CLI DEBUG: Calling /domain-types/service/collections/all (all services) with params: {params}")
+        response = self._make_request(
+            'GET',
+            '/domain-types/service/collections/all',
+            params=params
+        )
+        self.logger.info(f"CLI DEBUG: Got response with {len(response.get('value', []))} total services")
+        
+        # Extract service data from response
+        # Monitoring endpoint returns data in 'members' not 'value'
+        services = response.get('members', response.get('value', []))
+        
+        # Debug: Log the structure of the first service to understand field names
+        if services:
+            self.logger.debug(f"All services monitoring data structure: {list(services[0].keys()) if services[0] else 'Empty service'}")
+            if len(services) > 0:
+                self.logger.debug(f"First monitoring service sample: {services[0]}")
+        
+        self.logger.info(f"Retrieved {len(services)} services with monitoring data (all hosts)")
         return services
     
     def get_service_monitoring_data(self, host_name: str, service_description: Optional[str] = None) -> List[Dict[str, Any]]:

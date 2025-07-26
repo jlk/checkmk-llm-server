@@ -92,6 +92,19 @@ class AsyncCheckmkClient:
         """List all services with optional host filter."""
         pass
     
+    @async_wrapper("list_host_services_with_monitoring_data")
+    def list_host_services_with_monitoring_data(self, host_name: str, sites: Optional[List[str]] = None, 
+                          query: Optional[str] = None, columns: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """List services for a host with monitoring data (state, output, etc.)."""
+        pass
+    
+    @async_wrapper("list_all_services_with_monitoring_data")
+    def list_all_services_with_monitoring_data(self, host_filter: Optional[str] = None, 
+                          sites: Optional[List[str]] = None, query: Optional[str] = None, 
+                          columns: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """List all services with monitoring data (state, output, etc.)."""
+        pass
+    
     @async_wrapper("get_service_status")
     def get_service_status(self, host_name: str, service_name: str) -> Dict[str, Any]:
         """Get detailed service status."""
@@ -159,7 +172,7 @@ class AsyncCheckmkClient:
     
     # Parameter operations
     @async_wrapper("get_effective_parameters")
-    def get_effective_parameters(self, host_name: str, service_name: str, ruleset: str) -> Dict[str, Any]:
+    def get_effective_parameters(self, host_name: str, service_name: str) -> Dict[str, Any]:
         """Get effective parameters for a service."""
         pass
     

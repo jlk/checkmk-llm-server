@@ -663,19 +663,33 @@ def list_services(ctx, host_name: Optional[str], sites: tuple, query: Optional[s
     try:
         if host_name:
             # List services for specific host
-            services = checkmk_client.list_host_services(
-                host_name=host_name,
-                sites=list(sites) if sites else None,
-                query=query,
-                columns=list(columns) if columns else ['description', 'state', 'plugin_output']
-            )
+            click.echo(f"CLI DEBUG: About to call list_host_services_with_monitoring_data for {host_name}")
+            try:
+                services = checkmk_client.list_host_services_with_monitoring_data(
+                    host_name=host_name,
+                    sites=list(sites) if sites else None,
+                    query=query,
+                    columns=list(columns) if columns else None  # Get monitoring data with state
+                )
+                click.echo(f"CLI DEBUG: Successfully got {len(services)} services from monitoring endpoint")
+            except Exception as e:
+                click.echo(f"CLI DEBUG: Error calling monitoring endpoint: {e}")
+                click.echo(f"CLI DEBUG: Falling back to original method")
+                services = checkmk_client.list_host_services(
+                    host_name=host_name,
+                    sites=list(sites) if sites else None,
+                    query=query,
+                    columns=list(columns) if columns else None
+                )
         else:
             # List all services
-            services = checkmk_client.list_all_services(
+            click.echo(f"CLI DEBUG: About to call list_all_services_with_monitoring_data")
+            services = checkmk_client.list_all_services_with_monitoring_data(
                 sites=list(sites) if sites else None,
                 query=query,
                 columns=list(columns) if columns else None
             )
+            click.echo(f"CLI DEBUG: Successfully got {len(services)} services from all services monitoring endpoint")
         
         if not services:
             if host_name:
@@ -691,11 +705,18 @@ def list_services(ctx, host_name: Optional[str], sites: tuple, query: Optional[s
             click.echo(f"Found {len(services)} services")
         
         for service in services:
+            # Debug: Print the first service structure to understand the data format
+            if service == services[0]:
+                click.echo(f"DEBUG - Service keys: {list(service.keys())}")
+                click.echo(f"DEBUG - Full service data: {service}")
+            
+            # Extract data directly from service object (Checkmk API format)
+            # First try extensions, then direct access for backward compatibility
             extensions = service.get('extensions', {})
-            service_desc = extensions.get('description', 'Unknown')
-            service_state = extensions.get('state', 'Unknown')
-            plugin_output = extensions.get('plugin_output', '')
-            host = extensions.get('host_name', host_name or 'Unknown')
+            service_desc = extensions.get('description') or service.get('description', 'Unknown')
+            service_state = extensions.get('state') if extensions.get('state') is not None else service.get('state', 'Unknown')
+            plugin_output = extensions.get('plugin_output') or service.get('plugin_output', '')
+            host = extensions.get('host_name') or service.get('host_name', host_name or 'Unknown')
             
             # Convert numeric state to text
             if isinstance(service_state, int):

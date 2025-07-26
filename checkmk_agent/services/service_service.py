@@ -44,8 +44,13 @@ class ServiceService(BaseService):
             if validation_errors:
                 raise ValueError(f"Validation errors: {', '.join(validation_errors)}")
             
-            # Get services from API
-            services_data = await self.checkmk.list_host_services(host_name)
+            # Get services from API using monitoring endpoint  
+            services_data = await self.checkmk.list_host_services_with_monitoring_data(
+                host_name=host_name,
+                sites=None,
+                query=None,
+                columns=None
+            )
             
             # Convert to ServiceInfo models
             services = []
@@ -347,8 +352,13 @@ class ServiceService(BaseService):
             ServiceResult containing ServiceListResult
         """
         async def _list_all_services_operation():
-            # Get services from API
-            services_data = await self.checkmk.list_all_services(host_filter)
+            # Get services from API using monitoring endpoint
+            services_data = await self.checkmk.list_all_services_with_monitoring_data(
+                host_filter=host_filter,
+                sites=None,
+                query=None,
+                columns=None
+            )
             
             # Convert to ServiceInfo models
             services = []
@@ -384,29 +394,44 @@ class ServiceService(BaseService):
     
     def _convert_api_service_to_model(self, service_data: Dict[str, Any], include_details: bool = False) -> ServiceInfo:
         """Convert API service data to ServiceInfo model."""
-        # Extract basic information
-        host_name = service_data.get("host_name", "")
-        service_name = service_data.get("service_description", "")
-        state_code = service_data.get("state", 0)
-        state = ServiceState.OK
+        # Handle both monitoring endpoint (with extensions) and configuration endpoint data
+        extensions = service_data.get('extensions', {})
         
-        # Map state code to enum
-        state_mapping = {0: ServiceState.OK, 1: ServiceState.WARNING, 2: ServiceState.CRITICAL, 3: ServiceState.UNKNOWN}
-        state = state_mapping.get(state_code, ServiceState.UNKNOWN)
+        # Extract basic information - try extensions first, then direct access
+        host_name = extensions.get("host_name") or service_data.get("host_name", "")
+        service_name = extensions.get("description") or service_data.get("description", service_data.get("service_description", ""))
+        state_value = extensions.get("state") or service_data.get("state", "OK")
         
-        # Basic service info
+        # Handle both string and numeric state values from Checkmk API
+        if isinstance(state_value, str):
+            # API returns string values like "OK", "WARNING", "CRITICAL", "UNKNOWN"
+            state_mapping = {
+                "OK": ServiceState.OK, 
+                "WARNING": ServiceState.WARNING, 
+                "CRITICAL": ServiceState.CRITICAL, 
+                "UNKNOWN": ServiceState.UNKNOWN,
+                "WARN": ServiceState.WARNING,  # Some APIs use WARN instead of WARNING
+                "CRIT": ServiceState.CRITICAL   # Some APIs use CRIT instead of CRITICAL
+            }
+            state = state_mapping.get(state_value.upper(), ServiceState.UNKNOWN)
+        else:
+            # Fallback for numeric codes (0=OK, 1=WARNING, 2=CRITICAL, 3=UNKNOWN)
+            numeric_mapping = {0: ServiceState.OK, 1: ServiceState.WARNING, 2: ServiceState.CRITICAL, 3: ServiceState.UNKNOWN}
+            state = numeric_mapping.get(state_value, ServiceState.UNKNOWN)
+        
+        # Basic service info - try extensions first, then direct access
         service_info = ServiceInfo(
             host_name=host_name,
             service_name=service_name,
             state=state,
-            state_type=service_data.get("state_type", "hard"),
-            plugin_output=service_data.get("plugin_output", ""),
-            long_plugin_output=service_data.get("long_plugin_output"),
-            performance_data=service_data.get("performance_data"),
-            last_check=datetime.fromtimestamp(service_data.get("last_check", 0)),
-            last_state_change=datetime.fromtimestamp(service_data.get("last_state_change", 0)),
-            acknowledged=service_data.get("acknowledged", False),
-            in_downtime=service_data.get("in_downtime", False)
+            state_type=self._convert_state_type_to_string(extensions.get("state_type") or service_data.get("state_type", 1)),
+            plugin_output=extensions.get("plugin_output") or service_data.get("plugin_output", ""),
+            long_plugin_output=extensions.get("long_plugin_output") or service_data.get("long_plugin_output"),
+            performance_data=extensions.get("performance_data") or service_data.get("performance_data"),
+            last_check=datetime.fromtimestamp(extensions.get("last_check") or service_data.get("last_check", 0)),
+            last_state_change=datetime.fromtimestamp(extensions.get("last_state_change") or service_data.get("last_state_change", 0)),
+            acknowledged=extensions.get("acknowledged") or service_data.get("acknowledged", False),
+            in_downtime=extensions.get("in_downtime") or service_data.get("in_downtime", False)
         )
         
         # Add detailed information if requested
@@ -438,6 +463,19 @@ class ServiceService(BaseService):
             except (ValueError, OSError):
                 return None
         return None
+    
+    def _convert_state_type_to_string(self, state_type_value: Any) -> str:
+        """Convert numeric state_type to string format."""
+        if isinstance(state_type_value, int):
+            # Checkmk API returns: 0=soft, 1=hard
+            state_type_mapping = {0: "soft", 1: "hard"}
+            return state_type_mapping.get(state_type_value, "hard")
+        elif isinstance(state_type_value, str):
+            # Already a string, return as-is if valid
+            if state_type_value.lower() in ["soft", "hard"]:
+                return state_type_value.lower()
+        # Default fallback
+        return "hard"
     
     def _calculate_service_stats(self, services: List[ServiceInfo]) -> Dict[str, int]:
         """Calculate service statistics."""
