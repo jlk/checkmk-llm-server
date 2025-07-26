@@ -79,17 +79,37 @@ cp examples/configs/development.yaml config.yaml
 # Edit config.yaml with your Checkmk server details and API keys
 ```
 
-### Running the MCP Server
+### MCP Server Options
 
-Start the enhanced MCP server with all advanced features:
+Choose between two MCP server implementations based on your needs:
+
+#### Basic MCP Server (14 tools)
+**Entry Point**: `mcp_checkmk_server.py`  
+**Best for**: Standard monitoring operations, lightweight deployments
+```bash
+python mcp_checkmk_server.py --config config.yaml
+```
+
+**Core Tools Include**:
+- Host management (list, create, update, delete)
+- Service monitoring (list, status, acknowledge, downtime)
+- Status dashboards (overview, problems, critical/warning alerts)
+- Service parameters (get, set, validate)
+- Service discovery operations
+
+#### Enhanced MCP Server (18 tools)
+**Entry Point**: `mcp_checkmk_enhanced_server.py`  
+**Best for**: High-performance environments, large datasets, advanced features
 ```bash
 python mcp_checkmk_enhanced_server.py --config config.yaml
 ```
 
-Or use the basic MCP server:
-```bash
-python mcp_checkmk_server.py --config config.yaml
-```
+**All Basic Tools Plus**:
+- **Streaming Operations**: Memory-efficient processing of large datasets
+- **Batch Processing**: Concurrent bulk operations with progress tracking
+- **Advanced Caching**: LRU caching with TTL for optimal performance
+- **Performance Metrics**: Real-time system performance monitoring
+- **Error Recovery**: Circuit breakers and automatic retry mechanisms
 
 ### Connecting GenAI Programs to the MCP Server
 
@@ -141,24 +161,49 @@ Once connected, you can use natural language commands like:
 - "Create a 2-hour downtime for database maintenance on prod-db-01"
 - "What hosts are having disk space issues?"
 
-### Using the CLI (MCP Client)
+## 🖥️ CLI Interface Options
 
-The CLI now acts as an MCP client, connecting to the MCP server:
+### Option 1: MCP-Based CLI (Recommended)
+**Entry Point**: `checkmk_cli_mcp.py`  
+**Architecture**: Connects to MCP server as a client  
+**Best for**: Consistent interface with other MCP clients, standardized protocol
+
 ```bash
-# Interactive mode
+# Interactive mode with natural language processing
 python checkmk_cli_mcp.py interactive
 
-# Direct commands
+# Direct command execution
 python checkmk_cli_mcp.py hosts list
 python checkmk_cli_mcp.py status overview
 python checkmk_cli_mcp.py services list server01
+
+# With specific configuration
+python checkmk_cli_mcp.py --config /path/to/config.yaml hosts list
 ```
 
-### Legacy CLI (Direct API)
+### Option 2: Direct API CLI (Legacy)
+**Entry Point**: `checkmk_agent.cli`  
+**Architecture**: Direct connection to Checkmk REST API  
+**Best for**: Debugging, development, environments without MCP server
 
-The original CLI is still available for direct API access:
 ```bash
+# Interactive mode
 python -m checkmk_agent.cli interactive
+
+# Direct commands
+python -m checkmk_agent.cli --config config.yaml hosts list
+python -m checkmk_agent.cli status overview
+python -m checkmk_agent.cli services list server01
+```
+
+### Option 3: Module Import CLI
+**Entry Point**: `checkmk_agent.cli_mcp`  
+**Alternative invocation for MCP CLI**
+
+```bash
+# Alternative way to run MCP CLI
+python -m checkmk_agent.cli_mcp interactive
+python -m checkmk_agent.cli_mcp hosts list
 ```
 
 ## 🔧 Configuration
@@ -275,6 +320,42 @@ async def critical_operation():
 - **[Service Parameter Management](docs/service-parameter-management.md)** - Managing service thresholds
 - **[Configuration Examples](examples/)** - Environment-specific configurations
 
+## 📊 MCP Server Comparison
+
+| Feature | Basic MCP Server | Enhanced MCP Server |
+|---------|------------------|---------------------|
+| **Tools Available** | 14 tools | 18 tools |
+| **Entry Point** | `mcp_checkmk_server.py` | `mcp_checkmk_enhanced_server.py` |
+| **Memory Usage** | Low | Moderate |
+| **Performance** | Standard | Optimized |
+| **Best For** | Small-medium environments | Large environments, production |
+
+### Tool Categories
+
+| Category | Basic Server | Enhanced Server |
+|----------|-------------|----------------|
+| **Host Management** | ✅ list, create, update, delete | ✅ All basic + streaming |
+| **Service Operations** | ✅ list, status, acknowledge, downtime | ✅ All basic + batch processing |
+| **Status Monitoring** | ✅ overview, problems, alerts | ✅ All basic + cached responses |
+| **Service Parameters** | ✅ get, set, validate | ✅ All basic + bulk operations |
+| **Discovery** | ✅ Basic discovery | ✅ All basic + streaming discovery |
+| **Advanced Features** | ❌ Not available | ✅ Streaming, caching, metrics, recovery |
+
+### When to Choose Each Server
+
+**Choose Basic MCP Server if:**
+- Managing < 1,000 hosts/services
+- Standard monitoring operations
+- Limited resources
+- Simple deployment requirements
+
+**Choose Enhanced MCP Server if:**
+- Managing > 1,000 hosts/services
+- Need high-performance operations
+- Want advanced caching and streaming
+- Require performance monitoring
+- Running in production environments
+
 ## 🏗️ Architecture Components
 
 ### Core Services
@@ -291,9 +372,10 @@ async def critical_operation():
 - `CircuitBreaker` - Automatic failure detection and recovery
 
 ### MCP Integration
-- `EnhancedCheckmkMCPServer` - Complete MCP server with all features
-- `CheckmkMCPClient` - MCP client for CLI and external integrations
-- Comprehensive tool and resource definitions
+- **Basic MCP Server** (`mcp_checkmk_server.py`) - 14 core tools for standard operations
+- **Enhanced MCP Server** (`mcp_checkmk_enhanced_server.py`) - 18 tools with advanced features
+- **MCP Client** (`checkmk_cli_mcp.py`) - CLI interface connecting to MCP servers
+- **Direct CLI** (`checkmk_agent.cli`) - Legacy interface with direct API access
 
 ## 📊 Performance Characteristics
 
@@ -325,13 +407,15 @@ checkmk_llm_agent/
 │   │   ├── metrics.py        # Performance monitoring
 │   │   └── recovery.py       # Error recovery patterns
 │   ├── mcp_server/           # MCP server implementation
-│   │   ├── server.py         # Basic MCP server
-│   │   ├── enhanced_server.py # Enhanced server with features
-│   │   └── tools/            # MCP tool definitions
+│   │   ├── server.py         # Basic MCP server (14 tools)
+│   │   └── enhanced_server.py # Enhanced server (18 tools)
 │   ├── api_client.py         # Checkmk REST API client
 │   ├── async_api_client.py   # Async wrapper for API client
 │   ├── mcp_client.py         # MCP client implementation
 │   └── cli_mcp.py            # CLI using MCP backend
+├── mcp_checkmk_server.py     # Basic MCP server entry point
+├── mcp_checkmk_enhanced_server.py # Enhanced MCP server entry point
+└── checkmk_cli_mcp.py        # MCP-based CLI entry point
 ├── tests/                    # Comprehensive test suite
 ├── docs/                     # Documentation
 └── examples/                 # Configuration examples
