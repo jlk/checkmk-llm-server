@@ -705,7 +705,11 @@ class StatusService(BaseService):
         async def _analyze_operation():
             # Get host services
             services_data = await self.checkmk.list_host_services(host_name)
-            services = services_data.get('value', [])
+            # Handle both list and dict response formats
+            if isinstance(services_data, list):
+                services = services_data
+            else:
+                services = services_data.get('value', [])
             
             # Calculate health metrics
             total = len(services)

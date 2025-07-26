@@ -662,8 +662,10 @@ Focus on evidence-based recommendations that improve reliability and performance
         )
         
         async def list_host_services(host_name, include_downtimes=False, include_acknowledged=False):
+            # Note: include_downtimes and include_acknowledged are accepted by tool but not used by service
+            # This maintains backward compatibility with tool schema
             result = await self.service_service.list_host_services(
-                host_name=host_name, include_downtimes=include_downtimes, include_acknowledged=include_acknowledged
+                host_name=host_name
             )
             if result.success:
                 return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services for host {host_name}"}
@@ -701,8 +703,10 @@ Focus on evidence-based recommendations that improve reliability and performance
             else:
                 state_enum_filter = None
             
+            # Note: search and offset are not supported by the service layer
+            # Use host_filter as search pattern if provided
             result = await self.service_service.list_all_services(
-                search=search, state_filter=state_enum_filter, limit=limit, offset=offset
+                host_filter=search, state_filter=state_enum_filter, limit=limit
             )
             if result.success:
                 return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services"}
