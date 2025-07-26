@@ -131,7 +131,7 @@ class ParameterService(BaseService):
             
             try:
                 # Get effective parameters from Checkmk API
-                effective_params = await self.checkmk.get_effective_parameters(host_name, service_name, ruleset)
+                effective_params = await self.checkmk.get_effective_parameters(host_name, service_name)
                 
                 return ServiceParameterResult(
                     host_name=host_name,
@@ -215,7 +215,7 @@ class ParameterService(BaseService):
             
             # Get effective parameters after rule creation
             try:
-                effective_params = await self.checkmk.get_effective_parameters(host_name, service_name, ruleset)
+                effective_params = await self.checkmk.get_effective_parameters(host_name, service_name)
             except Exception as e:
                 self.logger.warning(f"Could not retrieve effective parameters after rule creation: {e}")
                 effective_params = parameters
