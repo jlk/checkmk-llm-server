@@ -75,13 +75,20 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - ✅ **Batch Processing**: Streaming, caching, and metrics collection
 - ✅ **Performance Features**: LRU caching and async operations
 - ✅ **Real-time Monitoring**: Live log monitoring capabilities
+- ✅ **Service State Accuracy**: Fixed critical issue with service states showing "Unknown"
+- ✅ **Parameter Handling**: Resolved MCP tool parameter validation errors
 
 **Recent Fixes (2025-07-25)**:
+- **Critical Service State Fix**: Resolved services displaying "Unknown" instead of actual monitoring states
+- **API Endpoint Correction**: Fixed CLI to use monitoring endpoint for accurate service data
+- **State Extraction Logic**: Fixed falsy value handling where state 0 (OK) was incorrectly treated as false
+- **Parameter Compatibility**: Updated MCP handlers to handle parameter mismatches gracefully
+- **Data Type Handling**: Added proper conversion for numeric state_type values from Checkmk API
 - Fixed tool registration using proper MCP SDK decorators
 - Implemented missing StatusService methods
 - Added custom JSON serialization for datetime objects
 - Worked around MCP SDK v1.12.0 CallToolResult construction bug
-- Verified full functionality with Claude integration
+- Verified full functionality with Claude integration and accurate monitoring data
 
 ### 🟢 LLM Integration (`checkmk_agent/llm_client.py`)
 **Status**: ✅ Complete and Stable
@@ -135,9 +142,10 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 ## Active Next Steps
 
 ### Immediate Priorities (Next Session)
-1. **Performance Optimization**: Consider implementing query optimization for large infrastructures
-2. **Enhanced Analytics**: Explore advanced trend analysis and predictive monitoring
-3. **Integration Expansion**: Consider additional monitoring system integrations
+1. **MCP Server Monitoring**: Continue monitoring for any edge case errors during extended Claude usage
+2. **Performance Optimization**: Consider implementing query optimization for large infrastructures
+3. **Enhanced Analytics**: Explore advanced trend analysis and predictive monitoring
+4. **Integration Expansion**: Consider additional monitoring system integrations
 
 ### Medium-term Goals
 1. **Dashboard Web UI**: Potential web interface for visual monitoring
@@ -146,6 +154,8 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 
 ## Recent Achievements (Last 30 Days)
 
+- ✅ **MCP Server Error Resolution**: Real-time monitoring and fixing of critical service state issues
+- ✅ **Service State Accuracy**: Fixed "Unknown" service states by using correct monitoring endpoints
 - ✅ **MCP Server Integration**: Complete implementation and bug fixes
 - ✅ **Enhanced Host Status**: Rich dashboards and problem categorization
 - ✅ **Service Operations**: Full service management capabilities

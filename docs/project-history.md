@@ -2,6 +2,44 @@
 
 This document tracks the major development sessions and milestones for the Checkmk LLM Agent project.
 
+## Session: 2025-07-25 - MCP Server Error Monitoring and Critical Service State Fixes
+
+**Focus**: Real-time monitoring and fixing of MCP server errors during Claude testing, resolving critical service state display issues
+
+**Key Achievements**:
+- **Live Error Monitoring**: Implemented continuous monitoring of mcp-server-checkmk.log during user testing
+- **Service State Fix**: Resolved critical issue where services showed "Unknown" instead of actual states (OK, WARNING, CRITICAL)
+- **API Endpoint Correction**: Fixed CLI to use monitoring endpoint instead of configuration endpoint for service data
+- **State Extraction Logic**: Fixed falsy value handling where state 0 (OK) was treated as false
+- **Parameter Mismatch Fixes**: Resolved multiple MCP tool parameter validation errors
+- **Data Type Conversions**: Added proper handling for numeric state_type values from API
+
+**Critical Issues Resolved**:
+- Services displaying "Unknown" state despite having real monitoring data in Checkmk
+- CLI using wrong API endpoint (/objects/host/services vs /domain-types/service/collections/all)
+- State extraction logic treating numeric 0 (OK) as falsy value
+- MCP tool handlers receiving unexpected parameters (include_downtimes, search, etc.)
+- Pydantic validation errors for state_type field expecting string but receiving integer
+- Multiple TypeError exceptions in service operations during Claude testing
+
+**Technical Details**:
+- Root cause analysis revealed configuration vs monitoring endpoint distinction
+- Added list_host_services_with_monitoring_data() and list_all_services_with_monitoring_data() methods
+- Fixed state extraction: `extensions.get('state') if extensions.get('state') is not None else service.get('state', 'Unknown')`
+- Added _convert_state_type_to_string() method to handle numeric state_type values (0=soft, 1=hard)
+- Updated MCP handlers to accept but ignore unsupported tool parameters
+
+**Files Modified**:
+- `checkmk_agent/mcp_server/enhanced_server.py` - Fixed parameter handling in tool handlers
+- `checkmk_agent/services/service_service.py` - Updated to use monitoring endpoints, added state_type conversion
+- `checkmk_agent/api_client.py` - Added new monitoring data methods
+- `checkmk_agent/async_api_client.py` - Added async wrappers for monitoring methods
+- `checkmk_agent/cli.py` - Fixed critical state extraction logic
+
+**Verification**: User confirmed services now display correct states, MCP server processes requests successfully with real monitoring data
+
+**Status**: ✅ Complete - MCP server fully operational with accurate service state reporting
+
 ## Session: 2025-07-25 - MCP Server Tool Registration Fixes and Error Resolution
 
 **Focus**: Fixed critical MCP server issues preventing tool exposure to Claude

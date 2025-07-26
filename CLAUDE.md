@@ -24,15 +24,17 @@ The project is a **FULLY OPERATIONAL** Checkmk LLM Agent implementation with:
 
 ## Current Focus
 
-**MCP Server Integration Completed** - Recently completed comprehensive MCP server implementation and bug fixes:
-- **Tool Registration**: Both basic and enhanced MCP servers now properly expose all tools (14 and 18 tools respectively)
-- **Error Resolution**: Fixed all JSON serialization, parameter validation, and CallToolResult construction issues
-- **Claude Integration**: Successfully tested with Claude - all tools functional and returning real infrastructure data
-- **Missing Methods**: Implemented 6 missing StatusService methods for complete API coverage
-- **Bug Workarounds**: Resolved MCP SDK v1.12.0 compatibility issues
-- **Real-time Monitoring**: Verified through live log monitoring - zero errors in current session
+**MCP Server Error Resolution and Service State Accuracy** - Recently completed critical fixes for MCP server integration:
+- **Real-time Error Monitoring**: Implemented live monitoring of MCP server logs during Claude testing
+- **Service State Accuracy**: Fixed critical issue where services displayed "Unknown" instead of actual monitoring states (OK, WARNING, CRITICAL)
+- **API Endpoint Correction**: Fixed CLI to use monitoring endpoint (/domain-types/service/collections/all) instead of configuration endpoint for accurate service data
+- **State Extraction Logic**: Fixed falsy value handling where numeric state 0 (OK) was incorrectly treated as false
+- **Parameter Compatibility**: Resolved MCP tool parameter validation errors by updating handlers to accept but ignore unsupported parameters
+- **Data Type Handling**: Added proper conversion for numeric state_type values from Checkmk API (0=soft, 1=hard)
+- **Complete MCP Integration**: All 18 enhanced MCP tools now fully functional with Claude, providing accurate real-time monitoring data
 
 **Previously Completed**:
+- MCP server tool registration and core functionality implementation
 - Enhanced host service status functionality with rich dashboards and problem categorization
 - Advanced CLI filtering and natural language query support
 - Comprehensive service operations and discovery capabilities
