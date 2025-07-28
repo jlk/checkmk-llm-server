@@ -64,6 +64,7 @@ class AcknowledgeServiceRequest(BaseModel):
     sticky: bool = Field(True, description="Whether acknowledgment persists until service is OK")
     notify: bool = Field(True, description="Whether to send notifications")
     persistent: bool = Field(False, description="Whether acknowledgment survives restarts")
+    expire_on: Optional[str] = Field(None, description="Expiration time as ISO timestamp (Checkmk 2.4+)")
 
 
 class ServiceDowntimeRequest(BaseModel):
@@ -559,22 +560,31 @@ class CheckmkClient:
         Returns:
             List of service monitoring objects with state information
         """
-        params = {"host_name": host_name}
+        # Build request body for POST (Checkmk 2.4+)
+        data = {"host_name": host_name}
         if sites:
-            params['sites'] = sites
+            data['sites'] = sites
         if query:
-            params['query'] = query
+            # In 2.4, query should be a dict, not a JSON string
+            if isinstance(query, str):
+                import json
+                try:
+                    data['query'] = json.loads(query)
+                except json.JSONDecodeError:
+                    data['query'] = query
+            else:
+                data['query'] = query
         if columns:
-            params['columns'] = columns
+            data['columns'] = columns
         else:
             # Default columns that include monitoring state
-            params['columns'] = ['host_name', 'description', 'state', 'plugin_output', 'state_type']
+            data['columns'] = ['host_name', 'description', 'state', 'plugin_output', 'state_type']
         
-        self.logger.info(f"CLI DEBUG: Calling /domain-types/service/collections/all with params: {params}")
+        self.logger.info(f"CLI DEBUG: Calling /domain-types/service/collections/all with data: {data}")
         response = self._make_request(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params=params
+            json=data
         )
         self.logger.info(f"CLI DEBUG: Got response with {len(response.get('value', []))} services")
         
@@ -609,24 +619,33 @@ class CheckmkClient:
         Returns:
             List of service monitoring objects with state information
         """
-        params = {}
+        # Build request body for POST (Checkmk 2.4+)
+        data = {}
         if host_filter:
-            params['host_name'] = host_filter
+            data['host_name'] = host_filter
         if sites:
-            params['sites'] = sites
+            data['sites'] = sites
         if query:
-            params['query'] = query
+            # In 2.4, query should be a dict, not a JSON string
+            if isinstance(query, str):
+                import json
+                try:
+                    data['query'] = json.loads(query)
+                except json.JSONDecodeError:
+                    data['query'] = query
+            else:
+                data['query'] = query
         if columns:
-            params['columns'] = columns
+            data['columns'] = columns
         else:
             # Default columns that include monitoring state
-            params['columns'] = ['host_name', 'description', 'state', 'plugin_output', 'state_type']
+            data['columns'] = ['host_name', 'description', 'state', 'plugin_output', 'state_type']
         
-        self.logger.info(f"CLI DEBUG: Calling /domain-types/service/collections/all (all services) with params: {params}")
+        self.logger.info(f"CLI DEBUG: Calling /domain-types/service/collections/all (all services) with data: {data}")
         response = self._make_request(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params=params
+            json=data
         )
         self.logger.info(f"CLI DEBUG: Got response with {len(response.get('value', []))} total services")
         
@@ -692,20 +711,29 @@ class CheckmkClient:
         Returns:
             List of service objects
         """
-        params = {}
+        # Build request body for POST (Checkmk 2.4+)
+        data = {}
         if host_name:
-            params['host_name'] = host_name
+            data['host_name'] = host_name
         if sites:
-            params['sites'] = sites
+            data['sites'] = sites
         if query:
-            params['query'] = query
+            # In 2.4, query should be a dict, not a JSON string
+            if isinstance(query, str):
+                import json
+                try:
+                    data['query'] = json.loads(query)
+                except json.JSONDecodeError:
+                    data['query'] = query
+            else:
+                data['query'] = query
         if columns:
-            params['columns'] = columns
+            data['columns'] = columns
         
         response = self._make_request(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params=params
+            json=data
         )
         
         # Extract service data from response
@@ -715,7 +743,8 @@ class CheckmkClient:
     
     def acknowledge_service_problems(self, host_name: str, service_description: str, 
                                    comment: str, sticky: bool = True,
-                                   notify: bool = True, persistent: bool = False) -> Dict[str, Any]:
+                                   notify: bool = True, persistent: bool = False,
+                                   expire_on: Optional[str] = None) -> Dict[str, Any]:
         """
         Acknowledge service problems.
         
@@ -726,6 +755,7 @@ class CheckmkClient:
             sticky: Whether acknowledgment persists until service is OK
             notify: Whether to send notifications
             persistent: Whether acknowledgment survives restarts
+            expire_on: Optional expiration time as ISO timestamp (Checkmk 2.4+)
             
         Returns:
             Acknowledgment response
@@ -738,7 +768,8 @@ class CheckmkClient:
             comment=comment,
             sticky=sticky,
             notify=notify,
-            persistent=persistent
+            persistent=persistent,
+            expire_on=expire_on
         )
         
         response = self._make_request(
@@ -1121,20 +1152,22 @@ class CheckmkClient:
             self.logger.debug("Using fallback approach for service filtering")
             
             # Get all services with status columns for filtering
-            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            basic_data = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
             if host_filter:
                 # Simple host-specific endpoint if host filter provided
+                # Note: Host-specific services endpoint uses POST in 2.4 as well
+                basic_data['host_name'] = host_filter
                 response = self._make_request(
-                    'GET',
-                    f'/objects/host/{host_filter}/collections/services',
-                    params=basic_params
+                    'POST',
+                    '/objects/host/{}/collections/services'.format(host_filter),
+                    json=basic_data
                 )
             else:
                 # All services endpoint
                 response = self._make_request(
-                    'GET',
+                    'POST',
                     '/domain-types/service/collections/all',
-                    params=basic_params
+                    json=basic_data
                 )
             
             all_services = response.get('value', [])
@@ -1168,14 +1201,14 @@ class CheckmkClient:
         """
         try:
             # Get all services with state information
-            params = {
+            data = {
                 'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
             
             response = self._make_request(
-                'GET',
+                'POST',
                 '/domain-types/service/collections/all',
-                params=params
+                json=data
             )
             
             services = response.get('value', [])
@@ -1245,18 +1278,19 @@ class CheckmkClient:
         """
         try:
             # Use simple approach - get all services and filter locally
-            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            basic_data = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
             if host_filter:
+                basic_data['host_name'] = host_filter
                 response = self._make_request(
-                    'GET',
+                    'POST',
                     f'/objects/host/{host_filter}/collections/services',
-                    params=basic_params
+                    json=basic_data
                 )
             else:
                 response = self._make_request(
-                    'GET',
+                    'POST',
                     '/domain-types/service/collections/all',
-                    params=basic_params
+                    json=basic_data
                 )
             
             all_services = response.get('value', [])
@@ -1290,11 +1324,11 @@ class CheckmkClient:
         """
         try:
             # Use simple approach - get all services and filter locally
-            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            basic_data = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
             response = self._make_request(
-                'GET',
+                'POST',
                 '/domain-types/service/collections/all',
-                params=basic_params
+                json=basic_data
             )
             
             all_services = response.get('value', [])
@@ -1323,11 +1357,11 @@ class CheckmkClient:
         """
         try:
             # Use simple approach - get all services and filter locally
-            basic_params = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
+            basic_data = {'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']}
             response = self._make_request(
-                'GET',
+                'POST',
                 '/domain-types/service/collections/all',
-                params=basic_params
+                json=basic_data
             )
             
             all_services = response.get('value', [])
@@ -1346,6 +1380,313 @@ class CheckmkClient:
         except CheckmkAPIError as e:
             self.logger.error(f"Error getting services in downtime: {e}")
             raise
+
+    # Event Console operations
+    
+    def list_events(self, query: Optional[Dict[str, Any]] = None, host: Optional[str] = None,
+                   application: Optional[str] = None, state: Optional[str] = None,
+                   phase: Optional[str] = None, site_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        List Event Console events with optional filtering.
+        
+        Args:
+            query: Livestatus query expression for the eventconsoleevents table
+            host: Filter by host name
+            application: Filter by application name  
+            state: Filter by event state (ok, warning, critical, unknown)
+            phase: Filter by event phase (open, ack)
+            site_id: Filter by site ID
+            
+        Returns:
+            List of event objects
+        """
+        params = {}
+        if query:
+            # Convert dict query to JSON string if needed
+            if isinstance(query, dict):
+                import json
+                params['query'] = json.dumps(query)
+            else:
+                params['query'] = query
+        if host:
+            params['host'] = host
+        if application:
+            params['application'] = application
+        if state:
+            params['state'] = state
+        if phase:
+            params['phase'] = phase
+        if site_id:
+            params['site_id'] = site_id
+        
+        response = self._make_request(
+            'GET',
+            '/domain-types/event_console/collections/all',
+            params=params
+        )
+        
+        events = response.get('value', [])
+        self.logger.info(f"Retrieved {len(events)} events")
+        return events
+    
+    def get_event(self, event_id: str, site_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get specific event by ID.
+        
+        Args:
+            event_id: Event ID
+            site_id: Optional site ID
+            
+        Returns:
+            Event object
+        """
+        params = {}
+        if site_id:
+            params['site_id'] = site_id
+        
+        response = self._make_request(
+            'GET',
+            f'/objects/event_console/{event_id}',
+            params=params
+        )
+        
+        self.logger.info(f"Retrieved event: {event_id}")
+        return response
+    
+    def acknowledge_event(self, event_id: str, comment: str, contact: Optional[str] = None,
+                         site_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Acknowledge an event in the Event Console.
+        
+        Args:
+            event_id: Event ID to acknowledge
+            comment: Comment for the acknowledgment
+            contact: Optional contact name
+            site_id: Optional site ID
+            
+        Returns:
+            Acknowledgment response
+        """
+        data = {"comment": comment}
+        if contact:
+            data["contact"] = contact
+        if site_id:
+            data["site_id"] = site_id
+        
+        response = self._make_request(
+            'POST',
+            f'/objects/event_console/{event_id}/actions/update_and_acknowledge/invoke',
+            json=data
+        )
+        
+        self.logger.info(f"Acknowledged event: {event_id}")
+        return response
+    
+    def change_event_state(self, event_id: str, new_state: int, comment: Optional[str] = None,
+                          site_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Change the state of an event.
+        
+        Args:
+            event_id: Event ID
+            new_state: New state (0=OK, 1=WARNING, 2=CRITICAL, 3=UNKNOWN)
+            comment: Optional comment
+            site_id: Optional site ID
+            
+        Returns:
+            State change response
+        """
+        data = {"new_state": new_state}
+        if comment:
+            data["comment"] = comment
+        if site_id:
+            data["site_id"] = site_id
+        
+        response = self._make_request(
+            'POST',
+            f'/objects/event_console/{event_id}/actions/change_state/invoke',
+            json=data
+        )
+        
+        self.logger.info(f"Changed event {event_id} state to {new_state}")
+        return response
+    
+    def delete_events(self, query: Optional[Dict[str, Any]] = None, method: str = "by_query",
+                     site_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Delete events from the Event Console.
+        
+        Args:
+            query: Livestatus query expression for events to delete
+            method: Delete method ("by_query" or "by_id")
+            site_id: Optional site ID
+            
+        Returns:
+            Delete response
+        """
+        data = {"method": method}
+        if query:
+            # Convert dict query to JSON string if needed
+            if isinstance(query, dict):
+                import json
+                data['query'] = json.dumps(query)
+            else:
+                data['query'] = query
+        if site_id:
+            data["site_id"] = site_id
+        
+        response = self._make_request(
+            'POST',
+            '/domain-types/event_console/actions/delete/invoke',
+            json=data
+        )
+        
+        self.logger.info(f"Deleted events with method: {method}")
+        return response
+
+    # Metrics and Performance Data operations
+    def get_metric_data(self, request_type: str, host_name: str, service_description: str,
+                       metric_or_graph_id: str, time_range: Dict[str, str],
+                       reduce: str = "average", site: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get metric or graph data from Checkmk.
+        
+        Args:
+            request_type: Either "single_metric" or "predefined_graph"
+            host_name: Host name
+            service_description: Service description
+            metric_or_graph_id: Metric ID or Graph ID
+            time_range: Time range dict with 'start' and 'end' keys
+            reduce: Data reduction method - "min", "max", or "average"
+            site: Optional site name for performance optimization
+            
+        Returns:
+            Graph collection with metrics data
+        """
+        data = {
+            "type": request_type,
+            "host_name": host_name,
+            "service_description": service_description,
+            "time_range": time_range,
+            "reduce": reduce
+        }
+        
+        if request_type == "single_metric":
+            data["metric_id"] = metric_or_graph_id
+        else:  # predefined_graph
+            data["graph_id"] = metric_or_graph_id
+        
+        if site:
+            data["site"] = site
+        
+        response = self._make_request(
+            'POST',
+            '/domain-types/metric/actions/get/invoke',
+            json=data
+        )
+        
+        self.logger.info(f"Retrieved {request_type} {metric_or_graph_id} for {host_name}/{service_description}")
+        return response
+    
+    def get_single_metric(self, host_name: str, service_description: str, metric_id: str,
+                         time_range: Dict[str, str], reduce: str = "average", 
+                         site: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get data for a single metric.
+        
+        Args:
+            host_name: Host name
+            service_description: Service description
+            metric_id: Metric ID
+            time_range: Time range dict with 'start' and 'end' keys
+            reduce: Data reduction method
+            site: Optional site name
+            
+        Returns:
+            Single metric data
+        """
+        return self.get_metric_data(
+            "single_metric", host_name, service_description, 
+            metric_id, time_range, reduce, site
+        )
+    
+    def get_predefined_graph(self, host_name: str, service_description: str, graph_id: str,
+                           time_range: Dict[str, str], reduce: str = "average",
+                           site: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get data for a predefined graph containing multiple metrics.
+        
+        Args:
+            host_name: Host name
+            service_description: Service description
+            graph_id: Graph ID
+            time_range: Time range dict with 'start' and 'end' keys
+            reduce: Data reduction method
+            site: Optional site name
+            
+        Returns:
+            Graph data with multiple metrics
+        """
+        return self.get_metric_data(
+            "predefined_graph", host_name, service_description,
+            graph_id, time_range, reduce, site
+        )
+    
+    # Business Intelligence operations
+    def get_bi_aggregation_states(self, filter_names: Optional[List[str]] = None,
+                                 filter_groups: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get current state of BI aggregations.
+        
+        Args:
+            filter_names: Optional list of aggregation names to filter by
+            filter_groups: Optional list of group names to filter by
+            
+        Returns:
+            BI aggregation states data
+        """
+        params = {}
+        if filter_names:
+            params['filter_names'] = filter_names
+        if filter_groups:
+            params['filter_groups'] = filter_groups
+        
+        response = self._make_request(
+            'GET',
+            '/domain-types/bi_aggregation/actions/aggregation_state/invoke',
+            params=params
+        )
+        
+        self.logger.info(f"Retrieved BI aggregation states")
+        return response
+    
+    def list_bi_packs(self) -> Dict[str, Any]:
+        """
+        List all available BI packs.
+        
+        Returns:
+            List of BI packs
+        """
+        response = self._make_request(
+            'GET',
+            '/domain-types/bi_pack/collections/all'
+        )
+        
+        self.logger.info(f"Retrieved {len(response.get('value', []))} BI packs")
+        return response
+    
+    # System Information operations
+    def get_version_info(self) -> Dict[str, Any]:
+        """
+        Get Checkmk version information.
+        
+        Returns:
+            Version information including edition, version, and site details
+        """
+        response = self._make_request('GET', '/version')
+        
+        self.logger.info(f"Retrieved version info: {response.get('versions', {}).get('checkmk', 'unknown')}")
+        return response
 
     def test_connection(self) -> bool:
         """

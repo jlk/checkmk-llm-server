@@ -27,6 +27,10 @@ A modern Python agent that connects Large Language Models to Checkmk through the
 | **Downtime Scheduling**       | `services downtime server01 "disk space" --hours 4`           | `"create 4 hour downtime for disk space on server01"` |
 | **Rule Management**           | `rules create filesystem --folder /web`                       | `"create filesystem rule for web servers"`            |
 | **Discovery**                 | `services discover server01`                                  | `"discover services on server01"`                     |
+| **Event History** (New!)      | `services events server01 "CPU utilization"`                  | `"show event history for CPU on server01"`            |
+| **Performance Metrics** (New!)| `services metrics server01 "Memory" --hours 24`               | `"show memory metrics for server01"`                  |
+| **Business Status** (New!)    | `bi status`                                                   | `"what's the business service status?"`               |
+| **System Info** (New!)        | `system info`                                                 | `"what version of Checkmk is running?"`               |
 
 ## 📋 Architecture Overview
 
@@ -50,8 +54,10 @@ A modern Python agent that connects Large Language Models to Checkmk through the
 
 ### Prerequisites
 - Python 3.8 or higher
-- Checkmk server with REST API enabled
+- Checkmk server version 2.4.0 or higher with REST API enabled
 - OpenAI or Anthropic API key (for natural language processing)
+
+> **Note**: This agent requires Checkmk 2.4+ due to API changes. For older versions, see the [Migration Guide](#migration-from-checkmk-20)
 
 ### Installation
 
@@ -83,7 +89,7 @@ cp examples/configs/development.yaml config.yaml
 
 Choose between two MCP server implementations based on your needs:
 
-#### Basic MCP Server (14 tools)
+#### Basic MCP Server (17 tools)
 **Entry Point**: `mcp_checkmk_server.py`  
 **Best for**: Standard monitoring operations, lightweight deployments
 ```bash
@@ -96,8 +102,12 @@ python mcp_checkmk_server.py --config config.yaml
 - Status dashboards (overview, problems, critical/warning alerts)
 - Service parameters (get, set, validate)
 - Service discovery operations
+- **Event Console** (service history, event management) - New in 2.4!
+- **Metrics & Performance** (graphs, historical data) - New in 2.4!
+- **Business Intelligence** (BI aggregations, business status) - New in 2.4!
+- **System Information** (version, edition details) - New in 2.4!
 
-#### Enhanced MCP Server (18 tools)
+#### Enhanced MCP Server (22 tools)
 **Entry Point**: `mcp_checkmk_enhanced_server.py`  
 **Best for**: High-performance environments, large datasets, advanced features
 ```bash
@@ -160,6 +170,11 @@ Once connected, you can use natural language commands like:
 - "List services for server01"
 - "Create a 2-hour downtime for database maintenance on prod-db-01"
 - "What hosts are having disk space issues?"
+- "Show me the event history for CPU load on server01" (New!)
+- "Get CPU performance metrics for the last 24 hours" (New!)
+- "What's the business service status?" (New!)
+
+📚 **See [Usage Examples](docs/USAGE_EXAMPLES.md) for comprehensive examples of all features**
 
 ## 🖥️ CLI Interface Options
 
@@ -506,6 +521,87 @@ python -m checkmk_agent.cli_mcp --config /path/to/config.yaml
 curl -k https://your-checkmk-server/check_mk/api/1.0/version
 ```
 
+## 🔄 Migration from Checkmk 2.0
+
+### Breaking Changes in Checkmk 2.4
+
+If you're upgrading from Checkmk 2.0/2.1/2.2/2.3, be aware of these critical API changes:
+
+#### 1. **Host and Service Listing Methods Changed**
+```python
+# OLD (2.0-2.3) - GET requests
+GET /domain-types/host/collections/all?query={"op":"=","left":"name","right":"server01"}
+
+# NEW (2.4+) - POST requests
+POST /domain-types/host/collections/all
+Body: {"query": {"op": "=", "left": "name", "right": "server01"}}
+```
+
+#### 2. **Query Expression Format**
+- **Old**: Query expressions passed as JSON strings in URL parameters
+- **New**: Query expressions passed as objects in request body
+- The agent handles this conversion automatically
+
+#### 3. **New Features Available**
+- **Event Console**: Access service event history and logs
+- **Metrics API**: Retrieve performance graphs and historical data
+- **Business Intelligence**: Monitor business-level service aggregations
+- **Acknowledgment Expiration**: Set time-based acknowledgment expiry
+
+### Migration Steps
+
+1. **Backup Current Configuration**
+   ```bash
+   cp config.yaml config.yaml.backup
+   ```
+
+2. **Update Checkmk Server**
+   - Ensure your Checkmk server is upgraded to version 2.4.0 or higher
+   - Verify REST API is enabled: `curl https://your-server/check_mk/api/1.0/version`
+
+3. **Update the Agent**
+   ```bash
+   git pull origin main
+   pip install -r requirements.txt
+   ```
+
+4. **Test Connection**
+   ```bash
+   python -m checkmk_agent.cli test-connection
+   ```
+
+5. **Verify New Features**
+   ```bash
+   # Test Event Console
+   python -m checkmk_agent.cli services events server01 "CPU utilization"
+   
+   # Test Metrics
+   python -m checkmk_agent.cli services metrics server01 "CPU utilization"
+   
+   # Test BI Aggregations
+   python -m checkmk_agent.cli bi status
+   ```
+
+### Rollback Plan
+
+If you need to revert to Checkmk 2.0 compatibility:
+
+1. **Use Legacy Branch**
+   ```bash
+   git checkout legacy-2.0-support
+   ```
+
+2. **Restore Old Configuration**
+   ```bash
+   cp config.yaml.backup config.yaml
+   ```
+
+3. **Report Issues**
+   Please report any migration issues on GitHub with:
+   - Your Checkmk version
+   - Error messages
+   - API endpoint that failed
+
 ## 🔮 Future Enhancements
 
 - **Web UI Integration**: Browser-based interface using MCP backend
@@ -545,6 +641,6 @@ For questions or issues:
 
 ---
 
-**Status**: ✅ **Production Ready** - All phases implemented and validated
+**Status**: ✅ **Production Ready with Checkmk 2.4** - All phases implemented and validated
 
-The Checkmk LLM Agent provides a modern, scalable integration between Large Language Models and Checkmk monitoring, featuring advanced capabilities for enterprise deployments.
+The Checkmk LLM Agent provides a modern, scalable integration between Large Language Models and Checkmk monitoring, featuring advanced capabilities for enterprise deployments. Now with full support for Checkmk 2.4's Event Console, Metrics API, and Business Intelligence features.

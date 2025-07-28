@@ -20,6 +20,9 @@ from mcp.server.lowlevel.server import NotificationOptions
 from ..config import AppConfig
 from ..async_api_client import AsyncCheckmkClient
 from ..services import HostService, StatusService, ServiceService, ParameterService
+from ..services.event_service import EventService
+from ..services.metrics_service import MetricsService
+from ..services.bi_service import BIService
 from ..services.streaming import StreamingHostService, StreamingServiceService
 from ..services.cache import CachedHostService
 from ..services.metrics import MetricsMixin, get_metrics_collector
@@ -71,6 +74,9 @@ class EnhancedCheckmkMCPServer:
         self.status_service: Optional[StatusService] = None
         self.service_service: Optional[ServiceService] = None
         self.parameter_service: Optional[ParameterService] = None
+        self.event_service: Optional[EventService] = None
+        self.metrics_service: Optional[MetricsService] = None
+        self.bi_service: Optional[BIService] = None
         
         # Enhanced services
         self.streaming_host_service: Optional[StreamingHostService] = None
@@ -277,6 +283,9 @@ class EnhancedCheckmkMCPServer:
         self._register_service_tools()
         self._register_status_tools()
         self._register_parameter_tools()
+        self._register_event_console_tools()
+        self._register_metrics_tools()
+        self._register_bi_tools()
         
         # Then register advanced tools
         self._register_advanced_tools()
@@ -495,16 +504,25 @@ class EnhancedCheckmkMCPServer:
                     "comment": {"type": "string", "description": "Acknowledgment comment"},
                     "sticky": {"type": "boolean", "description": "Whether acknowledgment persists after recovery", "default": False},
                     "notify": {"type": "boolean", "description": "Whether to send notifications", "default": True},
-                    "persistent": {"type": "boolean", "description": "Whether acknowledgment survives restarts", "default": False}
+                    "persistent": {"type": "boolean", "description": "Whether acknowledgment survives restarts", "default": False},
+                    "expire_on": {"type": "string", "description": "Expiration time as ISO timestamp (Checkmk 2.4+)"}
                 },
                 "required": ["host_name", "service_name", "comment"]
             }
         )
         
-        async def acknowledge_service_problem(host_name, service_name, comment, sticky=False, notify=True, persistent=False):
+        async def acknowledge_service_problem(arguments: dict) -> dict:
+            host_name = arguments["host_name"]
+            service_name = arguments["service_name"]
+            comment = arguments["comment"]
+            sticky = arguments.get("sticky", False)
+            notify = arguments.get("notify", True)
+            persistent = arguments.get("persistent", False)
+            expire_on = arguments.get("expire_on")
+            
             result = await self.service_service.acknowledge_service_problems(
                 host_name=host_name, service_name=service_name, comment=comment, 
-                sticky=sticky, notify=notify, persistent=persistent
+                sticky=sticky, notify=notify, persistent=persistent, expire_on=expire_on
             )
             if result.success:
                 return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
@@ -681,6 +699,405 @@ class EnhancedCheckmkMCPServer:
                 return {"success": False, "error": result.error}
         
         self._tool_handlers["set_service_parameters"] = set_service_parameters
+    
+    def _register_event_console_tools(self):
+        """Register Event Console MCP tools."""
+        
+        # List service events tool
+        self._tools["list_service_events"] = Tool(
+            name="list_service_events",
+            description="Show event history for a specific service",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "service_name": {"type": "string", "description": "Service name"},
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 50},
+                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"}
+                },
+                "required": ["host_name", "service_name"]
+            }
+        )
+        
+        async def list_service_events(arguments: dict) -> dict:
+            host_name = arguments["host_name"]
+            service_name = arguments["service_name"]
+            limit = arguments.get("limit", 50)
+            state_filter = arguments.get("state_filter")
+            
+            event_service = self._get_service("event")
+            result = await event_service.list_service_events(host_name, service_name, limit, state_filter)
+            
+            if result.success:
+                events_data = []
+                for event in result.data:
+                    events_data.append({
+                        "event_id": event.event_id,
+                        "host_name": event.host_name,
+                        "service_description": event.service_description,
+                        "text": event.text,
+                        "state": event.state,
+                        "phase": event.phase,
+                        "first_time": event.first_time,
+                        "last_time": event.last_time,
+                        "count": event.count,
+                        "comment": event.comment
+                    })
+                return {"success": True, "events": events_data, "count": len(events_data)}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["list_service_events"] = list_service_events
+        
+        # List host events tool
+        self._tools["list_host_events"] = Tool(
+            name="list_host_events",
+            description="Show event history for a specific host",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 100},
+                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"}
+                },
+                "required": ["host_name"]
+            }
+        )
+        
+        async def list_host_events(arguments: dict) -> dict:
+            host_name = arguments["host_name"]
+            limit = arguments.get("limit", 100)
+            state_filter = arguments.get("state_filter")
+            
+            event_service = self._get_service("event")
+            result = await event_service.list_host_events(host_name, limit, state_filter)
+            
+            if result.success:
+                events_data = []
+                for event in result.data:
+                    events_data.append({
+                        "event_id": event.event_id,
+                        "host_name": event.host_name,
+                        "service_description": event.service_description,
+                        "text": event.text,
+                        "state": event.state,
+                        "phase": event.phase,
+                        "first_time": event.first_time,
+                        "last_time": event.last_time,
+                        "count": event.count
+                    })
+                return {"success": True, "events": events_data, "count": len(events_data)}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["list_host_events"] = list_host_events
+        
+        # Get recent critical events tool
+        self._tools["get_recent_critical_events"] = Tool(
+            name="get_recent_critical_events",
+            description="Get recent critical events across all hosts",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 20}
+                }
+            }
+        )
+        
+        async def get_recent_critical_events(arguments: dict) -> dict:
+            limit = arguments.get("limit", 20)
+            
+            event_service = self._get_service("event")
+            result = await event_service.get_recent_critical_events(limit)
+            
+            if result.success:
+                events_data = []
+                for event in result.data:
+                    events_data.append({
+                        "event_id": event.event_id,
+                        "host_name": event.host_name,
+                        "service_description": event.service_description,
+                        "text": event.text,
+                        "state": event.state,
+                        "phase": event.phase,
+                        "first_time": event.first_time,
+                        "last_time": event.last_time,
+                        "count": event.count
+                    })
+                return {"success": True, "critical_events": events_data, "count": len(events_data)}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["get_recent_critical_events"] = get_recent_critical_events
+        
+        # Acknowledge event tool
+        self._tools["acknowledge_event"] = Tool(
+            name="acknowledge_event",
+            description="Acknowledge an event in the Event Console",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "string", "description": "Event ID"},
+                    "comment": {"type": "string", "description": "Comment for acknowledgment"},
+                    "contact": {"type": "string", "description": "Contact name"},
+                    "site_id": {"type": "string", "description": "Site ID"}
+                },
+                "required": ["event_id", "comment"]
+            }
+        )
+        
+        async def acknowledge_event(arguments: dict) -> dict:
+            event_id = arguments["event_id"]
+            comment = arguments["comment"]
+            contact = arguments.get("contact")
+            site_id = arguments.get("site_id")
+            
+            event_service = self._get_service("event")
+            result = await event_service.acknowledge_event(event_id, comment, contact, site_id)
+            
+            if result.success:
+                return {"success": True, "message": f"Event {event_id} acknowledged successfully"}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["acknowledge_event"] = acknowledge_event
+        
+        # Search events tool
+        self._tools["search_events"] = Tool(
+            name="search_events",
+            description="Search events by text content",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "search_term": {"type": "string", "description": "Text to search for"},
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 50},
+                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"},
+                    "host_filter": {"type": "string", "description": "Filter by host name"}
+                },
+                "required": ["search_term"]
+            }
+        )
+        
+        async def search_events(arguments: dict) -> dict:
+            search_term = arguments["search_term"]
+            limit = arguments.get("limit", 50)
+            state_filter = arguments.get("state_filter")
+            host_filter = arguments.get("host_filter")
+            
+            event_service = self._get_service("event")
+            result = await event_service.search_events(search_term, limit, state_filter, host_filter)
+            
+            if result.success:
+                events_data = []
+                for event in result.data:
+                    events_data.append({
+                        "event_id": event.event_id,
+                        "host_name": event.host_name,
+                        "service_description": event.service_description,
+                        "text": event.text,
+                        "state": event.state,
+                        "phase": event.phase,
+                        "first_time": event.first_time,
+                        "last_time": event.last_time,
+                        "count": event.count
+                    })
+                return {"success": True, "events": events_data, "count": len(events_data), "search_term": search_term}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["search_events"] = search_events
+    
+    def _register_metrics_tools(self):
+        """Register Metrics MCP tools."""
+        
+        # Get service metrics tool
+        self._tools["get_service_metrics"] = Tool(
+            name="get_service_metrics",
+            description="Get performance metrics/graphs for a service",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "service_description": {"type": "string", "description": "Service description"},
+                    "time_range_hours": {"type": "integer", "description": "Hours of data to retrieve", "default": 24},
+                    "reduce": {"type": "string", "description": "Data reduction method", "enum": ["min", "max", "average"], "default": "average"},
+                    "site": {"type": "string", "description": "Site name for performance optimization"}
+                },
+                "required": ["host_name", "service_description"]
+            }
+        )
+        
+        async def get_service_metrics(arguments: dict) -> dict:
+            host_name = arguments["host_name"]
+            service_description = arguments["service_description"]
+            time_range_hours = arguments.get("time_range_hours", 24)
+            reduce = arguments.get("reduce", "average")
+            site = arguments.get("site")
+            
+            metrics_service = self._get_service("metrics")
+            result = await metrics_service.get_service_metrics(
+                host_name, service_description, time_range_hours, reduce, site
+            )
+            
+            if result.success:
+                metrics_data = []
+                for graph in result.data:
+                    graph_info = {
+                        "time_range": graph.time_range,
+                        "step": graph.step,
+                        "metrics": []
+                    }
+                    for metric in graph.metrics:
+                        metric_info = {
+                            "title": metric.title,
+                            "color": metric.color,
+                            "line_type": metric.line_type,
+                            "data_points_count": len(metric.data_points),
+                            "latest_value": metric.data_points[-1] if metric.data_points else None
+                        }
+                        graph_info["metrics"].append(metric_info)
+                    metrics_data.append(graph_info)
+                
+                return {"success": True, "graphs": metrics_data, "count": len(metrics_data)}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["get_service_metrics"] = get_service_metrics
+        
+        # Get metric history tool
+        self._tools["get_metric_history"] = Tool(
+            name="get_metric_history",
+            description="Get historical data for a specific metric",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "service_description": {"type": "string", "description": "Service description"},
+                    "metric_id": {"type": "string", "description": "Metric ID (enable 'Show internal IDs' in Checkmk UI)"},
+                    "time_range_hours": {"type": "integer", "description": "Hours of data to retrieve", "default": 168},
+                    "reduce": {"type": "string", "description": "Data reduction method", "enum": ["min", "max", "average"], "default": "average"},
+                    "site": {"type": "string", "description": "Site name for performance optimization"}
+                },
+                "required": ["host_name", "service_description", "metric_id"]
+            }
+        )
+        
+        async def get_metric_history(arguments: dict) -> dict:
+            host_name = arguments["host_name"]
+            service_description = arguments["service_description"]
+            metric_id = arguments["metric_id"]
+            time_range_hours = arguments.get("time_range_hours", 168)
+            reduce = arguments.get("reduce", "average")
+            site = arguments.get("site")
+            
+            metrics_service = self._get_service("metrics")
+            result = await metrics_service.get_metric_history(
+                host_name, service_description, metric_id, time_range_hours, reduce, site
+            )
+            
+            if result.success:
+                graph = result.data
+                metrics_data = []
+                for metric in graph.metrics:
+                    metric_info = {
+                        "title": metric.title,
+                        "color": metric.color,
+                        "line_type": metric.line_type,
+                        "data_points": metric.data_points,
+                        "data_points_count": len(metric.data_points)
+                    }
+                    metrics_data.append(metric_info)
+                
+                return {
+                    "success": True,
+                    "time_range": graph.time_range,
+                    "step": graph.step,
+                    "metrics": metrics_data,
+                    "metric_id": metric_id
+                }
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["get_metric_history"] = get_metric_history
+    
+    def _register_bi_tools(self):
+        """Register Business Intelligence MCP tools."""
+        
+        # Get business status summary tool
+        self._tools["get_business_status_summary"] = Tool(
+            name="get_business_status_summary",
+            description="Get business-level status summary from BI aggregations",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "filter_groups": {"type": "array", "items": {"type": "string"}, "description": "Filter by group names"}
+                }
+            }
+        )
+        
+        async def get_business_status_summary(arguments: dict) -> dict:
+            filter_groups = arguments.get("filter_groups")
+            
+            bi_service = self._get_service("bi")
+            result = await bi_service.get_business_status_summary(filter_groups)
+            
+            if result.success:
+                return {"success": True, "business_summary": result.data}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["get_business_status_summary"] = get_business_status_summary
+        
+        # Get critical business services tool
+        self._tools["get_critical_business_services"] = Tool(
+            name="get_critical_business_services",
+            description="Get list of critical business services from BI aggregations",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        )
+        
+        async def get_critical_business_services(arguments: dict) -> dict:
+            bi_service = self._get_service("bi")
+            result = await bi_service.get_critical_business_services()
+            
+            if result.success:
+                return {"success": True, "critical_services": result.data, "count": len(result.data)}
+            else:
+                return {"success": False, "error": result.error}
+        
+        self._tool_handlers["get_critical_business_services"] = get_critical_business_services
+        
+        # Get system version info tool
+        self._tools["get_system_info"] = Tool(
+            name="get_system_info",
+            description="Get Checkmk system version and basic information",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        )
+        
+        async def get_system_info(arguments: dict) -> dict:
+            # Use the direct async client method for this simple operation
+            version_info = await self.checkmk_client.get_version_info()
+            
+            # Extract key information
+            versions = version_info.get('versions', {})
+            site_info = version_info.get('site', 'unknown')
+            edition = version_info.get('edition', 'unknown')
+            
+            return {
+                "success": True,
+                "checkmk_version": versions.get('checkmk', 'unknown'),
+                "edition": edition,
+                "site": site_info,
+                "python_version": versions.get('python', 'unknown'),
+                "apache_version": versions.get('apache', 'unknown')
+            }
+        
+        self._tool_handlers["get_system_info"] = get_system_info
     
     def _register_advanced_tools(self):
         """Register advanced MCP tools."""
@@ -945,6 +1362,9 @@ class EnhancedCheckmkMCPServer:
             self.status_service = StatusService(self.checkmk_client, self.config)
             self.service_service = ServiceService(self.checkmk_client, self.config)
             self.parameter_service = ParameterService(self.checkmk_client, self.config)
+            self.event_service = EventService(self.checkmk_client, self.config)
+            self.metrics_service = MetricsService(self.checkmk_client, self.config)
+            self.bi_service = BIService(self.checkmk_client, self.config)
             
             # Initialize enhanced services
             self.streaming_host_service = StreamingHostService(self.checkmk_client, self.config)
@@ -968,8 +1388,28 @@ class EnhancedCheckmkMCPServer:
             self.host_service,
             self.status_service, 
             self.service_service,
-            self.parameter_service
+            self.parameter_service,
+            self.event_service,
+            self.metrics_service,
+            self.bi_service
         ])
+    
+    def _get_service(self, service_name: str):
+        """Get service instance by name."""
+        service_map = {
+            "host": self.host_service,
+            "status": self.status_service,
+            "service": self.service_service,
+            "parameter": self.parameter_service,
+            "event": self.event_service,
+            "metrics": self.metrics_service,
+            "bi": self.bi_service
+        }
+        
+        service = service_map.get(service_name)
+        if service is None:
+            raise ValueError(f"Unknown service: {service_name}")
+        return service
     
     async def run(self, transport_type: str = "stdio"):
         """Run the enhanced MCP server with the specified transport."""

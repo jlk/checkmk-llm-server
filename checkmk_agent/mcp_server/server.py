@@ -19,6 +19,8 @@ from mcp.server.lowlevel.server import NotificationOptions
 from ..config import AppConfig
 from ..async_api_client import AsyncCheckmkClient
 from ..services import HostService, StatusService, ServiceService, ParameterService
+from ..services.metrics_service import MetricsService
+from ..services.bi_service import BIService
 
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,8 @@ class CheckmkMCPServer:
         self.status_service: Optional[StatusService] = None
         self.service_service: Optional[ServiceService] = None
         self.parameter_service: Optional[ParameterService] = None
+        self.metrics_service: Optional[MetricsService] = None
+        self.bi_service: Optional[BIService] = None
         
         # Tool definitions
         self._tools = {}
@@ -486,6 +490,8 @@ Focus on evidence-based recommendations that improve reliability and performance
             self.status_service = StatusService(self.checkmk_client, self.config)
             self.service_service = ServiceService(self.checkmk_client, self.config)
             self.parameter_service = ParameterService(self.checkmk_client, self.config)
+            self.metrics_service = MetricsService(self.checkmk_client, self.config)
+            self.bi_service = BIService(self.checkmk_client, self.config)
             
             # Initialize tool handlers
             self._tool_handlers = {}
@@ -495,6 +501,9 @@ Focus on evidence-based recommendations that improve reliability and performance
             self._register_service_tools()
             self._register_status_tools()
             self._register_parameter_tools()
+            self._register_event_console_tools()
+            self._register_metrics_tools()
+            self._register_bi_tools()
             
             logger.info("Checkmk MCP Server initialized successfully")
             logger.info(f"Registered {len(self._tools)} tools")
@@ -727,21 +736,34 @@ Focus on evidence-based recommendations that improve reliability and performance
                     "comment": {"type": "string", "description": "Acknowledgment comment"},
                     "sticky": {"type": "boolean", "description": "Whether acknowledgment persists after recovery", "default": False},
                     "notify": {"type": "boolean", "description": "Whether to send notifications", "default": True},
-                    "persistent": {"type": "boolean", "description": "Whether acknowledgment survives restarts", "default": False}
+                    "persistent": {"type": "boolean", "description": "Whether acknowledgment survives restarts", "default": False},
+                    "expire_on": {"type": "string", "description": "Expiration time as ISO timestamp (Checkmk 2.4+)"}
+                
                 },
                 "required": ["host_name", "service_name", "comment"]
             }
         )
         
-        async def acknowledge_service_problem(host_name, service_name, comment, sticky=False, notify=True, persistent=False):
-            result = await self.service_service.acknowledge_service_problems(
-                host_name=host_name, service_name=service_name, comment=comment, 
-                sticky=sticky, notify=notify, persistent=persistent
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+        async def acknowledge_service_problem(arguments: dict) -> dict:
+            try:
+                host_name = arguments["host_name"]
+                service_name = arguments["service_name"]
+                comment = arguments["comment"]
+                sticky = arguments.get("sticky", False)
+                notify = arguments.get("notify", True)
+                persistent = arguments.get("persistent", False)
+                expire_on = arguments.get("expire_on")
+                
+                result = await self.service_service.acknowledge_service_problems(
+                    host_name=host_name, service_name=service_name, comment=comment, 
+                    sticky=sticky, notify=notify, persistent=persistent, expire_on=expire_on
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
         
         self._tool_handlers["acknowledge_service_problem"] = acknowledge_service_problem
         
@@ -913,6 +935,424 @@ Focus on evidence-based recommendations that improve reliability and performance
                 return {"success": False, "error": result.error}
         
         self._tool_handlers["set_service_parameters"] = set_service_parameters
+    
+    def _register_event_console_tools(self):
+        """Register Event Console tools for service history and event management."""
+        
+        # List service events tool
+        self._tools["list_service_events"] = Tool(
+            name="list_service_events",
+            description="Show event history for a specific service",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "service_name": {"type": "string", "description": "Service name"},
+                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 50},
+                    "state_filter": {"type": "string", "description": "Filter by state (ok, warning, critical, unknown)", "enum": ["ok", "warning", "critical", "unknown"]}
+                },
+                "required": ["host_name", "service_name"]
+            }
+        )
+        
+        async def list_service_events(host_name, service_name, limit=50, state_filter=None):
+            # Use the sync client Event Console methods
+            try:
+                # Build query for this service
+                query = {
+                    "op": "and",
+                    "expr": [
+                        {"op": "=", "left": "eventconsoleevents.event_host", "right": host_name}
+                    ]
+                }
+                if service_name and service_name.strip():
+                    query["expr"].append({
+                        "op": "~", "left": "eventconsoleevents.event_text", "right": service_name
+                    })
+                
+                # Add state filter if provided
+                if state_filter:
+                    state_map = {"ok": "0", "warning": "1", "critical": "2", "unknown": "3"}
+                    if state_filter.lower() in state_map:
+                        query["expr"].append({
+                            "op": "=", "left": "eventconsoleevents.event_state", "right": state_map[state_filter.lower()]
+                        })
+                
+                events = self.api_client.list_events(query=query, host=host_name)
+                
+                # Sort by time and limit
+                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
+                if limit > 0:
+                    events = events[:limit]
+                
+                return {"success": True, "events": events, "count": len(events)}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["list_service_events"] = list_service_events
+        
+        # List host events tool
+        self._tools["list_host_events"] = Tool(
+            name="list_host_events", 
+            description="Show event history for a specific host",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 100},
+                    "state_filter": {"type": "string", "description": "Filter by state (ok, warning, critical, unknown)", "enum": ["ok", "warning", "critical", "unknown"]}
+                },
+                "required": ["host_name"]
+            }
+        )
+        
+        async def list_host_events(host_name, limit=100, state_filter=None):
+            try:
+                # Build query for this host
+                query = {"op": "=", "left": "eventconsoleevents.event_host", "right": host_name}
+                
+                # Add state filter if provided
+                if state_filter:
+                    state_map = {"ok": "0", "warning": "1", "critical": "2", "unknown": "3"}
+                    if state_filter.lower() in state_map:
+                        query = {
+                            "op": "and",
+                            "expr": [
+                                query,
+                                {"op": "=", "left": "eventconsoleevents.event_state", "right": state_map[state_filter.lower()]}
+                            ]
+                        }
+                
+                events = self.api_client.list_events(query=query, host=host_name)
+                
+                # Sort by time and limit
+                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
+                if limit > 0:
+                    events = events[:limit]
+                
+                return {"success": True, "events": events, "count": len(events)}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["list_host_events"] = list_host_events
+        
+        # Get recent critical events tool
+        self._tools["get_recent_critical_events"] = Tool(
+            name="get_recent_critical_events",
+            description="Show recent critical events across all hosts", 
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 20}
+                }
+            }
+        )
+        
+        async def get_recent_critical_events(limit=20):
+            try:
+                # Query for critical events
+                query = {"op": "=", "left": "eventconsoleevents.event_state", "right": "2"}
+                events = self.api_client.list_events(query=query, state="critical")
+                
+                # Sort by time and limit
+                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
+                if limit > 0:
+                    events = events[:limit]
+                
+                return {"success": True, "events": events, "count": len(events)}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["get_recent_critical_events"] = get_recent_critical_events
+        
+        # Acknowledge event tool
+        self._tools["acknowledge_event"] = Tool(
+            name="acknowledge_event",
+            description="Acknowledge a specific event in the Event Console",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "string", "description": "Event ID to acknowledge"},
+                    "comment": {"type": "string", "description": "Comment for the acknowledgment"},
+                    "contact": {"type": "string", "description": "Contact name (optional)"},
+                    "site_id": {"type": "string", "description": "Site ID (optional)"}
+                },
+                "required": ["event_id", "comment"]
+            }
+        )
+        
+        async def acknowledge_event(event_id, comment, contact=None, site_id=None):
+            try:
+                response = self.api_client.acknowledge_event(
+                    event_id=event_id,
+                    comment=comment,
+                    contact=contact,
+                    site_id=site_id
+                )
+                return {"success": True, "response": response}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["acknowledge_event"] = acknowledge_event
+        
+        # Search events tool
+        self._tools["search_events"] = Tool(
+            name="search_events",
+            description="Search events by text content across all hosts",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "search_term": {"type": "string", "description": "Text to search for in event messages"},
+                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 50},
+                    "state_filter": {"type": "string", "description": "Filter by state (ok, warning, critical, unknown)", "enum": ["ok", "warning", "critical", "unknown"]},
+                    "host_filter": {"type": "string", "description": "Filter by host name (optional)"}
+                },
+                "required": ["search_term"]
+            }
+        )
+        
+        async def search_events(search_term, limit=50, state_filter=None, host_filter=None):
+            try:
+                # Build text search query
+                query_parts = [
+                    {"op": "~", "left": "eventconsoleevents.event_text", "right": search_term}
+                ]
+                
+                # Add state filter if provided
+                if state_filter:
+                    state_map = {"ok": "0", "warning": "1", "critical": "2", "unknown": "3"}
+                    if state_filter.lower() in state_map:
+                        query_parts.append({
+                            "op": "=", "left": "eventconsoleevents.event_state", "right": state_map[state_filter.lower()]
+                        })
+                
+                # Add host filter if provided
+                if host_filter:
+                    query_parts.append({
+                        "op": "=", "left": "eventconsoleevents.event_host", "right": host_filter
+                    })
+                
+                # Combine query parts
+                if len(query_parts) == 1:
+                    query = query_parts[0]
+                else:
+                    query = {"op": "and", "expr": query_parts}
+                
+                events = self.api_client.list_events(query=query, host=host_filter, state=state_filter)
+                
+                # Sort by time and limit
+                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
+                if limit > 0:
+                    events = events[:limit]
+                
+                return {"success": True, "events": events, "count": len(events), "search_term": search_term}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["search_events"] = search_events
+    
+    def _register_metrics_tools(self):
+        """Register Metrics MCP tools."""
+        
+        # Get service metrics tool
+        self._tools["get_service_metrics"] = Tool(
+            name="get_service_metrics",
+            description="Get performance metrics/graphs for a service",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "service_description": {"type": "string", "description": "Service description"},
+                    "time_range_hours": {"type": "integer", "description": "Hours of data to retrieve", "default": 24},
+                    "reduce": {"type": "string", "description": "Data reduction method", "enum": ["min", "max", "average"], "default": "average"},
+                    "site": {"type": "string", "description": "Site name for performance optimization"}
+                },
+                "required": ["host_name", "service_description"]
+            }
+        )
+        
+        async def get_service_metrics(arguments: dict) -> dict:
+            try:
+                host_name = arguments["host_name"]
+                service_description = arguments["service_description"]
+                time_range_hours = arguments.get("time_range_hours", 24)
+                reduce = arguments.get("reduce", "average")
+                site = arguments.get("site")
+                
+                result = await self.metrics_service.get_service_metrics(
+                    host_name, service_description, time_range_hours, reduce, site
+                )
+                
+                if result.success:
+                    metrics_data = []
+                    for graph in result.data:
+                        graph_info = {
+                            "time_range": graph.time_range,
+                            "step": graph.step,
+                            "metrics": []
+                        }
+                        for metric in graph.metrics:
+                            metric_info = {
+                                "title": metric.title,
+                                "color": metric.color,
+                                "line_type": metric.line_type,
+                                "data_points_count": len(metric.data_points),
+                                "latest_value": metric.data_points[-1] if metric.data_points else None
+                            }
+                            graph_info["metrics"].append(metric_info)
+                        metrics_data.append(graph_info)
+                    
+                    return {"success": True, "graphs": metrics_data, "count": len(metrics_data)}
+                else:
+                    return {"success": False, "error": result.error}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["get_service_metrics"] = get_service_metrics
+        
+        # Get metric history tool
+        self._tools["get_metric_history"] = Tool(
+            name="get_metric_history",
+            description="Get historical data for a specific metric",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "host_name": {"type": "string", "description": "Host name"},
+                    "service_description": {"type": "string", "description": "Service description"},
+                    "metric_id": {"type": "string", "description": "Metric ID (enable 'Show internal IDs' in Checkmk UI)"},
+                    "time_range_hours": {"type": "integer", "description": "Hours of data to retrieve", "default": 168},
+                    "reduce": {"type": "string", "description": "Data reduction method", "enum": ["min", "max", "average"], "default": "average"},
+                    "site": {"type": "string", "description": "Site name for performance optimization"}
+                },
+                "required": ["host_name", "service_description", "metric_id"]
+            }
+        )
+        
+        async def get_metric_history(arguments: dict) -> dict:
+            try:
+                host_name = arguments["host_name"]
+                service_description = arguments["service_description"]
+                metric_id = arguments["metric_id"]
+                time_range_hours = arguments.get("time_range_hours", 168)
+                reduce = arguments.get("reduce", "average")
+                site = arguments.get("site")
+                
+                result = await self.metrics_service.get_metric_history(
+                    host_name, service_description, metric_id, time_range_hours, reduce, site
+                )
+                
+                if result.success:
+                    graph = result.data
+                    metrics_data = []
+                    for metric in graph.metrics:
+                        metric_info = {
+                            "title": metric.title,
+                            "color": metric.color,
+                            "line_type": metric.line_type,
+                            "data_points": metric.data_points,
+                            "data_points_count": len(metric.data_points)
+                        }
+                        metrics_data.append(metric_info)
+                    
+                    return {
+                        "success": True,
+                        "time_range": graph.time_range,
+                        "step": graph.step,
+                        "metrics": metrics_data,
+                        "metric_id": metric_id
+                    }
+                else:
+                    return {"success": False, "error": result.error}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["get_metric_history"] = get_metric_history
+    
+    def _register_bi_tools(self):
+        """Register Business Intelligence MCP tools."""
+        
+        # Get business status summary tool
+        self._tools["get_business_status_summary"] = Tool(
+            name="get_business_status_summary",
+            description="Get business-level status summary from BI aggregations",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "filter_groups": {"type": "array", "items": {"type": "string"}, "description": "Filter by group names"}
+                }
+            }
+        )
+        
+        async def get_business_status_summary(arguments: dict) -> dict:
+            try:
+                filter_groups = arguments.get("filter_groups")
+                
+                result = await self.bi_service.get_business_status_summary(filter_groups)
+                
+                if result.success:
+                    return {"success": True, "business_summary": result.data}
+                else:
+                    return {"success": False, "error": result.error}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["get_business_status_summary"] = get_business_status_summary
+        
+        # Get critical business services tool
+        self._tools["get_critical_business_services"] = Tool(
+            name="get_critical_business_services",
+            description="Get list of critical business services from BI aggregations",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        )
+        
+        async def get_critical_business_services(arguments: dict) -> dict:
+            try:
+                result = await self.bi_service.get_critical_business_services()
+                
+                if result.success:
+                    return {"success": True, "critical_services": result.data, "count": len(result.data)}
+                else:
+                    return {"success": False, "error": result.error}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["get_critical_business_services"] = get_critical_business_services
+        
+        # Get system version info tool
+        self._tools["get_system_info"] = Tool(
+            name="get_system_info",
+            description="Get Checkmk system version and basic information",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        )
+        
+        async def get_system_info(arguments: dict) -> dict:
+            try:
+                # Use the direct async client method for this simple operation
+                version_info = await self.checkmk_client.get_version_info()
+                
+                # Extract key information
+                versions = version_info.get('versions', {})
+                site_info = version_info.get('site', 'unknown')
+                edition = version_info.get('edition', 'unknown')
+                
+                return {
+                    "success": True,
+                    "checkmk_version": versions.get('checkmk', 'unknown'),
+                    "edition": edition,
+                    "site": site_info,
+                    "python_version": versions.get('python', 'unknown'),
+                    "apache_version": versions.get('apache', 'unknown')
+                }
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["get_system_info"] = get_system_info
     
     async def run(self, transport_type: str = "stdio"):
         """Run the MCP server with the specified transport."""

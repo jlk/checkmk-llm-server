@@ -111,7 +111,10 @@ class AsyncCheckmkClient:
         pass
     
     @async_wrapper("acknowledge_service_problems")
-    def acknowledge_service_problems(self, acknowledgments: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def acknowledge_service_problems(self, host_name: str, service_description: str, 
+                                   comment: str, sticky: bool = True,
+                                   notify: bool = True, persistent: bool = False,
+                                   expire_on: Optional[str] = None) -> Dict[str, Any]:
         """Acknowledge service problems."""
         pass
     
@@ -189,6 +192,77 @@ class AsyncCheckmkClient:
     @async_wrapper("list_rulesets")
     def list_rulesets(self) -> List[Dict[str, Any]]:
         """List available rulesets."""
+        pass
+    
+    # Event Console operations
+    @async_wrapper("list_events")
+    def list_events(self, query: Optional[Dict[str, Any]] = None, host: Optional[str] = None,
+                   application: Optional[str] = None, state: Optional[str] = None,
+                   phase: Optional[str] = None, site_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List Event Console events with optional filtering."""
+        pass
+    
+    @async_wrapper("get_event")
+    def get_event(self, event_id: str, site_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get specific event by ID."""
+        pass
+    
+    @async_wrapper("acknowledge_event")
+    def acknowledge_event(self, event_id: str, comment: str, contact: Optional[str] = None,
+                         site_id: Optional[str] = None) -> Dict[str, Any]:
+        """Acknowledge an event in the Event Console."""
+        pass
+    
+    @async_wrapper("change_event_state")
+    def change_event_state(self, event_id: str, new_state: int, comment: Optional[str] = None,
+                          site_id: Optional[str] = None) -> Dict[str, Any]:
+        """Change the state of an event."""
+        pass
+    
+    @async_wrapper("delete_events")
+    def delete_events(self, query: Optional[Dict[str, Any]] = None, method: str = "by_query",
+                     site_id: Optional[str] = None) -> Dict[str, Any]:
+        """Delete events from the Event Console."""
+        pass
+    
+    # Metrics operations
+    @async_wrapper("get_metric_data")
+    def get_metric_data(self, request_type: str, host_name: str, service_description: str,
+                       metric_or_graph_id: str, time_range: Dict[str, Any],
+                       reduce: str = "average", site: Optional[str] = None) -> Dict[str, Any]:
+        """Get metric or graph data from Checkmk."""
+        pass
+    
+    @async_wrapper("get_single_metric")
+    def get_single_metric(self, host_name: str, service_description: str, metric_id: str,
+                         time_range: Dict[str, Any], reduce: str = "average", 
+                         site: Optional[str] = None) -> Dict[str, Any]:
+        """Get data for a single metric."""
+        pass
+    
+    @async_wrapper("get_predefined_graph")
+    def get_predefined_graph(self, host_name: str, service_description: str, graph_id: str,
+                           time_range: Dict[str, Any], reduce: str = "average",
+                           site: Optional[str] = None) -> Dict[str, Any]:
+        """Get data for a predefined graph containing multiple metrics."""
+        pass
+    
+    # Business Intelligence operations
+    @async_wrapper("get_bi_aggregation_states")
+    def get_bi_aggregation_states(self, filter_names: Optional[List[str]] = None,
+                                 filter_groups: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get current state of BI aggregations."""
+        pass
+    
+    @async_wrapper("list_bi_packs")
+    def list_bi_packs(self) -> Dict[str, Any]:
+        """List all available BI packs."""
+        pass
+    
+    # System Information operations
+    @async_wrapper("get_version_info")
+    def get_version_info(self) -> Dict[str, Any]:
+        """Get Checkmk version information."""
         pass
     
     # Helper methods that delegate to sync client without wrapping
