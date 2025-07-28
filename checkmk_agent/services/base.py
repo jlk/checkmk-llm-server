@@ -16,6 +16,8 @@ T = TypeVar('T')
 
 class ServiceResult(BaseModel, Generic[T]):
     """Standard service result wrapper for all operations."""
+    model_config = {"arbitrary_types_allowed": True}
+    
     success: bool = Field(description="Whether the operation was successful")
     data: Optional[T] = Field(None, description="Operation result data")
     error: Optional[str] = Field(None, description="Error message if operation failed")
