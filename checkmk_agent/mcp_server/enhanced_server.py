@@ -511,14 +511,7 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def acknowledge_service_problem(arguments: dict) -> dict:
-            host_name = arguments["host_name"]
-            service_name = arguments["service_name"]
-            comment = arguments["comment"]
-            sticky = arguments.get("sticky", False)
-            notify = arguments.get("notify", True)
-            persistent = arguments.get("persistent", False)
-            expire_on = arguments.get("expire_on")
+        async def acknowledge_service_problem(host_name, service_name, comment, sticky=False, notify=True, persistent=False, expire_on=None):
             
             result = await self.service_service.acknowledge_service_problems(
                 host_name=host_name, service_name=service_name, comment=comment, 
@@ -585,7 +578,7 @@ class EnhancedCheckmkMCPServer:
                 data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
                 return {"success": True, "data": data}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_health_dashboard"] = get_health_dashboard
         
@@ -613,7 +606,7 @@ class EnhancedCheckmkMCPServer:
                 data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
                 return {"success": True, "data": data}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_critical_problems"] = get_critical_problems
         
@@ -641,7 +634,7 @@ class EnhancedCheckmkMCPServer:
             if result.success:
                 return {"success": True, "data": result.data}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["analyze_host_health"] = analyze_host_health
     
@@ -668,7 +661,7 @@ class EnhancedCheckmkMCPServer:
             if result.success:
                 return {"success": True, "data": result.data.model_dump()}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_effective_parameters"] = get_effective_parameters
         
@@ -696,7 +689,7 @@ class EnhancedCheckmkMCPServer:
             if result.success:
                 return {"success": True, "data": result.data.model_dump(), "message": f"Updated parameters for {service_name} on {host_name}"}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["set_service_parameters"] = set_service_parameters
     
@@ -719,19 +712,16 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def list_service_events(arguments: dict) -> dict:
-            host_name = arguments["host_name"]
-            service_name = arguments["service_name"]
-            limit = arguments.get("limit", 50)
-            state_filter = arguments.get("state_filter")
+        async def list_service_events(host_name, service_name, limit=50, state_filter=None):
             
             event_service = self._get_service("event")
             result = await event_service.list_service_events(host_name, service_name, limit, state_filter)
             
             if result.success:
                 events_data = []
-                for event in result.data:
-                    events_data.append({
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
                         "event_id": event.event_id,
                         "host_name": event.host_name,
                         "service_description": event.service_description,
@@ -743,9 +733,12 @@ class EnhancedCheckmkMCPServer:
                         "count": event.count,
                         "comment": event.comment
                     })
-                return {"success": True, "events": events_data, "count": len(events_data)}
+                message = f"Found {len(events_data)} events for service {service_name} on host {host_name}"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active service monitoring."
+                return {"success": True, "events": events_data, "count": len(events_data), "message": message}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["list_service_events"] = list_service_events
         
@@ -764,31 +757,32 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def list_host_events(arguments: dict) -> dict:
-            host_name = arguments["host_name"]
-            limit = arguments.get("limit", 100)
-            state_filter = arguments.get("state_filter")
+        async def list_host_events(host_name, limit=100, state_filter=None):
             
             event_service = self._get_service("event")
             result = await event_service.list_host_events(host_name, limit, state_filter)
             
             if result.success:
                 events_data = []
-                for event in result.data:
-                    events_data.append({
-                        "event_id": event.event_id,
-                        "host_name": event.host_name,
-                        "service_description": event.service_description,
-                        "text": event.text,
-                        "state": event.state,
-                        "phase": event.phase,
-                        "first_time": event.first_time,
-                        "last_time": event.last_time,
-                        "count": event.count
-                    })
-                return {"success": True, "events": events_data, "count": len(events_data)}
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
+                            "event_id": event.event_id,
+                            "host_name": event.host_name,
+                            "service_description": event.service_description,
+                            "text": event.text,
+                            "state": event.state,
+                            "phase": event.phase,
+                            "first_time": event.first_time,
+                            "last_time": event.last_time,
+                            "count": event.count
+                        })
+                message = f"Found {len(events_data)} events for host {host_name}"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console is used for external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active monitoring."
+                return {"success": True, "events": events_data, "count": len(events_data), "message": message}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["list_host_events"] = list_host_events
         
@@ -804,16 +798,16 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def get_recent_critical_events(arguments: dict) -> dict:
-            limit = arguments.get("limit", 20)
+        async def get_recent_critical_events(limit=20):
             
             event_service = self._get_service("event")
             result = await event_service.get_recent_critical_events(limit)
             
             if result.success:
                 events_data = []
-                for event in result.data:
-                    events_data.append({
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
                         "event_id": event.event_id,
                         "host_name": event.host_name,
                         "service_description": event.service_description,
@@ -824,9 +818,12 @@ class EnhancedCheckmkMCPServer:
                         "last_time": event.last_time,
                         "count": event.count
                     })
-                return {"success": True, "critical_events": events_data, "count": len(events_data)}
+                message = f"Found {len(events_data)} critical events"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty if not configured for log processing."
+                return {"success": True, "critical_events": events_data, "count": len(events_data), "message": message}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_recent_critical_events"] = get_recent_critical_events
         
@@ -846,11 +843,7 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def acknowledge_event(arguments: dict) -> dict:
-            event_id = arguments["event_id"]
-            comment = arguments["comment"]
-            contact = arguments.get("contact")
-            site_id = arguments.get("site_id")
+        async def acknowledge_event(event_id, comment, contact=None, site_id=None):
             
             event_service = self._get_service("event")
             result = await event_service.acknowledge_event(event_id, comment, contact, site_id)
@@ -858,7 +851,7 @@ class EnhancedCheckmkMCPServer:
             if result.success:
                 return {"success": True, "message": f"Event {event_id} acknowledged successfully"}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["acknowledge_event"] = acknowledge_event
         
@@ -878,19 +871,16 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def search_events(arguments: dict) -> dict:
-            search_term = arguments["search_term"]
-            limit = arguments.get("limit", 50)
-            state_filter = arguments.get("state_filter")
-            host_filter = arguments.get("host_filter")
+        async def search_events(search_term, limit=50, state_filter=None, host_filter=None):
             
             event_service = self._get_service("event")
             result = await event_service.search_events(search_term, limit, state_filter, host_filter)
             
             if result.success:
                 events_data = []
-                for event in result.data:
-                    events_data.append({
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
                         "event_id": event.event_id,
                         "host_name": event.host_name,
                         "service_description": event.service_description,
@@ -901,9 +891,12 @@ class EnhancedCheckmkMCPServer:
                         "last_time": event.last_time,
                         "count": event.count
                     })
-                return {"success": True, "events": events_data, "count": len(events_data), "search_term": search_term}
+                message = f"Found {len(events_data)} events matching '{search_term}'"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console searches external events (logs, SNMP traps, etc.) and is often empty in monitoring-only installations."
+                return {"success": True, "events": events_data, "count": len(events_data), "search_term": search_term, "message": message}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["search_events"] = search_events
     
@@ -927,11 +920,7 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def get_service_metrics(arguments: dict) -> dict:
-            host_name = arguments["host_name"]
-            service_description = arguments["service_description"]
-            time_range_hours = arguments.get("time_range_hours", 24)
-            reduce = arguments.get("reduce", "average")
+        async def get_service_metrics(host_name, service_description, time_range_hours=24, reduce="average"):
             site = arguments.get("site")
             
             metrics_service = self._get_service("metrics")
@@ -960,7 +949,7 @@ class EnhancedCheckmkMCPServer:
                 
                 return {"success": True, "graphs": metrics_data, "count": len(metrics_data)}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_service_metrics"] = get_service_metrics
         
@@ -982,11 +971,7 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def get_metric_history(arguments: dict) -> dict:
-            host_name = arguments["host_name"]
-            service_description = arguments["service_description"]
-            metric_id = arguments["metric_id"]
-            time_range_hours = arguments.get("time_range_hours", 168)
+        async def get_metric_history(host_name, service_description, metric_id, time_range_hours=168):
             reduce = arguments.get("reduce", "average")
             site = arguments.get("site")
             
@@ -1016,7 +1001,7 @@ class EnhancedCheckmkMCPServer:
                     "metric_id": metric_id
                 }
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_metric_history"] = get_metric_history
     
@@ -1035,8 +1020,7 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def get_business_status_summary(arguments: dict) -> dict:
-            filter_groups = arguments.get("filter_groups")
+        async def get_business_status_summary(filter_groups=None):
             
             bi_service = self._get_service("bi")
             result = await bi_service.get_business_status_summary(filter_groups)
@@ -1044,7 +1028,7 @@ class EnhancedCheckmkMCPServer:
             if result.success:
                 return {"success": True, "business_summary": result.data}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_business_status_summary"] = get_business_status_summary
         
@@ -1058,14 +1042,14 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def get_critical_business_services(arguments: dict) -> dict:
+        async def get_critical_business_services():
             bi_service = self._get_service("bi")
             result = await bi_service.get_critical_business_services()
             
             if result.success:
                 return {"success": True, "critical_services": result.data, "count": len(result.data)}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_critical_business_services"] = get_critical_business_services
         
@@ -1079,7 +1063,7 @@ class EnhancedCheckmkMCPServer:
             }
         )
         
-        async def get_system_info(arguments: dict) -> dict:
+        async def get_system_info():
             # Use the direct async client method for this simple operation
             version_info = await self.checkmk_client.get_version_info()
             

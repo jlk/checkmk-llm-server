@@ -76,16 +76,13 @@ class EventService(BaseService):
             if site_id:
                 params['site_id'] = site_id
             
-            # Make API request to Event Console endpoint
-            response = await self._make_api_request(
-                'GET',
-                '/domain-types/event_console/collections/all',
-                params=params
-            )
+            # Use the API client's list_events method
+            sync_client = self.checkmk.sync_client
+            events_data = sync_client.list_events(**params)
             
             # Convert to EventInfo objects
             events = []
-            for event_data in response.get('value', []):
+            for event_data in events_data:
                 events.append(EventInfo(event_data))
             
             return events
@@ -160,12 +157,14 @@ class EventService(BaseService):
                         "op": "=", "left": "eventconsoleevents.event_state", "right": state_map[state_filter.lower()]
                     })
             
-            # Get events for this service
-            result = await self.list_events(query=query, host=host_name)
-            if not result.success:
-                return result.data
+            # Use the API client's list_events method directly
+            sync_client = self.checkmk.sync_client
+            events_data = sync_client.list_events(query=query, host=host_name)
             
-            events = result.data
+            # Convert to EventInfo objects
+            events = []
+            for event_data in events_data:
+                events.append(EventInfo(event_data))
             
             # Sort by time (most recent first) and limit
             events.sort(key=lambda e: e.last_time or e.first_time, reverse=True)
@@ -216,12 +215,14 @@ class EventService(BaseService):
                         ]
                     }
             
-            # Get events for this host
-            result = await self.list_events(query=query, host=host_name)
-            if not result.success:
-                return result.data
+            # Use the API client's list_events method directly
+            sync_client = self.checkmk.sync_client
+            events_data = sync_client.list_events(query=query, host=host_name)
             
-            events = result.data
+            # Convert to EventInfo objects
+            events = []
+            for event_data in events_data:
+                events.append(EventInfo(event_data))
             
             # Sort by time (most recent first) and limit
             events.sort(key=lambda e: e.last_time or e.first_time, reverse=True)
@@ -253,12 +254,14 @@ class EventService(BaseService):
                 "right": "2"  # Critical state
             }
             
-            # Get critical events
-            result = await self.list_events(query=query, state="critical")
-            if not result.success:
-                return result.data
+            # Use the API client's list_events method directly
+            sync_client = self.checkmk.sync_client
+            events_data = sync_client.list_events(query=query, state="critical")
             
-            events = result.data
+            # Convert to EventInfo objects
+            events = []
+            for event_data in events_data:
+                events.append(EventInfo(event_data))
             
             # Sort by time (most recent first) and limit
             events.sort(key=lambda e: e.last_time or e.first_time, reverse=True)
@@ -401,12 +404,14 @@ class EventService(BaseService):
             else:
                 query = {"op": "and", "expr": query_parts}
             
-            # Get matching events
-            result = await self.list_events(query=query, host=host_filter, state=state_filter)
-            if not result.success:
-                return result.data
+            # Use the API client's list_events method directly
+            sync_client = self.checkmk.sync_client
+            events_data = sync_client.list_events(query=query, host=host_filter, state=state_filter)
             
-            events = result.data
+            # Convert to EventInfo objects
+            events = []
+            for event_data in events_data:
+                events.append(EventInfo(event_data))
             
             # Sort by time (most recent first) and limit
             events.sort(key=lambda e: e.last_time or e.first_time, reverse=True)
