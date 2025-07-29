@@ -2,10 +2,8 @@
 
 import logging
 from typing import Optional, Dict, Any, List
-from datetime import datetime
 
 from .base import BaseService, ServiceResult
-from .models.services import ServiceInfo
 from ..async_api_client import AsyncCheckmkClient
 from ..api_client import CheckmkAPIError
 from ..config import AppConfig
