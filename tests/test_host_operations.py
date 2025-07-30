@@ -91,8 +91,10 @@ class TestHostOperationsManager:
         
         result = host_manager.process_command("get nonexistent host")
         
-        # Updated to match new error handling format
-        assert result == "❌ Error: Host not found"
+        # Updated to match new enhanced error message format
+        expected_parts = ["❌ Error:", "Host not found", "Status: 404", "Resource not found"]
+        for part in expected_parts:
+            assert part in result
         # LLM format_response should not be called for errors anymore
         mock_llm_client.format_response.assert_not_called()
     

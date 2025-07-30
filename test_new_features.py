@@ -14,32 +14,21 @@ def test_api_client():
     print("Testing API Client...")
     
     # Test config loading
-    try:
-        config = load_config()
-        print("✓ Config loaded successfully")
-    except Exception as e:
-        print(f"✗ Config loading failed: {e}")
-        return False
+    config = load_config()
+    print("✓ Config loaded successfully")
+    assert config is not None
     
     # Test client creation
-    try:
-        client = CheckmkClient(config.checkmk)
-        print("✓ CheckmkClient created successfully")
-    except Exception as e:
-        print(f"✗ Client creation failed: {e}")
-        return False
+    client = CheckmkClient(config.checkmk)
+    print("✓ CheckmkClient created successfully")
+    assert client is not None
     
     # Test async client wrapper
-    try:
-        async_client = AsyncCheckmkClient(client)
-        print("✓ AsyncCheckmkClient created successfully")
-    except Exception as e:
-        print(f"✗ Async client creation failed: {e}")
-        return False
-    
-    return True
+    async_client = AsyncCheckmkClient(client)
+    print("✓ AsyncCheckmkClient created successfully")
+    assert async_client is not None
 
-async def test_new_services():
+def test_new_services():
     """Test new service creation."""
     print("\nTesting New Services...")
     
@@ -48,64 +37,43 @@ async def test_new_services():
     async_client = AsyncCheckmkClient(client)
     
     # Test Event Service
-    try:
-        event_service = EventService(async_client, config)
-        print("✓ EventService created successfully")
-    except Exception as e:
-        print(f"✗ EventService creation failed: {e}")
-        return False
+    event_service = EventService(async_client, config)
+    print("✓ EventService created successfully")
+    assert event_service is not None
     
     # Test Metrics Service
-    try:
-        metrics_service = MetricsService(async_client, config)
-        print("✓ MetricsService created successfully")
-    except Exception as e:
-        print(f"✗ MetricsService creation failed: {e}")
-        return False
+    metrics_service = MetricsService(async_client, config)
+    print("✓ MetricsService created successfully")
+    assert metrics_service is not None
     
     # Test BI Service
-    try:
-        bi_service = BIService(async_client, config)
-        print("✓ BIService created successfully")
-    except Exception as e:
-        print(f"✗ BIService creation failed: {e}")
-        return False
-    
-    return True
+    bi_service = BIService(async_client, config)
+    print("✓ BIService created successfully")
+    assert bi_service is not None
 
 def test_mcp_servers():
     """Test MCP server imports."""
     print("\nTesting MCP Servers...")
     
     # Test basic server
-    try:
-        from checkmk_agent.mcp_server.server import CheckmkMCPServer
-        print("✓ Basic MCP Server imports successfully")
-    except Exception as e:
-        print(f"✗ Basic MCP Server import failed: {e}")
-        return False
+    from checkmk_agent.mcp_server.server import CheckmkMCPServer
+    print("✓ Basic MCP Server imports successfully")
+    assert CheckmkMCPServer is not None
     
     # Test enhanced server
-    try:
-        from checkmk_agent.mcp_server.enhanced_server import EnhancedCheckmkMCPServer
-        print("✓ Enhanced MCP Server imports successfully")
-    except Exception as e:
-        print(f"✗ Enhanced MCP Server import failed: {e}")
-        return False
-    
-    return True
+    from checkmk_agent.mcp_server.enhanced_server import EnhancedCheckmkMCPServer
+    print("✓ Enhanced MCP Server imports successfully")
+    assert EnhancedCheckmkMCPServer is not None
 
 def main():
     """Run all tests."""
     print("=== Checkmk 2.4 Feature Test ===\n")
     
     # Test basic functionality
-    if not test_api_client():
-        print("\nAPI Client test failed. Please check your configuration.")
-        return
+    test_api_client()
     
     # Test new services
-    asyncio.run(test_new_services())
+    test_new_services()
     
     # Test MCP servers
     test_mcp_servers()

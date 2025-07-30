@@ -5,8 +5,9 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import logging
+from urllib.parse import urlparse
 
 try:
     import yaml
@@ -30,6 +31,51 @@ class CheckmkConfig(BaseModel):
     site: str = Field(..., description="Checkmk site name")
     max_retries: int = Field(default=3, description="Maximum API retry attempts")
     request_timeout: int = Field(default=30, description="Request timeout in seconds")
+    
+    @field_validator('server_url')
+    @classmethod
+    def validate_server_url(cls, v: str) -> str:
+        """Validate that server_url is a properly formatted URL."""
+        if not v:
+            raise ValueError("server_url cannot be empty")
+        
+        # Add https:// if no scheme provided
+        if not v.startswith(('http://', 'https://')):
+            v = f'https://{v}'
+        
+        parsed = urlparse(v)
+        if not parsed.netloc:
+            raise ValueError(f"Invalid server URL format: {v}")
+            
+        return v
+    
+    @field_validator('username', 'password', 'site')
+    @classmethod
+    def validate_required_strings(cls, v: str) -> str:
+        """Validate required string fields are not empty."""
+        if not v or not v.strip():
+            raise ValueError("Field cannot be empty")
+        return v.strip()
+    
+    @field_validator('max_retries')
+    @classmethod
+    def validate_max_retries(cls, v: int) -> int:
+        """Validate max_retries is reasonable."""
+        if v < 0:
+            raise ValueError("max_retries cannot be negative")
+        if v > 10:
+            raise ValueError("max_retries should not exceed 10 (excessive retrying)")
+        return v
+    
+    @field_validator('request_timeout')
+    @classmethod
+    def validate_request_timeout(cls, v: int) -> int:
+        """Validate request_timeout is reasonable."""
+        if v <= 0:
+            raise ValueError("request_timeout must be positive")
+        if v > 300:  # 5 minutes
+            raise ValueError("request_timeout should not exceed 300 seconds")
+        return v
 
 
 class LLMConfig(BaseModel):

@@ -271,7 +271,7 @@ class ServiceOperationsManager:
                 return result
             else:
                 # List all services
-                services = self.checkmk_client.list_all_services()
+                services = self.checkmk_client.list_all_services(columns=['description', 'state', 'plugin_output'])
                 if not services:
                     return "📦 No services found"
                 
@@ -602,7 +602,7 @@ Type your question to get detailed instructions for any service operation."""
     def get_service_statistics(self) -> str:
         """Get service statistics across all hosts."""
         try:
-            services = self.checkmk_client.list_all_services()
+            services = self.checkmk_client.list_all_services(columns=['description', 'state', 'plugin_output'])
             
             if not services:
                 return "📊 No services found"
@@ -636,7 +636,7 @@ Type your question to get detailed instructions for any service operation."""
     def test_connection(self) -> str:
         """Test connection by listing services."""
         try:
-            services = self.checkmk_client.list_all_services()
+            services = self.checkmk_client.list_all_services(columns=['description', 'state', 'plugin_output'])
             return f"✅ Connection successful. Found {len(services)} services."
         except CheckmkAPIError as e:
             return f"❌ Connection failed: {e}"

@@ -1392,11 +1392,44 @@ async def main():
     from ..config import load_config
     config = load_config()
     
-    # Create and run the server
+    # Create and run the server with proper error handling
     server = CheckmkMCPServer(config)
-    await server.run()
+    
+    try:
+        logger.info("Starting Checkmk MCP Server...")
+        logger.info("  - ✓ Configuration loaded")
+        logger.info("  - ✓ Core monitoring capabilities")
+        logger.info("  - ✓ Host and service management")
+        logger.info("  - ✓ Event Console integration")
+        logger.info("  - ✓ Metrics and BI support")
+        
+        await server.run()
+        
+    except BrokenPipeError:
+        # This is expected when the client disconnects - don't log as error
+        logger.info("MCP server connection closed by client")
+        sys.exit(0)
+    except KeyboardInterrupt:
+        logger.info("MCP server stopped by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Fatal error in MCP server: {e}")
+        logger.debug("Exception details:", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    # Configure logging with better format
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("MCP server interrupted")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Fatal error in MCP server: {e}")
+        sys.exit(1)

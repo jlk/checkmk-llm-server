@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from .base import BaseService, ServiceResult
 from .models.hosts import HostInfo
-from .models.services import ServiceInfo
+from .models.services import ServiceInfo, ServiceState
 
 
 T = TypeVar('T')
@@ -298,11 +298,23 @@ class StreamingServiceService(StreamingMixin, BaseService):
             
             # Convert to ServiceInfo models
             for svc_data in services_data:
+                # Convert numeric state to ServiceState enum
+                state_num = svc_data.get('state', 0)
+                state_map = {0: ServiceState.OK, 1: ServiceState.WARNING, 2: ServiceState.CRITICAL, 3: ServiceState.UNKNOWN}
+                state = state_map.get(state_num, ServiceState.UNKNOWN)
+                
+                # Provide required fields with defaults
+                from datetime import datetime
+                now = datetime.now()
+                
                 service_info = ServiceInfo(
                     host_name=host_name,
                     service_name=svc_data.get('description', ''),
-                    state=svc_data.get('state', 0),
-                    plugin_output=svc_data.get('plugin_output', '')
+                    state=state,
+                    state_type=svc_data.get('state_type', 'hard'),
+                    plugin_output=svc_data.get('plugin_output', ''),
+                    last_check=svc_data.get('last_check', now),
+                    last_state_change=svc_data.get('last_state_change', now)
                 )
                 
                 # Apply state filter if needed

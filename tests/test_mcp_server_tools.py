@@ -32,8 +32,8 @@ class TestMCPServerTools:
             await server.initialize()
         
         # Check tools are registered
-        assert len(server._tools) == 14
-        assert len(server._tool_handlers) == 14
+        assert len(server._tools) == 24
+        assert len(server._tool_handlers) == 24
         
         # Check essential tools
         assert "list_hosts" in server._tools
@@ -53,8 +53,8 @@ class TestMCPServerTools:
             await server.initialize()
         
         # Check tools are registered
-        assert len(server._tools) == 18
-        assert len(server._tool_handlers) == 18
+        assert len(server._tools) == 28
+        assert len(server._tool_handlers) == 28
         
         # Check standard tools
         assert "list_hosts" in server._tools

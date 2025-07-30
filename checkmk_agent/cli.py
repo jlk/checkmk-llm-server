@@ -3,7 +3,7 @@
 import sys
 import click
 import logging
-from typing import Optional
+from typing import Optional, List, Dict
 
 from .config import load_config
 from .api_client import CheckmkClient
@@ -80,9 +80,17 @@ def test(ctx):
             click.echo("✅ Successfully connected to Checkmk API")
         else:
             click.echo("❌ Failed to connect to Checkmk API")
+            click.echo("   Check your configuration and server accessibility:")
+            click.echo("   1. Verify server URL is correct and accessible")
+            click.echo("   2. Check username and password are valid")
+            click.echo("   3. Ensure the Checkmk site name is correct")
             sys.exit(1)
     except Exception as e:
         click.echo(f"❌ Connection test failed: {e}", err=True)
+        if "Connection" in str(e):
+            click.echo("   💡 Tip: Check network connectivity and firewall settings", err=True)
+        elif "401" in str(e) or "auth" in str(e).lower():
+            click.echo("   💡 Tip: Verify your credentials in the configuration file", err=True)
         sys.exit(1)
 
 
@@ -96,7 +104,10 @@ def interactive(ctx):
     app_config = ctx.obj.get('config')
     
     if not host_manager:
-        click.echo("❌ LLM client not available. Check your API keys in .env file.", err=True)
+        click.echo("❌ LLM client not available. To use interactive mode:", err=True)
+        click.echo("   1. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable", err=True)
+        click.echo("   2. Or create a .env file with your API key", err=True)
+        click.echo("   3. Or use the CLI commands directly without interactive mode", err=True)
         sys.exit(1)
     
     # Initialize enhanced interactive components
@@ -277,7 +288,15 @@ def hosts():
 @click.option('--effective-attributes', is_flag=True, help='Show effective attributes')
 @click.pass_context
 def list_hosts(ctx, folder: Optional[str], search: Optional[str], effective_attributes: bool):
-    """List all hosts or filter by criteria."""
+    """
+    List all hosts with optional filtering by folder and search criteria.
+    
+    Args:
+        ctx: Click context containing application state
+        folder: Filter hosts by folder path (e.g., '/web', '/database')
+        search: Search term to filter hosts by name or alias
+        effective_attributes: Include inherited attributes from parent folders
+    """
     checkmk_client = ctx.obj['checkmk_client']
     
     try:
@@ -713,10 +732,11 @@ def list_services(ctx, host_name: Optional[str], sites: tuple, query: Optional[s
             # Extract data directly from service object (Checkmk API format)
             # First try extensions, then direct access for backward compatibility
             extensions = service.get('extensions', {})
-            service_desc = extensions.get('description') or service.get('description', 'Unknown')
+            # Use explicit None checks to avoid issues with falsy values like empty strings or 0
+            service_desc = extensions.get('description') if extensions.get('description') is not None else service.get('description', 'Unknown')
             service_state = extensions.get('state') if extensions.get('state') is not None else service.get('state', 'Unknown')
-            plugin_output = extensions.get('plugin_output') or service.get('plugin_output', '')
-            host = extensions.get('host_name') or service.get('host_name', host_name or 'Unknown')
+            plugin_output = extensions.get('plugin_output') if extensions.get('plugin_output') is not None else service.get('plugin_output', '')
+            host = extensions.get('host_name') if extensions.get('host_name') is not None else service.get('host_name', host_name or 'Unknown')
             
             # Convert numeric state to text
             if isinstance(service_state, int):
@@ -755,6 +775,10 @@ def get_service_status(ctx, host_name: str, service_description: str):
         
         if not services:
             click.echo(f"❌ Service '{service_description}' not found on host '{host_name}'")
+            click.echo("   💡 Tips:")
+            click.echo("   • Check the service name spelling (case-sensitive)")
+            click.echo("   • Use 'services list <host>' to see all services")
+            click.echo("   • Service may need to be discovered first")
             sys.exit(1)
         
         service = services[0]
@@ -1489,7 +1513,22 @@ def status_problems(ctx, host: Optional[str], format: str):
 def status_host(ctx, host_name: str, format: str, dashboard: bool, problems_only: bool, 
                 critical_only: bool, category: str, sort_by: str, compact: bool, 
                 no_ok_services: bool, limit: int):
-    """Show service status for a specific host."""
+    """
+    Show service status for a specific host with various filtering and formatting options.
+    
+    Args:
+        ctx: Click context containing application state
+        host_name: Name of the host to query
+        format: Output format ('json', 'dashboard', or default text)
+        dashboard: Whether to show enhanced dashboard view
+        problems_only: Only show services with problems (non-OK state)
+        critical_only: Only show services in critical state
+        category: Filter by service category (e.g., 'disk', 'memory')
+        sort_by: Sort services by specified criteria
+        compact: Use compact output format
+        no_ok_services: Exclude OK services from output
+        limit: Maximum number of services to display
+    """
     checkmk_client = ctx.obj['checkmk_client']
     config = ctx.obj['config']
     
@@ -1523,39 +1562,23 @@ def status_host(ctx, host_name: str, format: str, dashboard: bool, problems_only
         
         if not host_status.get('found', True):
             click.echo(f"❌ Host '{host_name}' not found or has no services")
+            click.echo("   💡 Tips:")
+            click.echo("   • Check the hostname spelling (case-sensitive)")
+            click.echo("   • Use 'hosts list' to see all available hosts")
+            click.echo("   • Host may need to be created or configured first")
             return
         
         services = host_status.get('services', [])
         
         # Apply filtering options
-        if problems_only or critical_only or category or no_ok_services:
-            filtered_services = []
-            
-            for service in services:
-                extensions = service.get('extensions', {})
-                state = extensions.get('state', 0)
-                description = extensions.get('description', '').lower()
-                output = extensions.get('plugin_output', '').lower()
-                
-                # Apply filters
-                if critical_only and state != 2:
-                    continue
-                
-                if problems_only and state == 0:
-                    continue
-                
-                if no_ok_services and state == 0:
-                    continue
-                
-                if category:
-                    if not _service_matches_category(description, output, category):
-                        continue
-                
-                filtered_services.append(service)
-            
-            services = filtered_services
-            # Update host_status with filtered services
-            host_status['services'] = services
+        services = _filter_services_by_criteria(
+            services, 
+            problems_only=problems_only,
+            critical_only=critical_only, 
+            category=category,
+            no_ok_services=no_ok_services
+        )
+        host_status['services'] = services
         
         # Apply sorting
         if sort_by:
@@ -1710,6 +1733,10 @@ def status_service(ctx, host_name: str, service_description: str, format: str):
         
         if not service_details.get('found'):
             click.echo(f"❌ Service '{service_description}' not found on host '{host_name}'")
+            click.echo("   💡 Tips:")
+            click.echo("   • Check the service name spelling (case-sensitive)")
+            click.echo("   • Use 'services list <host>' to see all services")
+            click.echo("   • Service may need to be discovered first")
             return
         
         state = service_details['state']
@@ -2254,6 +2281,52 @@ def format_service_details_output(details: dict) -> str:
             result += "..."
     
     return result
+
+
+def _filter_services_by_criteria(services: List[Dict], problems_only: bool = False, 
+                                critical_only: bool = False, category: str = None, 
+                                no_ok_services: bool = False) -> List[Dict]:
+    """
+    Filter services based on various criteria.
+    
+    Args:
+        services: List of service dictionaries
+        problems_only: Only include services with problems
+        critical_only: Only include critical services
+        category: Filter by service category
+        no_ok_services: Exclude OK services
+        
+    Returns:
+        Filtered list of services
+    """
+    if not any([problems_only, critical_only, category, no_ok_services]):
+        return services
+    
+    filtered_services = []
+    
+    for service in services:
+        extensions = service.get('extensions', {})
+        state = extensions.get('state', 0)
+        description = extensions.get('description', '').lower()
+        output = extensions.get('plugin_output', '').lower()
+        
+        # Apply filters
+        if critical_only and state != 2:
+            continue
+        
+        if problems_only and state == 0:
+            continue
+        
+        if no_ok_services and state == 0:
+            continue
+        
+        if category:
+            if not _service_matches_category(description, output, category):
+                continue
+        
+        filtered_services.append(service)
+    
+    return filtered_services
 
 
 def _service_matches_category(description: str, output: str, category: str) -> bool:

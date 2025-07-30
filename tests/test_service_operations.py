@@ -68,7 +68,7 @@ class TestServiceOperationsManager:
         assert "Found 2 services for host: server01" in result
         assert "CPU utilization" in result
         assert "Memory utilization" in result
-        mock_checkmk_client.list_host_services.assert_called_once_with("server01")
+        mock_checkmk_client.list_host_services.assert_called_once_with("server01", columns=['description', 'state', 'plugin_output'])
     
     def test_list_all_services(self, service_manager, mock_checkmk_client):
         """Test listing all services."""
@@ -104,7 +104,7 @@ class TestServiceOperationsManager:
         assert "Found 2 services across 2 hosts" in result
         assert "server01" in result
         assert "server02" in result
-        mock_checkmk_client.list_all_services.assert_called_once()
+        mock_checkmk_client.list_all_services.assert_called_once_with(columns=['description', 'state', 'plugin_output'])
     
     def test_acknowledge_service_problems(self, service_manager, mock_checkmk_client):
         """Test acknowledging service problems."""
@@ -250,7 +250,9 @@ class TestServiceOperationsManager:
         
         result = service_manager.process_command("list services for server01")
         
-        assert "Error listing services: API Error" in result
+        # Should contain the basic error message
+        assert "Error listing services" in result
+        assert "API Error" in result
     
     def test_handle_invalid_llm_response(self, service_manager, mock_checkmk_client):
         """Test handling invalid LLM response."""
@@ -290,7 +292,8 @@ class TestServiceOperationsManager:
         
         result = service_manager.test_connection()
         
-        assert "Connection failed: Connection failed" in result
+        # Should contain connection error message  
+        assert "Connection failed" in result
     
     def test_get_instructions_add_service(self, service_manager, mock_checkmk_client):
         """Test getting instructions for adding a service."""
@@ -504,6 +507,6 @@ class TestServiceOperationsIntegration:
         result = manager.process_command("list services for server01")
         
         # Verify API was called
-        mock_checkmk_client.list_host_services.assert_called_once_with("server01")
+        mock_checkmk_client.list_host_services.assert_called_once_with("server01", columns=['description', 'state', 'plugin_output'])
         assert "Found 1 services for host: server01" in result
         assert "CPU utilization" in result

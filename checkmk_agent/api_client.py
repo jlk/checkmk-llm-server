@@ -7,16 +7,41 @@ from urllib.parse import urljoin
 from pydantic import BaseModel, Field
 
 from .config import CheckmkConfig
-from .utils import retry_on_failure, extract_error_message
+from .utils import retry_on_failure, extract_error_message, validate_api_response, validate_service_data
 
 
 class CheckmkAPIError(Exception):
     """Exception raised for Checkmk API errors."""
     
-    def __init__(self, message: str, status_code: Optional[int] = None, response_data: Optional[Dict] = None):
+    def __init__(self, message: str, status_code: Optional[int] = None, response_data: Optional[Dict] = None, endpoint: Optional[str] = None):
         super().__init__(message)
         self.status_code = status_code
         self.response_data = response_data
+        self.endpoint = endpoint
+    
+    def __str__(self):
+        """Provide helpful error message for debugging."""
+        parts = [str(self.args[0])]
+        
+        if self.status_code:
+            parts.append(f"Status: {self.status_code}")
+        
+        if self.endpoint:
+            parts.append(f"Endpoint: {self.endpoint}")
+            
+        # Add helpful context based on status code
+        if self.status_code == 401:
+            parts.append("Check your Checkmk credentials and site name")
+        elif self.status_code == 403:
+            parts.append("Check user permissions in Checkmk")
+        elif self.status_code == 404:
+            parts.append("Resource not found - check hostname/service names")
+        elif self.status_code == 422:
+            parts.append("Invalid request data - check parameter format")
+        elif self.status_code and self.status_code >= 500:
+            parts.append("Checkmk server error - check server status")
+            
+        return " | ".join(parts)
 
 
 class CreateHostRequest(BaseModel):
@@ -186,20 +211,47 @@ class CheckmkClient:
                 try:
                     error_data = response.json()
                 except:
-                    error_data = {"message": response.text}
+                    error_data = {"message": response.text or "No error message provided"}
                 
                 error_msg = extract_error_message(error_data)
+                self.logger.error(f"API error {response.status_code} on {method} {endpoint}: {error_msg}")
+                
                 raise CheckmkAPIError(
                     f"API request failed: {error_msg}",
                     status_code=response.status_code,
-                    response_data=error_data
+                    response_data=error_data,
+                    endpoint=endpoint
                 )
             
-            return response.json()
+            response_data = response.json()
             
+            # Validate response data format
+            try:
+                response_data = validate_api_response(response_data, response_type=f"{method} {endpoint}")
+            except ValueError as e:
+                self.logger.warning(f"Response validation warning: {e}")
+                # Continue processing despite validation warnings
+            
+            return response_data
+            
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection failed to {url}: {e}")
+            raise CheckmkAPIError(
+                f"Cannot connect to Checkmk server. Check server URL and network connectivity.",
+                endpoint=endpoint
+            )
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"Request timeout to {url}: {e}")
+            raise CheckmkAPIError(
+                f"Request timeout after {self.config.request_timeout}s. Server may be overloaded.",
+                endpoint=endpoint
+            )
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Request failed: {e}")
-            raise CheckmkAPIError(f"Request failed: {e}")
+            self.logger.error(f"Request failed to {url}: {e}")
+            raise CheckmkAPIError(
+                f"Request failed: {str(e)}",
+                endpoint=endpoint
+            )
     
     def list_hosts(self, effective_attributes: bool = False) -> List[Dict[str, Any]]:
         """

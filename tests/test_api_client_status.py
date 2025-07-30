@@ -150,11 +150,11 @@ class TestCheckMkClientStatusMethods:
         
         result = self.client.list_problem_services()
         
-        # Verify API call - using simplified columns
+        # Verify API call - updated for Checkmk 2.4 POST with JSON format
         mock_request.assert_called_once_with(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params={
+            json={
                 'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
         )
@@ -172,12 +172,13 @@ class TestCheckMkClientStatusMethods:
         
         self.client.list_problem_services('server01')
         
-        # Verify API call - host-specific endpoint is used
+        # Verify API call - updated for Checkmk 2.4 POST with JSON format
         mock_request.assert_called_once_with(
-            'GET',
+            'POST',
             '/objects/host/server01/collections/services',
-            params={
-                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
+            json={
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth'],
+                'host_name': 'server01'
             }
         )
     
@@ -197,12 +198,12 @@ class TestCheckMkClientStatusMethods:
         
         result = self.client.get_service_health_summary()
         
-        # Verify API call
+        # Verify API call - updated for Checkmk 2.4 POST with JSON format
         expected_columns = ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
         mock_request.assert_called_once_with(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params={'columns': expected_columns}
+            json={'columns': expected_columns}
         )
         
         # Verify summary calculations
@@ -247,14 +248,12 @@ class TestCheckMkClientStatusMethods:
         
         result = self.client.get_services_by_state(2)
         
-        # Verify API call
-        expected_query = {"op": "=", "left": "state", "right": "2"}
+        # Verify API call - updated for simplified fallback approach
         mock_request.assert_called_once_with(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params={
-                'columns': self.client.STATUS_COLUMNS,
-                'query': expected_query
+            json={
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
         )
         
@@ -270,12 +269,13 @@ class TestCheckMkClientStatusMethods:
         
         self.client.get_services_by_state(1, 'server01')
         
-        # Verify API call - host-specific endpoint is used
+        # Verify API call - updated for Checkmk 2.4 POST with JSON format
         mock_request.assert_called_once_with(
-            'GET',
+            'POST',
             '/objects/host/server01/collections/services',
-            params={
-                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
+            json={
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth'],
+                'host_name': 'server01'
             }
         )
     
@@ -297,14 +297,12 @@ class TestCheckMkClientStatusMethods:
         
         result = self.client.get_acknowledged_services()
         
-        # Verify API call
-        expected_query = {"op": "=", "left": "acknowledged", "right": "1"}
+        # Verify API call - updated for simplified fallback approach
         mock_request.assert_called_once_with(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params={
-                'columns': self.client.STATUS_COLUMNS,
-                'query': expected_query
+            json={
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
         )
         
@@ -330,14 +328,12 @@ class TestCheckMkClientStatusMethods:
         
         result = self.client.get_services_in_downtime()
         
-        # Verify API call
-        expected_query = {"op": ">", "left": "scheduled_downtime_depth", "right": "0"}
+        # Verify API call - updated for simplified fallback approach
         mock_request.assert_called_once_with(
-            'GET',
+            'POST',
             '/domain-types/service/collections/all',
-            params={
-                'columns': self.client.STATUS_COLUMNS,
-                'query': expected_query
+            json={
+                'columns': ['host_name', 'description', 'state', 'acknowledged', 'scheduled_downtime_depth']
             }
         )
         

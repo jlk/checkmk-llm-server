@@ -178,9 +178,12 @@ class CachingService:
     """Mixin to add caching capabilities to services."""
     
     def __init__(self, *args, cache_ttl: int = 300, cache_size: int = 1000, **kwargs):
+        # For multiple inheritance, let other classes handle their init first
         super().__init__(*args, **kwargs)
         self._cache = LRUCache(max_size=cache_size, default_ttl=cache_ttl)
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        # Don't overwrite existing logger if it exists
+        if not hasattr(self, 'logger'):
+            self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     
     def cached(
         self, 
@@ -198,23 +201,26 @@ class CachingService:
         """
         def decorator(func: Callable) -> Callable:
             @wraps(func)
-            async def wrapper(self, *args, **kwargs):
+            async def wrapper(*args, **kwargs):
+                # Get the service instance from the outer scope
+                service_instance = self
+                
                 # Build cache key
-                base_key = self._cache._make_key(*args, **kwargs)
+                base_key = service_instance._cache._make_key(*args, **kwargs)
                 cache_key = f"{key_prefix}:{base_key}" if key_prefix else base_key
                 
                 # Try to get from cache
-                cached_value = await self._cache.get(cache_key)
+                cached_value = await service_instance._cache.get(cache_key)
                 if cached_value is not None:
-                    self.logger.debug(f"Cache hit for {func.__name__}: {cache_key}")
+                    service_instance.logger.debug(f"Cache hit for {func.__name__}: {cache_key}")
                     return cached_value
                 
                 # Execute function
                 try:
-                    result = await func(self, *args, **kwargs)
+                    result = await func(*args, **kwargs)
                     
                     # Cache the result
-                    await self._cache.set(
+                    await service_instance._cache.set(
                         cache_key, 
                         result, 
                         ttl=ttl,
@@ -229,7 +235,7 @@ class CachingService:
                     
                 except Exception as e:
                     if invalidate_on_error:
-                        await self._cache.invalidate(cache_key)
+                        await service_instance._cache.invalidate(cache_key)
                     raise
             
             return wrapper

@@ -3,6 +3,7 @@
 import pytest
 import asyncio
 import time
+import logging
 from unittest.mock import AsyncMock, Mock
 
 from checkmk_agent.services.cache import (
@@ -14,8 +15,12 @@ from checkmk_agent.config import AppConfig
 class MockCachingService(CachingService):
     """Mock service for testing caching functionality."""
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, config, *args, **kwargs):
+        # Initialize the cache components directly since there's no meaningful parent
+        self._cache = LRUCache(max_size=kwargs.get('cache_size', 1000), 
+                             default_ttl=kwargs.get('cache_ttl', 300))
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.config = config
         self.call_count = 0
     
     async def expensive_operation(self, param: str):

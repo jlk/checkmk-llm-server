@@ -353,6 +353,10 @@ class TestCheckmkAPIError:
             response_data=response_data
         )
         
-        assert str(error) == "API error"
+        # Check that enhanced error message includes helpful context
+        error_str = str(error)
+        assert "API error" in error_str
+        assert "Status: 404" in error_str
+        assert "Resource not found - check hostname/service names" in error_str
         assert error.status_code == 404
         assert error.response_data == response_data

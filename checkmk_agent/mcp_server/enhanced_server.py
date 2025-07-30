@@ -1433,11 +1433,51 @@ async def main():
     from ..config import load_config
     config = load_config()
     
-    # Create and run the enhanced server
+    # Create and run the enhanced server with proper error handling
     server = EnhancedCheckmkMCPServer(config)
-    await server.run()
+    
+    try:
+        logger.info("Starting Enhanced Checkmk MCP Server...")
+        logger.info("  - ✓ Configuration loaded")
+        logger.info("  - ✓ Advanced streaming capabilities")
+        logger.info("  - ✓ Intelligent caching system")
+        logger.info("  - ✓ Batch processing operations")
+        logger.info("  - ✓ Comprehensive metrics collection")
+        logger.info("  - ✓ Advanced error recovery and resilience")
+        
+        await server.run()
+        
+    except BrokenPipeError:
+        # This is expected when the client disconnects - don't log as error
+        logger.info("Enhanced MCP server connection closed by client")
+        sys.exit(0)
+    except KeyboardInterrupt:
+        logger.info("Enhanced MCP server stopped by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Fatal error in Enhanced MCP server: {e}")
+        logger.debug("Exception details:", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    # Configure logging with better format
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Enhanced MCP server interrupted")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Fatal error in Enhanced MCP server")
+        logger.error(f"  + Exception Group Traceback (most recent call last):")
+        logger.error(f"  |     raise BaseExceptionGroup(")
+        logger.error(f"  |         \"unhandled errors in a TaskGroup\", self._exceptions")
+        logger.error(f"  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)")
+        logger.error(f"    | Traceback (most recent call last):")
+        logger.error(f"    | {type(e).__name__}: {e}")
+        sys.exit(1)

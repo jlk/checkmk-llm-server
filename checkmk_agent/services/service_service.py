@@ -398,9 +398,13 @@ class ServiceService(BaseService):
         extensions = service_data.get('extensions', {})
         
         # Extract basic information - try extensions first, then direct access
-        host_name = extensions.get("host_name") or service_data.get("host_name", "")
-        service_name = extensions.get("description") or service_data.get("description", service_data.get("service_description", ""))
-        state_value = extensions.get("state") or service_data.get("state", "OK")
+        # Import the safe utility function to handle falsy values properly
+        from ..utils import safe_get_with_fallback
+        
+        host_name = safe_get_with_fallback(extensions, service_data, "host_name", "")
+        service_name = safe_get_with_fallback(extensions, service_data, "description", 
+                                           service_data.get("service_description", ""))
+        state_value = safe_get_with_fallback(extensions, service_data, "state", "OK")
         
         # Handle both string and numeric state values from Checkmk API
         if isinstance(state_value, str):
@@ -420,18 +424,43 @@ class ServiceService(BaseService):
             state = numeric_mapping.get(state_value, ServiceState.UNKNOWN)
         
         # Basic service info - try extensions first, then direct access
+        # Use explicit None checks to avoid issues with falsy values like 0
         service_info = ServiceInfo(
             host_name=host_name,
             service_name=service_name,
             state=state,
-            state_type=self._convert_state_type_to_string(extensions.get("state_type") or service_data.get("state_type", 1)),
-            plugin_output=extensions.get("plugin_output") or service_data.get("plugin_output", ""),
-            long_plugin_output=extensions.get("long_plugin_output") or service_data.get("long_plugin_output"),
-            performance_data=extensions.get("performance_data") or service_data.get("performance_data"),
-            last_check=datetime.fromtimestamp(extensions.get("last_check") or service_data.get("last_check", 0)),
-            last_state_change=datetime.fromtimestamp(extensions.get("last_state_change") or service_data.get("last_state_change", 0)),
-            acknowledged=extensions.get("acknowledged") or service_data.get("acknowledged", False),
-            in_downtime=extensions.get("in_downtime") or service_data.get("in_downtime", False)
+            state_type=self._convert_state_type_to_string(
+                extensions.get("state_type") if extensions.get("state_type") is not None 
+                else service_data.get("state_type", 1)
+            ),
+            plugin_output=(
+                extensions.get("plugin_output") if extensions.get("plugin_output") is not None 
+                else service_data.get("plugin_output", "")
+            ),
+            long_plugin_output=(
+                extensions.get("long_plugin_output") if extensions.get("long_plugin_output") is not None 
+                else service_data.get("long_plugin_output")
+            ),
+            performance_data=(
+                extensions.get("performance_data") if extensions.get("performance_data") is not None 
+                else service_data.get("performance_data")
+            ),
+            last_check=datetime.fromtimestamp(
+                extensions.get("last_check") if extensions.get("last_check") is not None 
+                else service_data.get("last_check", 0)
+            ),
+            last_state_change=datetime.fromtimestamp(
+                extensions.get("last_state_change") if extensions.get("last_state_change") is not None 
+                else service_data.get("last_state_change", 0)
+            ),
+            acknowledged=(
+                extensions.get("acknowledged") if extensions.get("acknowledged") is not None 
+                else service_data.get("acknowledged", False)
+            ),
+            in_downtime=(
+                extensions.get("in_downtime") if extensions.get("in_downtime") is not None 
+                else service_data.get("in_downtime", False)
+            )
         )
         
         # Add detailed information if requested
