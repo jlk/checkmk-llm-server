@@ -6,8 +6,8 @@ import json
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
+from pathlib import Path
 from typing import Optional, Dict, Any, List
-from datetime import datetime
 
 from mcp.server import Server
 from mcp.types import (
@@ -31,6 +31,23 @@ from ..services.batch import BatchProcessor, BatchOperationsMixin
 
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_error(error: Exception) -> str:
+    """Sanitize error messages to prevent information disclosure."""
+    try:
+        error_str = str(error)
+        # Remove sensitive path information
+        sanitized = error_str.replace(str(Path.home()), "~")
+        # Remove full file paths, keep only filename
+        import re
+        sanitized = re.sub(r'/[a-zA-Z0-9_/.-]*/', '', sanitized)
+        # Truncate overly long error messages
+        if len(sanitized) > 200:
+            sanitized = sanitized[:200] + "..."
+        return sanitized
+    except Exception:
+        return "Internal server error occurred"
 
 
 class MCPJSONEncoder(json.JSONEncoder):
@@ -90,9 +107,13 @@ class CheckmkMCPServer:
         self._tools = {}
         self._tool_handlers = {}
         
+        # Prompt definitions  
+        self._prompts = {}
+        
         # Register handlers
         self._register_handlers()
         self._register_tool_handlers()
+        self._register_prompt_handlers()
         self._register_advanced_resources()
     
     def _register_handlers(self):
@@ -272,6 +293,228 @@ class CheckmkMCPServer:
                     "structuredContent": None
                 }
     
+    def _register_prompt_handlers(self):
+        """Register MCP prompt handlers."""
+        
+        # First define the prompts
+        self._prompts = {
+            "analyze_host_health": Prompt(
+                name="analyze_host_health",
+                description="Analyze the health of a specific host with detailed recommendations",
+                arguments=[
+                    {
+                        "name": "host_name",
+                        "description": "Name of the host to analyze",
+                        "required": True
+                    },
+                    {
+                        "name": "include_grade", 
+                        "description": "Include health grade (A+ through F)",
+                        "required": False
+                    }
+                ]
+            ),
+            "troubleshoot_service": Prompt(
+                name="troubleshoot_service",
+                description="Comprehensive troubleshooting analysis for a service problem",
+                arguments=[
+                    {
+                        "name": "host_name",
+                        "description": "Host name where the service is running",
+                        "required": True
+                    },
+                    {
+                        "name": "service_name",
+                        "description": "Name of the service to troubleshoot",
+                        "required": True
+                    }
+                ]
+            ),
+            "infrastructure_overview": Prompt(
+                name="infrastructure_overview",
+                description="Get a comprehensive overview of infrastructure health and trends",
+                arguments=[
+                    {
+                        "name": "time_range_hours",
+                        "description": "Time range in hours for the analysis",
+                        "required": False
+                    }
+                ]
+            ),
+            "optimize_parameters": Prompt(
+                name="optimize_parameters", 
+                description="Get parameter optimization recommendations for a service",
+                arguments=[
+                    {
+                        "name": "host_name",
+                        "description": "Host name where the service is running",
+                        "required": True
+                    },
+                    {
+                        "name": "service_name",
+                        "description": "Name of the service to optimize",
+                        "required": True
+                    }
+                ]
+            )
+        }
+        
+        @self.server.list_prompts()
+        async def list_prompts() -> List[Prompt]:
+            """List all available MCP prompts."""
+            return list(self._prompts.values())
+        
+        @self.server.get_prompt()
+        async def get_prompt(name: str, arguments: dict):
+            """Handle MCP prompt requests."""
+            if not self._ensure_services():
+                raise RuntimeError("Services not initialized")
+            
+            try:
+                if name == "analyze_host_health":
+                    host_name = arguments.get("host_name", "")
+                    include_grade = arguments.get("include_grade", "true").lower() == "true"
+                    
+                    # Get current host data
+                    host_result = await self.host_service.get_host(name=host_name, include_status=True)
+                    host_data = host_result.data.model_dump() if host_result.success else {}
+                    
+                    # Get host health analysis
+                    health_result = await self.status_service.analyze_host_health(
+                        host_name=host_name, include_grade=include_grade, include_recommendations=True
+                    )
+                    health_data = health_result.data if health_result.success else {}
+                    
+                    prompt_text = f"""Analyze the health of host '{host_name}' based on the following monitoring data:
+
+HOST INFORMATION:
+{safe_json_dumps(host_data)}
+
+HEALTH ANALYSIS:
+{safe_json_dumps(health_data)}
+
+Please provide:
+1. Overall health assessment {'with letter grade (A+ through F)' if include_grade else ''}
+2. Key issues requiring attention
+3. Specific recommendations for improvement
+4. Trend analysis if historical data is available
+
+Focus on actionable insights for system administrators."""
+
+                elif name == "troubleshoot_service":
+                    host_name = arguments.get("host_name", "")
+                    service_name = arguments.get("service_name", "")
+                    
+                    # Get service status and details
+                    services_result = await self.service_service.list_host_services(host_name=host_name)
+                    service_data = None
+                    if services_result.success:
+                        for service in services_result.data.services:
+                            if service.description == service_name:
+                                service_data = service.model_dump()
+                                break
+                    
+                    prompt_text = f"""Troubleshoot the service '{service_name}' on host '{host_name}' based on this monitoring data:
+
+SERVICE STATUS:
+{safe_json_dumps(service_data or {'error': 'Service not found'})}
+
+Please provide a comprehensive troubleshooting analysis including:
+1. Current service state and what it indicates
+2. Most likely root causes based on the service type and status
+3. Step-by-step troubleshooting procedure
+4. Commands to run for diagnosis
+5. Common solutions for this type of problem
+6. Prevention strategies
+
+Be specific to the service type and provide practical commands where applicable."""
+
+                elif name == "infrastructure_overview":
+                    time_range_hours = int(arguments.get("time_range_hours", "24"))
+                    
+                    # Get comprehensive infrastructure data
+                    dashboard_result = await self.status_service.get_health_dashboard()
+                    problems_result = await self.status_service.get_critical_problems()
+                    
+                    dashboard_data = dashboard_result.data if dashboard_result.success else {}
+                    problems_data = problems_result.data if problems_result.success else {}
+                    
+                    prompt_text = f"""Provide a comprehensive infrastructure overview based on the last {time_range_hours} hours of monitoring data:
+
+HEALTH DASHBOARD:
+{safe_json_dumps(dashboard_data)}
+
+CRITICAL PROBLEMS:
+{safe_json_dumps(problems_data)}
+
+Please analyze and provide:
+1. Overall infrastructure health status
+2. Key trends and patterns observed
+3. Critical issues requiring immediate attention
+4. Resource utilization analysis
+5. Capacity planning recommendations
+6. Risk assessment and mitigation strategies
+
+Present this as an executive summary suitable for both technical teams and management."""
+
+                elif name == "optimize_parameters":
+                    host_name = arguments.get("host_name", "")
+                    service_name = arguments.get("service_name", "")
+                    
+                    # Get current parameters and service performance
+                    params_result = await self.parameter_service.get_effective_parameters(
+                        host_name=host_name, service_name=service_name
+                    )
+                    params_data = params_result.data.model_dump() if params_result.success else {}
+                    
+                    # Get service status for context
+                    services_result = await self.service_service.list_host_services(host_name=host_name)
+                    service_status = None
+                    if services_result.success:
+                        for service in services_result.data.services:
+                            if service.description == service_name:
+                                service_status = service.model_dump()
+                                break
+                    
+                    prompt_text = f"""Optimize monitoring parameters for service '{service_name}' on host '{host_name}':
+
+CURRENT PARAMETERS:
+{safe_json_dumps(params_data)}
+
+SERVICE STATUS:
+{safe_json_dumps(service_status or {'error': 'Service not found'})}
+
+Please provide parameter optimization recommendations:
+1. Analysis of current threshold settings
+2. Recommended threshold adjustments with rationale
+3. Optimal warning and critical levels
+4. Frequency and timing adjustments
+5. Alert suppression strategies to reduce noise
+6. Performance impact considerations
+
+Focus on reducing false positives while maintaining effective monitoring coverage."""
+
+                else:
+                    raise ValueError(f"Unknown prompt: {name}")
+                
+                return PromptMessage(
+                    role="user",
+                    content=TextContent(
+                        type="text",
+                        text=prompt_text
+                    )
+                )
+                
+            except Exception as e:
+                logger.exception(f"Error generating prompt {name}")
+                return PromptMessage(
+                    role="user", 
+                    content=TextContent(
+                        type="text",
+                        text=f"Error generating prompt: {sanitize_error(e)}"
+                    )
+                )
+    
     def _register_advanced_resources(self):
         """Register advanced resource handlers."""
         pass  # Resources are handled in the main read_resource handler
@@ -309,13 +552,17 @@ class CheckmkMCPServer:
         )
         
         async def list_hosts(search=None, folder=None, limit=None, offset=0, include_status=False):
-            result = await self.host_service.list_hosts(
-                search=search, folder=folder, limit=limit, offset=offset, include_status=include_status
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} hosts"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                result = await self.host_service.list_hosts(
+                    search=search, folder=folder, limit=limit, offset=offset, include_status=include_status
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} hosts"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error listing hosts: search={search}, folder={folder}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["list_hosts"] = list_hosts
         
@@ -337,13 +584,17 @@ class CheckmkMCPServer:
         )
         
         async def create_host(name, folder="/", ip_address=None, attributes=None, labels=None):
-            result = await self.host_service.create_host(
-                name=name, folder=folder, ip_address=ip_address, attributes=attributes, labels=labels
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Successfully created host {name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                result = await self.host_service.create_host(
+                    name=name, folder=folder, ip_address=ip_address, attributes=attributes, labels=labels
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Successfully created host {name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error creating host: {name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["create_host"] = create_host
         
@@ -362,11 +613,15 @@ class CheckmkMCPServer:
         )
         
         async def get_host(name, include_status=True):
-            result = await self.host_service.get_host(name=name, include_status=include_status)
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved details for host {name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                result = await self.host_service.get_host(name=name, include_status=include_status)
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved details for host {name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error getting host: {name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["get_host"] = get_host
         
@@ -389,13 +644,17 @@ class CheckmkMCPServer:
         )
         
         async def update_host(name, folder=None, ip_address=None, attributes=None, labels=None, etag=None):
-            result = await self.host_service.update_host(
-                name=name, folder=folder, ip_address=ip_address, attributes=attributes, labels=labels, etag=etag
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Successfully updated host {name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                result = await self.host_service.update_host(
+                    name=name, folder=folder, ip_address=ip_address, attributes=attributes, labels=labels, etag=etag
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Successfully updated host {name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error updating host: {name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["update_host"] = update_host
         
@@ -413,11 +672,15 @@ class CheckmkMCPServer:
         )
         
         async def delete_host(name):
-            result = await self.host_service.delete_host(name=name)
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Successfully deleted host {name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                result = await self.host_service.delete_host(name=name)
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Successfully deleted host {name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error deleting host: {name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["delete_host"] = delete_host
     
@@ -439,15 +702,19 @@ class CheckmkMCPServer:
         )
         
         async def list_host_services(host_name, include_downtimes=False, include_acknowledged=False):
-            # Note: include_downtimes and include_acknowledged are accepted by tool but not used by service
-            # This maintains backward compatibility with tool schema
-            result = await self.service_service.list_host_services(
-                host_name=host_name
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services for host {host_name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                # Note: include_downtimes and include_acknowledged are accepted by tool but not used by service
+                # This maintains backward compatibility with tool schema
+                result = await self.service_service.list_host_services(
+                    host_name=host_name
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services for host {host_name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error listing host services: {host_name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["list_host_services"] = list_host_services
         
@@ -467,28 +734,32 @@ class CheckmkMCPServer:
         )
         
         async def list_all_services(search=None, state_filter=None, limit=None, offset=0):
-            from ..services.models.services import ServiceState
-            
-            # Convert string states to enum values
-            if state_filter:
-                state_enum_filter = []
-                for state in state_filter:
-                    try:
-                        state_enum_filter.append(ServiceState[state.upper()])
-                    except KeyError:
-                        pass
-            else:
-                state_enum_filter = None
-            
-            # Note: search and offset are not supported by the service layer
-            # Use host_filter as search pattern if provided
-            result = await self.service_service.list_all_services(
-                host_filter=search, state_filter=state_enum_filter, limit=limit
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                from ..services.models.services import ServiceState
+                
+                # Convert string states to enum values
+                if state_filter:
+                    state_enum_filter = []
+                    for state in state_filter:
+                        try:
+                            state_enum_filter.append(ServiceState[state.upper()])
+                        except KeyError:
+                            pass
+                else:
+                    state_enum_filter = None
+                
+                # Note: search and offset are not supported by the service layer
+                # Use host_filter as search pattern if provided
+                result = await self.service_service.list_all_services(
+                    host_filter=search, state_filter=state_enum_filter, limit=limit
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error listing all services: search={search}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["list_all_services"] = list_all_services
         
@@ -512,15 +783,18 @@ class CheckmkMCPServer:
         )
         
         async def acknowledge_service_problem(host_name, service_name, comment, sticky=False, notify=True, persistent=False, expire_on=None):
-            
-            result = await self.service_service.acknowledge_service_problems(
-                host_name=host_name, service_name=service_name, comment=comment, 
-                sticky=sticky, notify=notify, persistent=persistent, expire_on=expire_on
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                result = await self.service_service.acknowledge_service_problems(
+                    host_name=host_name, service_name=service_name, comment=comment, 
+                    sticky=sticky, notify=notify, persistent=persistent, expire_on=expire_on
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error acknowledging service problem: {host_name}/{service_name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["acknowledge_service_problem"] = acknowledge_service_problem
         
@@ -544,14 +818,18 @@ class CheckmkMCPServer:
         )
         
         async def create_service_downtime(host_name, service_name, comment, start_time=None, end_time=None, duration_hours=None, recur=None):
-            result = await self.service_service.create_service_downtime(
-                host_name=host_name, service_name=service_name, comment=comment,
-                start_time=start_time, end_time=end_time, duration_hours=duration_hours, recur=recur
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Created downtime for {service_name} on {host_name}"}
-            else:
-                return {"success": False, "error": result.error, "warnings": result.warnings}
+            try:
+                result = await self.service_service.create_service_downtime(
+                    host_name=host_name, service_name=service_name, comment=comment,
+                    start_time=start_time, end_time=end_time, duration_hours=duration_hours, recur=recur
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Created downtime for {service_name} on {host_name}"}
+                else:
+                    return {"success": False, "error": result.error, "warnings": result.warnings}
+            except Exception as e:
+                logger.exception(f"Error creating service downtime: {host_name}/{service_name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["create_service_downtime"] = create_service_downtime
     
@@ -571,14 +849,18 @@ class CheckmkMCPServer:
         )
         
         async def get_health_dashboard(**kwargs):
-            # Note: The service method doesn't accept parameters, ignore any passed
-            result = await self.status_service.get_health_dashboard()
-            if result.success:
-                # Handle both dict and Pydantic model data
-                data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
-                return {"success": True, "data": data}
-            else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
+            try:
+                # Note: The service method doesn't accept parameters, ignore any passed
+                result = await self.status_service.get_health_dashboard()
+                if result.success:
+                    # Handle both dict and Pydantic model data
+                    data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
+                    return {"success": True, "data": data}
+                else:
+                    return {"success": False, "error": result.error or "Health dashboard operation failed"}
+            except Exception as e:
+                logger.exception("Error getting health dashboard")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["get_health_dashboard"] = get_health_dashboard
         
@@ -597,16 +879,20 @@ class CheckmkMCPServer:
         )
         
         async def get_critical_problems(severity_filter=None, category_filter=None, include_acknowledged=False):
-            result = await self.status_service.get_critical_problems(
-                severity_filter=severity_filter, category_filter=category_filter, 
-                include_acknowledged=include_acknowledged
-            )
-            if result.success:
-                # Handle both dict and Pydantic model data
-                data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
-                return {"success": True, "data": data}
-            else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
+            try:
+                result = await self.status_service.get_critical_problems(
+                    severity_filter=severity_filter, category_filter=category_filter, 
+                    include_acknowledged=include_acknowledged
+                )
+                if result.success:
+                    # Handle both dict and Pydantic model data
+                    data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
+                    return {"success": True, "data": data}
+                else:
+                    return {"success": False, "error": result.error or "Critical problems operation failed"}
+            except Exception as e:
+                logger.exception("Error getting critical problems")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["get_critical_problems"] = get_critical_problems
         
@@ -655,13 +941,17 @@ class CheckmkMCPServer:
         )
         
         async def get_effective_parameters(host_name, service_name):
-            result = await self.parameter_service.get_effective_parameters(
-                host_name=host_name, service_name=service_name
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump()}
-            else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
+            try:
+                result = await self.parameter_service.get_effective_parameters(
+                    host_name=host_name, service_name=service_name
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump()}
+                else:
+                    return {"success": False, "error": result.error or "Parameter operation failed"}
+            except Exception as e:
+                logger.exception(f"Error getting effective parameters: {host_name}/{service_name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["get_effective_parameters"] = get_effective_parameters
         
@@ -682,14 +972,18 @@ class CheckmkMCPServer:
         )
         
         async def set_service_parameters(host_name, service_name, parameters, rule_properties=None):
-            result = await self.parameter_service.set_service_parameters(
-                host_name=host_name, service_name=service_name, 
-                parameters=parameters, rule_properties=rule_properties
-            )
-            if result.success:
-                return {"success": True, "data": result.data.model_dump(), "message": f"Updated parameters for {service_name} on {host_name}"}
-            else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
+            try:
+                result = await self.parameter_service.set_service_parameters(
+                    host_name=host_name, service_name=service_name, 
+                    parameters=parameters, rule_properties=rule_properties
+                )
+                if result.success:
+                    return {"success": True, "data": result.data.model_dump(), "message": f"Updated parameters for {service_name} on {host_name}"}
+                else:
+                    return {"success": False, "error": result.error or "Parameter operation failed"}
+            except Exception as e:
+                logger.exception(f"Error setting service parameters: {host_name}/{service_name}")
+                return {"success": False, "error": sanitize_error(e)}
         
         self._tool_handlers["set_service_parameters"] = set_service_parameters
     
@@ -1418,66 +1712,3 @@ class CheckmkMCPServer:
                 )
         else:
             raise ValueError(f"Unsupported transport type: {transport_type}")
-
-
-async def main():
-    """Main entry point for running the enhanced MCP server standalone."""
-    import sys
-    from pathlib import Path
-    
-    # Add the project root to the path so we can import modules
-    project_root = Path(__file__).parent.parent.parent
-    sys.path.insert(0, str(project_root))
-    
-    # Load configuration
-    from ..config import load_config
-    config = load_config()
-    
-    # Create and run the enhanced server with proper error handling
-    server = CheckmkMCPServer(config)
-    
-    try:
-        logger.info("Starting Enhanced Checkmk MCP Server...")
-        logger.info("  - ✓ Configuration loaded")
-        logger.info("  - ✓ Advanced streaming capabilities")
-        logger.info("  - ✓ Intelligent caching system")
-        logger.info("  - ✓ Batch processing operations")
-        logger.info("  - ✓ Comprehensive metrics collection")
-        logger.info("  - ✓ Advanced error recovery and resilience")
-        
-        await server.run()
-        
-    except BrokenPipeError:
-        # This is expected when the client disconnects - don't log as error
-        logger.info("Enhanced MCP server connection closed by client")
-        sys.exit(0)
-    except KeyboardInterrupt:
-        logger.info("Enhanced MCP server stopped by user")
-        sys.exit(0)
-    except Exception as e:
-        logger.error(f"Fatal error in Enhanced MCP server: {e}")
-        logger.debug("Exception details:", exc_info=True)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    # Configure logging with better format
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Enhanced MCP server interrupted")
-        sys.exit(0)
-    except Exception as e:
-        logger.error(f"Fatal error in Enhanced MCP server")
-        logger.error(f"  + Exception Group Traceback (most recent call last):")
-        logger.error(f"  |     raise BaseExceptionGroup(")
-        logger.error(f"  |         \"unhandled errors in a TaskGroup\", self._exceptions")
-        logger.error(f"  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)")
-        logger.error(f"    | Traceback (most recent call last):")
-        logger.error(f"    | {type(e).__name__}: {e}")
-        sys.exit(1)
