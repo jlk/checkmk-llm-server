@@ -1,4 +1,4 @@
-"""Main MCP Server implementation for Checkmk operations."""
+"""Enhanced MCP Server implementation with advanced features."""
 
 import logging
 import asyncio
@@ -7,6 +7,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
 from typing import Optional, Dict, Any, List
+from datetime import datetime
 
 from mcp.server import Server
 from mcp.types import (
@@ -19,8 +20,14 @@ from mcp.server.lowlevel.server import NotificationOptions
 from ..config import AppConfig
 from ..async_api_client import AsyncCheckmkClient
 from ..services import HostService, StatusService, ServiceService, ParameterService
+from ..services.event_service import EventService
 from ..services.metrics_service import MetricsService
 from ..services.bi_service import BIService
+from ..services.streaming import StreamingHostService, StreamingServiceService
+from ..services.cache import CachedHostService
+from ..services.metrics import MetricsMixin, get_metrics_collector
+from ..services.recovery import RecoveryMixin
+from ..services.batch import BatchProcessor, BatchOperationsMixin
 
 
 logger = logging.getLogger(__name__)
@@ -55,35 +62,46 @@ def safe_json_dumps(obj):
 
 
 class CheckmkMCPServer:
-    """Checkmk MCP Server implementation with comprehensive monitoring capabilities."""
+    """Enhanced Checkmk MCP Server with advanced features."""
     
     def __init__(self, config: AppConfig):
         self.config = config
         self.server = Server("checkmk-agent")
         self.checkmk_client: Optional[AsyncCheckmkClient] = None
         
-        # Services
+        # Standard services
         self.host_service: Optional[HostService] = None
         self.status_service: Optional[StatusService] = None
         self.service_service: Optional[ServiceService] = None
         self.parameter_service: Optional[ParameterService] = None
+        self.event_service: Optional[EventService] = None
         self.metrics_service: Optional[MetricsService] = None
         self.bi_service: Optional[BIService] = None
         
+        # Enhanced services
+        self.streaming_host_service: Optional[StreamingHostService] = None
+        self.streaming_service_service: Optional[StreamingServiceService] = None
+        self.cached_host_service: Optional[CachedHostService] = None
+        
+        # Advanced features
+        self.batch_processor = BatchProcessor()
+        
         # Tool definitions
         self._tools = {}
+        self._tool_handlers = {}
         
         # Register handlers
         self._register_handlers()
         self._register_tool_handlers()
+        self._register_advanced_resources()
     
     def _register_handlers(self):
-        """Register MCP server handlers."""
+        """Register standard MCP server handlers."""
         
         @self.server.list_resources()
         async def list_resources() -> List[Resource]:
-            """List available MCP resources for real-time monitoring data."""
-            return [
+            """List available MCP resources including streaming and performance data."""
+            basic_resources = [
                 Resource(
                     uri="checkmk://dashboard/health",
                     name="Health Dashboard",
@@ -115,52 +133,86 @@ class CheckmkMCPServer:
                     mimeType="application/json"
                 )
             ]
+            
+            # Add streaming resources
+            streaming_resources = [
+                Resource(
+                    uri="checkmk://stream/hosts",
+                    name="Host Stream",
+                    description="Streaming host data for large environments",
+                    mimeType="application/x-ndjson"
+                ),
+                Resource(
+                    uri="checkmk://stream/services",
+                    name="Service Stream", 
+                    description="Streaming service data for large environments",
+                    mimeType="application/x-ndjson"
+                ),
+                Resource(
+                    uri="checkmk://metrics/server",
+                    name="Server Metrics",
+                    description="MCP server performance metrics",
+                    mimeType="application/json"
+                ),
+                Resource(
+                    uri="checkmk://cache/stats",
+                    name="Cache Statistics",
+                    description="Cache performance and statistics",
+                    mimeType="application/json"
+                )
+            ]
+            
+            return basic_resources + streaming_resources
         
         @self.server.read_resource()
         async def read_resource(uri: str) -> str:
-            """Read MCP resource content for real-time data."""
+            """Read MCP resource content including advanced features."""
             if not self._ensure_services():
                 raise RuntimeError("Services not initialized")
             
             try:
+                # Standard resources
                 if uri == "checkmk://dashboard/health":
                     result = await self.status_service.get_health_dashboard()
-                    if result.success:
-                        return result.data.model_dump_json()
-                    else:
-                        raise RuntimeError(f"Failed to get health dashboard: {result.error}")
+                    return self._handle_service_result(result)
                 
                 elif uri == "checkmk://dashboard/problems":
                     result = await self.status_service.get_critical_problems()
-                    if result.success:
-                        return result.data.model_dump_json()
-                    else:
-                        raise RuntimeError(f"Failed to get critical problems: {result.error}")
+                    return self._handle_service_result(result)
                 
                 elif uri == "checkmk://hosts/status":
                     result = await self.host_service.list_hosts(include_status=True)
-                    if result.success:
-                        return result.data.model_dump_json()
-                    else:
-                        raise RuntimeError(f"Failed to get host status: {result.error}")
+                    return self._handle_service_result(result)
                 
                 elif uri == "checkmk://services/problems":
-                    # Get services with problems (non-OK states)
                     from ..services.models.services import ServiceState
                     result = await self.service_service.list_all_services(
                         state_filter=[ServiceState.WARNING, ServiceState.CRITICAL, ServiceState.UNKNOWN]
                     )
-                    if result.success:
-                        return result.data.model_dump_json()
-                    else:
-                        raise RuntimeError(f"Failed to get service problems: {result.error}")
+                    return self._handle_service_result(result)
                 
                 elif uri == "checkmk://metrics/performance":
                     result = await self.status_service.get_performance_metrics()
-                    if result.success:
-                        return result.data.model_dump_json()
+                    return self._handle_service_result(result)
+                
+                # Streaming resources
+                elif uri == "checkmk://stream/hosts":
+                    return await self._stream_hosts_resource()
+                
+                elif uri == "checkmk://stream/services":
+                    return await self._stream_services_resource()
+                
+                # Advanced metrics
+                elif uri == "checkmk://metrics/server":
+                    stats = await get_metrics_collector().get_stats()
+                    return safe_json_dumps(stats)
+                
+                elif uri == "checkmk://cache/stats":
+                    if self.cached_host_service:
+                        cache_stats = await self.cached_host_service.get_cache_stats()
+                        return safe_json_dumps(cache_stats)
                     else:
-                        raise RuntimeError(f"Failed to get performance metrics: {result.error}")
+                        return safe_json_dumps({"error": "Cache not enabled"})
                 
                 else:
                     raise ValueError(f"Unknown resource URI: {uri}")
@@ -168,263 +220,6 @@ class CheckmkMCPServer:
             except Exception as e:
                 logger.exception(f"Error reading resource {uri}")
                 raise RuntimeError(f"Failed to read resource {uri}: {str(e)}")
-        
-        @self.server.list_prompts()
-        async def list_prompts() -> List[Prompt]:
-            """List available MCP prompt templates."""
-            return [
-                Prompt(
-                    name="analyze_host_health",
-                    description="Analyze the health of a specific host with detailed recommendations",
-                    arguments=[
-                        {
-                            "name": "host_name",
-                            "description": "Name of the host to analyze",
-                            "required": True
-                        },
-                        {
-                            "name": "include_grade",
-                            "description": "Include health grade (A+ through F)",
-                            "required": False
-                        }
-                    ]
-                ),
-                Prompt(
-                    name="troubleshoot_service",
-                    description="Comprehensive troubleshooting analysis for a service problem",
-                    arguments=[
-                        {
-                            "name": "host_name", 
-                            "description": "Host name where the service is running",
-                            "required": True
-                        },
-                        {
-                            "name": "service_name",
-                            "description": "Name of the service with problems",
-                            "required": True
-                        }
-                    ]
-                ),
-                Prompt(
-                    name="infrastructure_overview",
-                    description="Get a comprehensive overview of infrastructure health and trends",
-                    arguments=[
-                        {
-                            "name": "time_range_hours",
-                            "description": "Time range for trend analysis (default: 24)",
-                            "required": False
-                        }
-                    ]
-                ),
-                Prompt(
-                    name="optimize_parameters",
-                    description="Get parameter optimization recommendations for a service",
-                    arguments=[
-                        {
-                            "name": "host_name",
-                            "description": "Host name",
-                            "required": True
-                        },
-                        {
-                            "name": "service_name", 
-                            "description": "Service name to optimize",
-                            "required": True
-                        }
-                    ]
-                )
-            ]
-        
-        @self.server.get_prompt()
-        async def get_prompt(name: str, arguments: Optional[Dict[str, str]]) -> PromptMessage:
-            """Get MCP prompt template content."""
-            if not self._ensure_services():
-                raise RuntimeError("Services not initialized")
-            
-            args = arguments or {}
-            
-            if name == "analyze_host_health":
-                host_name = args.get("host_name")
-                if not host_name:
-                    raise ValueError("host_name argument is required")
-                
-                include_grade = args.get("include_grade", "true").lower() == "true"
-                
-                # Get comprehensive host health data
-                health_result = await self.status_service.analyze_host_health(
-                    host_name=host_name,
-                    include_grade=include_grade,
-                    include_recommendations=True,
-                    compare_to_peers=True
-                )
-                
-                if not health_result.success:
-                    raise RuntimeError(f"Failed to analyze host health: {health_result.error}")
-                
-                return PromptMessage(
-                    role="user",
-                    content=TextContent(
-                        type="text",
-                        text=f"""Please analyze the health of host '{host_name}' based on this comprehensive monitoring data:
-
-{health_result.data.model_dump_json(indent=2)}
-
-Provide a detailed analysis including:
-1. Overall health assessment and grade explanation
-2. Critical issues requiring immediate attention
-3. Performance trends and patterns
-4. Specific maintenance recommendations with priorities
-5. Comparison to infrastructure peers if available
-
-Focus on actionable insights and prioritize by business impact."""
-                    )
-                )
-            
-            elif name == "troubleshoot_service":
-                host_name = args.get("host_name")
-                service_name = args.get("service_name")
-                
-                if not host_name or not service_name:
-                    raise ValueError("Both host_name and service_name arguments are required")
-                
-                # Get comprehensive service troubleshooting data
-                status_result = await self.service_service.get_service_status(
-                    host_name=host_name,
-                    service_name=service_name,
-                    include_related=True
-                )
-                
-                problems_result = await self.status_service.get_host_problems(
-                    host_name=host_name,
-                    include_services=True
-                )
-                
-                params_result = await self.parameter_service.get_effective_parameters(
-                    host_name=host_name,
-                    service_name=service_name
-                )
-                
-                troubleshooting_data = {
-                    "service_status": status_result.data.model_dump() if status_result.success else {"error": status_result.error},
-                    "host_problems": (problems_result.data.model_dump() if hasattr(problems_result.data, 'model_dump') else problems_result.data) if problems_result.success else {"error": problems_result.error},
-                    "parameters": params_result.data.model_dump() if params_result.success else {"error": params_result.error}
-                }
-                
-                return PromptMessage(
-                    role="user", 
-                    content=TextContent(
-                        type="text",
-                        text=f"""Please provide comprehensive troubleshooting analysis for the service problem:
-
-Host: {host_name}
-Service: {service_name}
-
-Monitoring Data:
-{troubleshooting_data}
-
-Please provide:
-1. Root cause analysis based on the service status and error messages
-2. Impact assessment on related services and host health  
-3. Step-by-step troubleshooting recommendations
-4. Parameter tuning suggestions if applicable
-5. Prevention measures to avoid similar issues
-
-Focus on specific, actionable steps prioritized by urgency."""
-                    )
-                )
-            
-            elif name == "infrastructure_overview":
-                time_range = int(args.get("time_range_hours", "24"))
-                
-                # Get comprehensive infrastructure data
-                summary_result = await self.status_service.get_infrastructure_summary(
-                    include_trends=True,
-                    time_range_hours=time_range
-                )
-                
-                dashboard_result = await self.status_service.get_health_dashboard(
-                    include_services=True,
-                    include_metrics=True
-                )
-                
-                trends_result = await self.status_service.get_problem_trends(
-                    time_range_hours=time_range,
-                    category_breakdown=True
-                )
-                
-                infrastructure_data = {
-                    "summary": (summary_result.data.model_dump() if hasattr(summary_result.data, 'model_dump') else summary_result.data) if summary_result.success else {"error": summary_result.error},
-                    "dashboard": (dashboard_result.data.model_dump() if hasattr(dashboard_result.data, 'model_dump') else dashboard_result.data) if dashboard_result.success else {"error": dashboard_result.error},
-                    "trends": (trends_result.data.model_dump() if hasattr(trends_result.data, 'model_dump') else trends_result.data) if trends_result.success else {"error": trends_result.error}
-                }
-                
-                return PromptMessage(
-                    role="user",
-                    content=TextContent(
-                        type="text", 
-                        text=f"""Please provide a comprehensive infrastructure overview and analysis based on {time_range} hours of monitoring data:
-
-{infrastructure_data}
-
-Please provide:
-1. Executive summary of infrastructure health and status
-2. Key performance indicators and trends
-3. Critical issues requiring immediate attention
-4. Capacity planning insights and growth trends
-5. Operational recommendations for optimization
-6. Risk assessment and mitigation strategies
-
-Focus on strategic insights for infrastructure management and operations."""
-                    )
-                )
-            
-            elif name == "optimize_parameters":
-                host_name = args.get("host_name")
-                service_name = args.get("service_name")
-                
-                if not host_name or not service_name:
-                    raise ValueError("Both host_name and service_name arguments are required")
-                
-                # Get parameter optimization data
-                recommendations_result = await self.parameter_service.get_parameter_recommendations(
-                    host_name=host_name,
-                    service_name=service_name
-                )
-                
-                effective_result = await self.parameter_service.get_effective_parameters(
-                    host_name=host_name,
-                    service_name=service_name
-                )
-                
-                optimization_data = {
-                    "recommendations": recommendations_result.data if recommendations_result.success else {"error": recommendations_result.error},
-                    "current_parameters": effective_result.data.model_dump() if effective_result.success else {"error": effective_result.error}
-                }
-                
-                return PromptMessage(
-                    role="user",
-                    content=TextContent(
-                        type="text",
-                        text=f"""Please provide parameter optimization recommendations for:
-
-Host: {host_name}
-Service: {service_name}
-
-Current Configuration and Recommendations:
-{optimization_data}
-
-Please provide:
-1. Analysis of current parameter settings vs. best practices
-2. Specific optimization recommendations with rationale
-3. Expected impact of proposed changes
-4. Implementation plan with rollback considerations
-5. Monitoring strategy to validate improvements
-
-Focus on evidence-based recommendations that improve reliability and performance."""
-                    )
-                )
-            
-            else:
-                raise ValueError(f"Unknown prompt: {name}")
     
     def _register_tool_handlers(self):
         """Register MCP tool handlers."""
@@ -477,53 +272,26 @@ Focus on evidence-based recommendations that improve reliability and performance
                     "structuredContent": None
                 }
     
-    async def initialize(self):
-        """Initialize the MCP server and its dependencies."""
-        try:
-            # Initialize the async Checkmk client
-            from ..api_client import CheckmkClient
-            sync_client = CheckmkClient(self.config.checkmk)
-            self.checkmk_client = AsyncCheckmkClient(sync_client)
-            
-            # Initialize services
-            self.host_service = HostService(self.checkmk_client, self.config)
-            self.status_service = StatusService(self.checkmk_client, self.config)
-            self.service_service = ServiceService(self.checkmk_client, self.config)
-            self.parameter_service = ParameterService(self.checkmk_client, self.config)
-            self.metrics_service = MetricsService(self.checkmk_client, self.config)
-            self.bi_service = BIService(self.checkmk_client, self.config)
-            
-            # Initialize tool handlers
-            self._tool_handlers = {}
-            
-            # Register tools from each module
-            self._register_host_tools()
-            self._register_service_tools()
-            self._register_status_tools()
-            self._register_parameter_tools()
-            self._register_event_console_tools()
-            self._register_metrics_tools()
-            self._register_bi_tools()
-            
-            logger.info("Checkmk MCP Server initialized successfully")
-            logger.info(f"Registered {len(self._tools)} tools")
-            
-        except Exception as e:
-            logger.exception("Failed to initialize MCP server")
-            raise RuntimeError(f"Initialization failed: {str(e)}")
+    def _register_advanced_resources(self):
+        """Register advanced resource handlers."""
+        pass  # Resources are handled in the main read_resource handler
     
-    def _ensure_services(self) -> bool:
-        """Ensure all services are initialized."""
-        return all([
-            self.checkmk_client,
-            self.host_service,
-            self.status_service, 
-            self.service_service,
-            self.parameter_service
-        ])
+    def _register_all_tools(self):
+        """Register all tools including standard and advanced."""
+        # First register all standard tools
+        self._register_host_tools()
+        self._register_service_tools()
+        self._register_status_tools()
+        self._register_parameter_tools()
+        self._register_event_console_tools()
+        self._register_metrics_tools()
+        self._register_bi_tools()
+        
+        # Then register advanced tools
+        self._register_advanced_tools()
     
     def _register_host_tools(self):
-        """Register host operation tools."""
+        """Register host operation tools - same as basic server."""
         # List hosts tool
         self._tools["list_hosts"] = Tool(
             name="list_hosts",
@@ -654,7 +422,7 @@ Focus on evidence-based recommendations that improve reliability and performance
         self._tool_handlers["delete_host"] = delete_host
     
     def _register_service_tools(self):
-        """Register service operation tools."""
+        """Register service operation tools - same as basic server."""
         # List host services tool
         self._tools["list_host_services"] = Tool(
             name="list_host_services",
@@ -738,32 +506,21 @@ Focus on evidence-based recommendations that improve reliability and performance
                     "notify": {"type": "boolean", "description": "Whether to send notifications", "default": True},
                     "persistent": {"type": "boolean", "description": "Whether acknowledgment survives restarts", "default": False},
                     "expire_on": {"type": "string", "description": "Expiration time as ISO timestamp (Checkmk 2.4+)"}
-                
                 },
                 "required": ["host_name", "service_name", "comment"]
             }
         )
         
-        async def acknowledge_service_problem(arguments: dict) -> dict:
-            try:
-                host_name = arguments["host_name"]
-                service_name = arguments["service_name"]
-                comment = arguments["comment"]
-                sticky = arguments.get("sticky", False)
-                notify = arguments.get("notify", True)
-                persistent = arguments.get("persistent", False)
-                expire_on = arguments.get("expire_on")
-                
-                result = await self.service_service.acknowledge_service_problems(
-                    host_name=host_name, service_name=service_name, comment=comment, 
-                    sticky=sticky, notify=notify, persistent=persistent, expire_on=expire_on
-                )
-                if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
-                else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+        async def acknowledge_service_problem(host_name, service_name, comment, sticky=False, notify=True, persistent=False, expire_on=None):
+            
+            result = await self.service_service.acknowledge_service_problems(
+                host_name=host_name, service_name=service_name, comment=comment, 
+                sticky=sticky, notify=notify, persistent=persistent, expire_on=expire_on
+            )
+            if result.success:
+                return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
+            else:
+                return {"success": False, "error": result.error, "warnings": result.warnings}
         
         self._tool_handlers["acknowledge_service_problem"] = acknowledge_service_problem
         
@@ -799,7 +556,7 @@ Focus on evidence-based recommendations that improve reliability and performance
         self._tool_handlers["create_service_downtime"] = create_service_downtime
     
     def _register_status_tools(self):
-        """Register status monitoring tools."""
+        """Register status monitoring tools - same as basic server."""
         # Get health dashboard tool
         self._tools["get_health_dashboard"] = Tool(
             name="get_health_dashboard",
@@ -821,7 +578,7 @@ Focus on evidence-based recommendations that improve reliability and performance
                 data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
                 return {"success": True, "data": data}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_health_dashboard"] = get_health_dashboard
         
@@ -845,10 +602,11 @@ Focus on evidence-based recommendations that improve reliability and performance
                 include_acknowledged=include_acknowledged
             )
             if result.success:
-                # result.data is already a dict, no need to call model_dump()
-                return {"success": True, "data": result.data}
+                # Handle both dict and Pydantic model data
+                data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
+                return {"success": True, "data": data}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_critical_problems"] = get_critical_problems
         
@@ -874,15 +632,14 @@ Focus on evidence-based recommendations that improve reliability and performance
                 include_recommendations=include_recommendations, compare_to_peers=compare_to_peers
             )
             if result.success:
-                # result.data is already a dict, no need to call model_dump()
                 return {"success": True, "data": result.data}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["analyze_host_health"] = analyze_host_health
     
     def _register_parameter_tools(self):
-        """Register parameter management tools."""
+        """Register parameter management tools - same as basic server."""
         # Get effective parameters tool
         self._tools["get_effective_parameters"] = Tool(
             name="get_effective_parameters",
@@ -904,7 +661,7 @@ Focus on evidence-based recommendations that improve reliability and performance
             if result.success:
                 return {"success": True, "data": result.data.model_dump()}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_effective_parameters"] = get_effective_parameters
         
@@ -932,12 +689,12 @@ Focus on evidence-based recommendations that improve reliability and performance
             if result.success:
                 return {"success": True, "data": result.data.model_dump(), "message": f"Updated parameters for {service_name} on {host_name}"}
             else:
-                return {"success": False, "error": result.error}
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["set_service_parameters"] = set_service_parameters
     
     def _register_event_console_tools(self):
-        """Register Event Console tools for service history and event management."""
+        """Register Event Console MCP tools."""
         
         # List service events tool
         self._tools["list_service_events"] = Tool(
@@ -948,206 +705,198 @@ Focus on evidence-based recommendations that improve reliability and performance
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
                     "service_name": {"type": "string", "description": "Service name"},
-                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 50},
-                    "state_filter": {"type": "string", "description": "Filter by state (ok, warning, critical, unknown)", "enum": ["ok", "warning", "critical", "unknown"]}
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 50},
+                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"}
                 },
                 "required": ["host_name", "service_name"]
             }
         )
         
         async def list_service_events(host_name, service_name, limit=50, state_filter=None):
-            # Use the sync client Event Console methods
-            try:
-                # Build query for this service
-                query = {
-                    "op": "and",
-                    "expr": [
-                        {"op": "=", "left": "eventconsoleevents.event_host", "right": host_name}
-                    ]
-                }
-                if service_name and service_name.strip():
-                    query["expr"].append({
-                        "op": "~", "left": "eventconsoleevents.event_text", "right": service_name
+            
+            event_service = self._get_service("event")
+            result = await event_service.list_service_events(host_name, service_name, limit, state_filter)
+            
+            if result.success:
+                events_data = []
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
+                        "event_id": event.event_id,
+                        "host_name": event.host_name,
+                        "service_description": event.service_description,
+                        "text": event.text,
+                        "state": event.state,
+                        "phase": event.phase,
+                        "first_time": event.first_time,
+                        "last_time": event.last_time,
+                        "count": event.count,
+                        "comment": event.comment
                     })
-                
-                # Add state filter if provided
-                if state_filter:
-                    state_map = {"ok": "0", "warning": "1", "critical": "2", "unknown": "3"}
-                    if state_filter.lower() in state_map:
-                        query["expr"].append({
-                            "op": "=", "left": "eventconsoleevents.event_state", "right": state_map[state_filter.lower()]
-                        })
-                
-                events = self.api_client.list_events(query=query, host=host_name)
-                
-                # Sort by time and limit
-                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
-                if limit > 0:
-                    events = events[:limit]
-                
-                return {"success": True, "events": events, "count": len(events)}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+                message = f"Found {len(events_data)} events for service {service_name} on host {host_name}"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active service monitoring."
+                return {"success": True, "events": events_data, "count": len(events_data), "message": message}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["list_service_events"] = list_service_events
         
         # List host events tool
         self._tools["list_host_events"] = Tool(
-            name="list_host_events", 
+            name="list_host_events",
             description="Show event history for a specific host",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
-                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 100},
-                    "state_filter": {"type": "string", "description": "Filter by state (ok, warning, critical, unknown)", "enum": ["ok", "warning", "critical", "unknown"]}
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 100},
+                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"}
                 },
                 "required": ["host_name"]
             }
         )
         
         async def list_host_events(host_name, limit=100, state_filter=None):
-            try:
-                # Build query for this host
-                query = {"op": "=", "left": "eventconsoleevents.event_host", "right": host_name}
-                
-                # Add state filter if provided
-                if state_filter:
-                    state_map = {"ok": "0", "warning": "1", "critical": "2", "unknown": "3"}
-                    if state_filter.lower() in state_map:
-                        query = {
-                            "op": "and",
-                            "expr": [
-                                query,
-                                {"op": "=", "left": "eventconsoleevents.event_state", "right": state_map[state_filter.lower()]}
-                            ]
-                        }
-                
-                events = self.api_client.list_events(query=query, host=host_name)
-                
-                # Sort by time and limit
-                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
-                if limit > 0:
-                    events = events[:limit]
-                
-                return {"success": True, "events": events, "count": len(events)}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+            
+            event_service = self._get_service("event")
+            result = await event_service.list_host_events(host_name, limit, state_filter)
+            
+            if result.success:
+                events_data = []
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
+                            "event_id": event.event_id,
+                            "host_name": event.host_name,
+                            "service_description": event.service_description,
+                            "text": event.text,
+                            "state": event.state,
+                            "phase": event.phase,
+                            "first_time": event.first_time,
+                            "last_time": event.last_time,
+                            "count": event.count
+                        })
+                message = f"Found {len(events_data)} events for host {host_name}"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console is used for external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active monitoring."
+                return {"success": True, "events": events_data, "count": len(events_data), "message": message}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["list_host_events"] = list_host_events
         
         # Get recent critical events tool
         self._tools["get_recent_critical_events"] = Tool(
             name="get_recent_critical_events",
-            description="Show recent critical events across all hosts", 
+            description="Get recent critical events across all hosts",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 20}
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 20}
                 }
             }
         )
         
         async def get_recent_critical_events(limit=20):
-            try:
-                # Query for critical events
-                query = {"op": "=", "left": "eventconsoleevents.event_state", "right": "2"}
-                events = self.api_client.list_events(query=query, state="critical")
-                
-                # Sort by time and limit
-                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
-                if limit > 0:
-                    events = events[:limit]
-                
-                return {"success": True, "events": events, "count": len(events)}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+            
+            event_service = self._get_service("event")
+            result = await event_service.get_recent_critical_events(limit)
+            
+            if result.success:
+                events_data = []
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
+                        "event_id": event.event_id,
+                        "host_name": event.host_name,
+                        "service_description": event.service_description,
+                        "text": event.text,
+                        "state": event.state,
+                        "phase": event.phase,
+                        "first_time": event.first_time,
+                        "last_time": event.last_time,
+                        "count": event.count
+                    })
+                message = f"Found {len(events_data)} critical events"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty if not configured for log processing."
+                return {"success": True, "critical_events": events_data, "count": len(events_data), "message": message}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_recent_critical_events"] = get_recent_critical_events
         
         # Acknowledge event tool
         self._tools["acknowledge_event"] = Tool(
             name="acknowledge_event",
-            description="Acknowledge a specific event in the Event Console",
+            description="Acknowledge an event in the Event Console",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "event_id": {"type": "string", "description": "Event ID to acknowledge"},
-                    "comment": {"type": "string", "description": "Comment for the acknowledgment"},
-                    "contact": {"type": "string", "description": "Contact name (optional)"},
-                    "site_id": {"type": "string", "description": "Site ID (optional)"}
+                    "event_id": {"type": "string", "description": "Event ID"},
+                    "comment": {"type": "string", "description": "Comment for acknowledgment"},
+                    "contact": {"type": "string", "description": "Contact name"},
+                    "site_id": {"type": "string", "description": "Site ID"}
                 },
                 "required": ["event_id", "comment"]
             }
         )
         
         async def acknowledge_event(event_id, comment, contact=None, site_id=None):
-            try:
-                response = self.api_client.acknowledge_event(
-                    event_id=event_id,
-                    comment=comment,
-                    contact=contact,
-                    site_id=site_id
-                )
-                return {"success": True, "response": response}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+            
+            event_service = self._get_service("event")
+            result = await event_service.acknowledge_event(event_id, comment, contact, site_id)
+            
+            if result.success:
+                return {"success": True, "message": f"Event {event_id} acknowledged successfully"}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["acknowledge_event"] = acknowledge_event
         
         # Search events tool
         self._tools["search_events"] = Tool(
             name="search_events",
-            description="Search events by text content across all hosts",
+            description="Search events by text content",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "search_term": {"type": "string", "description": "Text to search for in event messages"},
-                    "limit": {"type": "integer", "description": "Maximum number of events to return", "default": 50},
-                    "state_filter": {"type": "string", "description": "Filter by state (ok, warning, critical, unknown)", "enum": ["ok", "warning", "critical", "unknown"]},
-                    "host_filter": {"type": "string", "description": "Filter by host name (optional)"}
+                    "search_term": {"type": "string", "description": "Text to search for"},
+                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 50},
+                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"},
+                    "host_filter": {"type": "string", "description": "Filter by host name"}
                 },
                 "required": ["search_term"]
             }
         )
         
         async def search_events(search_term, limit=50, state_filter=None, host_filter=None):
-            try:
-                # Build text search query
-                query_parts = [
-                    {"op": "~", "left": "eventconsoleevents.event_text", "right": search_term}
-                ]
-                
-                # Add state filter if provided
-                if state_filter:
-                    state_map = {"ok": "0", "warning": "1", "critical": "2", "unknown": "3"}
-                    if state_filter.lower() in state_map:
-                        query_parts.append({
-                            "op": "=", "left": "eventconsoleevents.event_state", "right": state_map[state_filter.lower()]
-                        })
-                
-                # Add host filter if provided
-                if host_filter:
-                    query_parts.append({
-                        "op": "=", "left": "eventconsoleevents.event_host", "right": host_filter
+            
+            event_service = self._get_service("event")
+            result = await event_service.search_events(search_term, limit, state_filter, host_filter)
+            
+            if result.success:
+                events_data = []
+                if result.data:  # result.data could be an empty list, which is still success
+                    for event in result.data:
+                        events_data.append({
+                        "event_id": event.event_id,
+                        "host_name": event.host_name,
+                        "service_description": event.service_description,
+                        "text": event.text,
+                        "state": event.state,
+                        "phase": event.phase,
+                        "first_time": event.first_time,
+                        "last_time": event.last_time,
+                        "count": event.count
                     })
-                
-                # Combine query parts
-                if len(query_parts) == 1:
-                    query = query_parts[0]
-                else:
-                    query = {"op": "and", "expr": query_parts}
-                
-                events = self.api_client.list_events(query=query, host=host_filter, state=state_filter)
-                
-                # Sort by time and limit
-                events.sort(key=lambda e: e.get('extensions', {}).get('last', ''), reverse=True)
-                if limit > 0:
-                    events = events[:limit]
-                
-                return {"success": True, "events": events, "count": len(events), "search_term": search_term}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+                message = f"Found {len(events_data)} events matching '{search_term}'"
+                if len(events_data) == 0:
+                    message += ". Note: Event Console searches external events (logs, SNMP traps, etc.) and is often empty in monitoring-only installations."
+                return {"success": True, "events": events_data, "count": len(events_data), "search_term": search_term, "message": message}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["search_events"] = search_events
     
@@ -1171,42 +920,36 @@ Focus on evidence-based recommendations that improve reliability and performance
             }
         )
         
-        async def get_service_metrics(arguments: dict) -> dict:
-            try:
-                host_name = arguments["host_name"]
-                service_description = arguments["service_description"]
-                time_range_hours = arguments.get("time_range_hours", 24)
-                reduce = arguments.get("reduce", "average")
-                site = arguments.get("site")
-                
-                result = await self.metrics_service.get_service_metrics(
-                    host_name, service_description, time_range_hours, reduce, site
-                )
-                
-                if result.success:
-                    metrics_data = []
-                    for graph in result.data:
-                        graph_info = {
-                            "time_range": graph.time_range,
-                            "step": graph.step,
-                            "metrics": []
+        async def get_service_metrics(host_name, service_description, time_range_hours=24, reduce="average"):
+            site = arguments.get("site")
+            
+            metrics_service = self._get_service("metrics")
+            result = await metrics_service.get_service_metrics(
+                host_name, service_description, time_range_hours, reduce, site
+            )
+            
+            if result.success:
+                metrics_data = []
+                for graph in result.data:
+                    graph_info = {
+                        "time_range": graph.time_range,
+                        "step": graph.step,
+                        "metrics": []
+                    }
+                    for metric in graph.metrics:
+                        metric_info = {
+                            "title": metric.title,
+                            "color": metric.color,
+                            "line_type": metric.line_type,
+                            "data_points_count": len(metric.data_points),
+                            "latest_value": metric.data_points[-1] if metric.data_points else None
                         }
-                        for metric in graph.metrics:
-                            metric_info = {
-                                "title": metric.title,
-                                "color": metric.color,
-                                "line_type": metric.line_type,
-                                "data_points_count": len(metric.data_points),
-                                "latest_value": metric.data_points[-1] if metric.data_points else None
-                            }
-                            graph_info["metrics"].append(metric_info)
-                        metrics_data.append(graph_info)
-                    
-                    return {"success": True, "graphs": metrics_data, "count": len(metrics_data)}
-                else:
-                    return {"success": False, "error": result.error}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+                        graph_info["metrics"].append(metric_info)
+                    metrics_data.append(graph_info)
+                
+                return {"success": True, "graphs": metrics_data, "count": len(metrics_data)}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_service_metrics"] = get_service_metrics
         
@@ -1228,43 +971,37 @@ Focus on evidence-based recommendations that improve reliability and performance
             }
         )
         
-        async def get_metric_history(arguments: dict) -> dict:
-            try:
-                host_name = arguments["host_name"]
-                service_description = arguments["service_description"]
-                metric_id = arguments["metric_id"]
-                time_range_hours = arguments.get("time_range_hours", 168)
-                reduce = arguments.get("reduce", "average")
-                site = arguments.get("site")
-                
-                result = await self.metrics_service.get_metric_history(
-                    host_name, service_description, metric_id, time_range_hours, reduce, site
-                )
-                
-                if result.success:
-                    graph = result.data
-                    metrics_data = []
-                    for metric in graph.metrics:
-                        metric_info = {
-                            "title": metric.title,
-                            "color": metric.color,
-                            "line_type": metric.line_type,
-                            "data_points": metric.data_points,
-                            "data_points_count": len(metric.data_points)
-                        }
-                        metrics_data.append(metric_info)
-                    
-                    return {
-                        "success": True,
-                        "time_range": graph.time_range,
-                        "step": graph.step,
-                        "metrics": metrics_data,
-                        "metric_id": metric_id
+        async def get_metric_history(host_name, service_description, metric_id, time_range_hours=168):
+            reduce = arguments.get("reduce", "average")
+            site = arguments.get("site")
+            
+            metrics_service = self._get_service("metrics")
+            result = await metrics_service.get_metric_history(
+                host_name, service_description, metric_id, time_range_hours, reduce, site
+            )
+            
+            if result.success:
+                graph = result.data
+                metrics_data = []
+                for metric in graph.metrics:
+                    metric_info = {
+                        "title": metric.title,
+                        "color": metric.color,
+                        "line_type": metric.line_type,
+                        "data_points": metric.data_points,
+                        "data_points_count": len(metric.data_points)
                     }
-                else:
-                    return {"success": False, "error": result.error}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+                    metrics_data.append(metric_info)
+                
+                return {
+                    "success": True,
+                    "time_range": graph.time_range,
+                    "step": graph.step,
+                    "metrics": metrics_data,
+                    "metric_id": metric_id
+                }
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_metric_history"] = get_metric_history
     
@@ -1283,18 +1020,15 @@ Focus on evidence-based recommendations that improve reliability and performance
             }
         )
         
-        async def get_business_status_summary(arguments: dict) -> dict:
-            try:
-                filter_groups = arguments.get("filter_groups")
-                
-                result = await self.bi_service.get_business_status_summary(filter_groups)
-                
-                if result.success:
-                    return {"success": True, "business_summary": result.data}
-                else:
-                    return {"success": False, "error": result.error}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+        async def get_business_status_summary(filter_groups=None):
+            
+            bi_service = self._get_service("bi")
+            result = await bi_service.get_business_status_summary(filter_groups)
+            
+            if result.success:
+                return {"success": True, "business_summary": result.data}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_business_status_summary"] = get_business_status_summary
         
@@ -1308,16 +1042,14 @@ Focus on evidence-based recommendations that improve reliability and performance
             }
         )
         
-        async def get_critical_business_services(arguments: dict) -> dict:
-            try:
-                result = await self.bi_service.get_critical_business_services()
-                
-                if result.success:
-                    return {"success": True, "critical_services": result.data, "count": len(result.data)}
-                else:
-                    return {"success": False, "error": result.error}
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+        async def get_critical_business_services():
+            bi_service = self._get_service("bi")
+            result = await bi_service.get_critical_business_services()
+            
+            if result.success:
+                return {"success": True, "critical_services": result.data, "count": len(result.data)}
+            else:
+                return {"success": False, "error": result.error or "Event Console operation failed"}
         
         self._tool_handlers["get_critical_business_services"] = get_critical_business_services
         
@@ -1331,31 +1063,340 @@ Focus on evidence-based recommendations that improve reliability and performance
             }
         )
         
-        async def get_system_info(arguments: dict) -> dict:
-            try:
-                # Use the direct async client method for this simple operation
-                version_info = await self.checkmk_client.get_version_info()
-                
-                # Extract key information
-                versions = version_info.get('versions', {})
-                site_info = version_info.get('site', 'unknown')
-                edition = version_info.get('edition', 'unknown')
-                
-                return {
-                    "success": True,
-                    "checkmk_version": versions.get('checkmk', 'unknown'),
-                    "edition": edition,
-                    "site": site_info,
-                    "python_version": versions.get('python', 'unknown'),
-                    "apache_version": versions.get('apache', 'unknown')
-                }
-            except Exception as e:
-                return {"success": False, "error": str(e)}
+        async def get_system_info():
+            # Use the direct async client method for this simple operation
+            version_info = await self.checkmk_client.get_version_info()
+            
+            # Extract key information
+            versions = version_info.get('versions', {})
+            site_info = version_info.get('site', 'unknown')
+            edition = version_info.get('edition', 'unknown')
+            
+            return {
+                "success": True,
+                "checkmk_version": versions.get('checkmk', 'unknown'),
+                "edition": edition,
+                "site": site_info,
+                "python_version": versions.get('python', 'unknown'),
+                "apache_version": versions.get('apache', 'unknown')
+            }
         
         self._tool_handlers["get_system_info"] = get_system_info
     
+    def _register_advanced_tools(self):
+        """Register advanced MCP tools."""
+        
+        # Stream hosts tool
+        self._tools["stream_hosts"] = Tool(
+            name="stream_hosts",
+            description="Stream hosts in batches for large environments",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "batch_size": {"type": "integer", "description": "Number of hosts per batch", "default": 100},
+                    "search": {"type": "string", "description": "Optional search filter"},
+                    "folder": {"type": "string", "description": "Optional folder filter"}
+                }
+            }
+        )
+        
+        async def stream_hosts(batch_size=100, search=None, folder=None):
+            try:
+                if not self.streaming_host_service:
+                    return {"success": False, "error": "Streaming not enabled"}
+                
+                batches = []
+                async for batch in self.streaming_host_service.list_hosts_streamed(
+                    batch_size=batch_size, search=search, folder=folder
+                ):
+                    batch_data = batch.model_dump()
+                    batches.append({
+                        "batch_number": batch_data["batch_number"],
+                        "items_count": len(batch_data["items"]),
+                        "has_more": batch_data["has_more"],
+                        "timestamp": batch_data["timestamp"]
+                    })
+                    
+                    # Limit to prevent overwhelming response
+                    if len(batches) >= 10:
+                        break
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "total_batches_processed": len(batches),
+                        "batches": batches,
+                        "message": f"Processed {len(batches)} batches with {batch_size} items each"
+                    }
+                }
+                
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["stream_hosts"] = stream_hosts
+        
+        # Batch create hosts tool
+        self._tools["batch_create_hosts"] = Tool(
+            name="batch_create_hosts",
+            description="Create multiple hosts in a batch operation",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "hosts_data": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "List of host creation data"
+                    },
+                    "max_concurrent": {
+                        "type": "integer",
+                        "description": "Maximum concurrent operations",
+                        "default": 5
+                    }
+                },
+                "required": ["hosts_data"]
+            }
+        )
+        
+        async def batch_create_hosts(hosts_data, max_concurrent=5):
+            try:
+                # Use batch processor for efficient creation
+                self.batch_processor.max_concurrent = max_concurrent
+                
+                async def create_single_host(host_data: Dict[str, Any]):
+                    return await self.host_service.create_host(**host_data)
+                
+                result = await self.batch_processor.process_batch(
+                    items=hosts_data,
+                    operation=create_single_host,
+                    batch_id=f"create_hosts_{datetime.now().timestamp()}"
+                )
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "batch_id": result.batch_id,
+                        "total_items": result.progress.total_items,
+                        "successful": result.progress.success,
+                        "failed": result.progress.failed,
+                        "skipped": result.progress.skipped,
+                        "duration_seconds": result.progress.duration,
+                        "items_per_second": result.progress.items_per_second
+                    },
+                    "message": f"Batch completed: {result.progress.success} created, {result.progress.failed} failed"
+                }
+                
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["batch_create_hosts"] = batch_create_hosts
+        
+        # Get server metrics tool
+        self._tools["get_server_metrics"] = Tool(
+            name="get_server_metrics",
+            description="Get comprehensive server performance metrics",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        )
+        
+        async def get_server_metrics():
+            try:
+                # Get metrics from various sources
+                server_stats = await get_metrics_collector().get_stats()
+                
+                # Add service-specific metrics if available
+                service_metrics = {}
+                if hasattr(self.host_service, 'get_service_metrics'):
+                    service_metrics['host_service'] = await self.host_service.get_service_metrics()
+                if hasattr(self.service_service, 'get_service_metrics'):
+                    service_metrics['service_service'] = await self.service_service.get_service_metrics()
+                
+                # Add cache stats if available
+                cache_stats = {}
+                if self.cached_host_service:
+                    cache_stats = await self.cached_host_service.get_cache_stats()
+                
+                # Add recovery stats if available
+                recovery_stats = {}
+                if hasattr(self.host_service, 'get_recovery_stats'):
+                    recovery_stats = await self.host_service.get_recovery_stats()
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "server_metrics": server_stats,
+                        "service_metrics": service_metrics,
+                        "cache_metrics": cache_stats,
+                        "recovery_metrics": recovery_stats,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                }
+                
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["get_server_metrics"] = get_server_metrics
+        
+        # Clear cache tool
+        self._tools["clear_cache"] = Tool(
+            name="clear_cache",
+            description="Clear cache entries",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "pattern": {
+                        "type": "string",
+                        "description": "Optional pattern to match cache keys"
+                    }
+                }
+            }
+        )
+        
+        async def clear_cache(pattern=None):
+            try:
+                if not self.cached_host_service:
+                    return {"success": False, "error": "Cache not enabled"}
+                
+                if pattern:
+                    cleared = await self.cached_host_service.invalidate_cache_pattern(pattern)
+                    message = f"Cleared {cleared} cache entries matching '{pattern}'"
+                else:
+                    await self.cached_host_service._cache.clear()
+                    message = "Cleared all cache entries"
+                
+                return {
+                    "success": True,
+                    "data": {"cleared_entries": cleared if pattern else "all"},
+                    "message": message
+                }
+                
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        self._tool_handlers["clear_cache"] = clear_cache
+    
+    async def _stream_hosts_resource(self) -> str:
+        """Generate streaming hosts resource content."""
+        if not self.streaming_host_service:
+            return safe_json_dumps({"error": "Streaming not enabled"})
+        
+        lines = []
+        batch_count = 0
+        
+        try:
+            async for batch in self.streaming_host_service.list_hosts_streamed(batch_size=50):
+                # Convert each host in batch to JSON line
+                for host in batch.items:
+                    lines.append(host.model_dump_json())
+                
+                batch_count += 1
+                # Limit output to prevent overwhelming
+                if batch_count >= 5:
+                    break
+            
+            return "\n".join(lines)
+            
+        except Exception as e:
+            logger.exception("Error streaming hosts")
+            return safe_json_dumps({"error": str(e)})
+    
+    async def _stream_services_resource(self) -> str:
+        """Generate streaming services resource content."""
+        if not self.streaming_service_service:
+            return safe_json_dumps({"error": "Streaming not enabled"})
+        
+        lines = []
+        batch_count = 0
+        
+        try:
+            async for batch in self.streaming_service_service.list_all_services_streamed(batch_size=100):
+                # Convert each service in batch to JSON line
+                for service in batch.items:
+                    lines.append(service.model_dump_json())
+                
+                batch_count += 1
+                # Limit output to prevent overwhelming
+                if batch_count >= 3:
+                    break
+            
+            return "\n".join(lines)
+            
+        except Exception as e:
+            logger.exception("Error streaming services")
+            return safe_json_dumps({"error": str(e)})
+    
+    def _handle_service_result(self, result) -> str:
+        """Handle service result and return appropriate JSON."""
+        if result.success:
+            return result.data.model_dump_json() if hasattr(result.data, 'model_dump_json') else safe_json_dumps(result.data)
+        else:
+            raise RuntimeError(f"Service operation failed: {result.error}")
+    
+    async def initialize(self):
+        """Initialize the enhanced MCP server and its dependencies."""
+        try:
+            # Initialize the async Checkmk client
+            from ..api_client import CheckmkClient
+            sync_client = CheckmkClient(self.config.checkmk)
+            self.checkmk_client = AsyncCheckmkClient(sync_client)
+            
+            # Initialize standard services
+            self.host_service = HostService(self.checkmk_client, self.config)
+            self.status_service = StatusService(self.checkmk_client, self.config)
+            self.service_service = ServiceService(self.checkmk_client, self.config)
+            self.parameter_service = ParameterService(self.checkmk_client, self.config)
+            self.event_service = EventService(self.checkmk_client, self.config)
+            self.metrics_service = MetricsService(self.checkmk_client, self.config)
+            self.bi_service = BIService(self.checkmk_client, self.config)
+            
+            # Initialize enhanced services
+            self.streaming_host_service = StreamingHostService(self.checkmk_client, self.config)
+            self.streaming_service_service = StreamingServiceService(self.checkmk_client, self.config)
+            self.cached_host_service = CachedHostService(self.checkmk_client, self.config)
+            
+            # Register all tools (standard + advanced)
+            self._register_all_tools()
+            
+            logger.info("Enhanced Checkmk MCP Server initialized successfully with advanced features")
+            logger.info(f"Registered {len(self._tools)} tools (standard + advanced)")
+            
+        except Exception as e:
+            logger.exception("Failed to initialize enhanced MCP server")
+            raise RuntimeError(f"Initialization failed: {str(e)}")
+    
+    def _ensure_services(self) -> bool:
+        """Ensure all services are initialized."""
+        return all([
+            self.checkmk_client,
+            self.host_service,
+            self.status_service, 
+            self.service_service,
+            self.parameter_service,
+            self.event_service,
+            self.metrics_service,
+            self.bi_service
+        ])
+    
+    def _get_service(self, service_name: str):
+        """Get service instance by name."""
+        service_map = {
+            "host": self.host_service,
+            "status": self.status_service,
+            "service": self.service_service,
+            "parameter": self.parameter_service,
+            "event": self.event_service,
+            "metrics": self.metrics_service,
+            "bi": self.bi_service
+        }
+        
+        service = service_map.get(service_name)
+        if service is None:
+            raise ValueError(f"Unknown service: {service_name}")
+        return service
+    
     async def run(self, transport_type: str = "stdio"):
-        """Run the MCP server with the specified transport."""
+        """Run the enhanced MCP server with the specified transport."""
         if not self._ensure_services():
             await self.initialize()
         
@@ -1380,7 +1421,7 @@ Focus on evidence-based recommendations that improve reliability and performance
 
 
 async def main():
-    """Main entry point for running the MCP server standalone."""
+    """Main entry point for running the enhanced MCP server standalone."""
     import sys
     from pathlib import Path
     
@@ -1392,28 +1433,29 @@ async def main():
     from ..config import load_config
     config = load_config()
     
-    # Create and run the server with proper error handling
+    # Create and run the enhanced server with proper error handling
     server = CheckmkMCPServer(config)
     
     try:
-        logger.info("Starting Checkmk MCP Server...")
+        logger.info("Starting Enhanced Checkmk MCP Server...")
         logger.info("  - ✓ Configuration loaded")
-        logger.info("  - ✓ Core monitoring capabilities")
-        logger.info("  - ✓ Host and service management")
-        logger.info("  - ✓ Event Console integration")
-        logger.info("  - ✓ Metrics and BI support")
+        logger.info("  - ✓ Advanced streaming capabilities")
+        logger.info("  - ✓ Intelligent caching system")
+        logger.info("  - ✓ Batch processing operations")
+        logger.info("  - ✓ Comprehensive metrics collection")
+        logger.info("  - ✓ Advanced error recovery and resilience")
         
         await server.run()
         
     except BrokenPipeError:
         # This is expected when the client disconnects - don't log as error
-        logger.info("MCP server connection closed by client")
+        logger.info("Enhanced MCP server connection closed by client")
         sys.exit(0)
     except KeyboardInterrupt:
-        logger.info("MCP server stopped by user")
+        logger.info("Enhanced MCP server stopped by user")
         sys.exit(0)
     except Exception as e:
-        logger.error(f"Fatal error in MCP server: {e}")
+        logger.error(f"Fatal error in Enhanced MCP server: {e}")
         logger.debug("Exception details:", exc_info=True)
         sys.exit(1)
 
@@ -1428,8 +1470,14 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("MCP server interrupted")
+        logger.info("Enhanced MCP server interrupted")
         sys.exit(0)
     except Exception as e:
-        logger.error(f"Fatal error in MCP server: {e}")
+        logger.error(f"Fatal error in Enhanced MCP server")
+        logger.error(f"  + Exception Group Traceback (most recent call last):")
+        logger.error(f"  |     raise BaseExceptionGroup(")
+        logger.error(f"  |         \"unhandled errors in a TaskGroup\", self._exceptions")
+        logger.error(f"  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)")
+        logger.error(f"    | Traceback (most recent call last):")
+        logger.error(f"    | {type(e).__name__}: {e}")
         sys.exit(1)

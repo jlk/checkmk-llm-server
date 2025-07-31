@@ -28,8 +28,7 @@ The Checkmk LLM Agent has been successfully implemented with a comprehensive MCP
 - **Duration**: 3-4 days
 - **Status**: Complete
 - **Key Deliverables**:
-  - Complete MCP server with all host, service, status, and parameter tools
-  - Enhanced MCP server with advanced features
+  - Unified MCP server with all host, service, status, and parameter tools plus advanced features
   - Proper resource and tool registration
   - Entry point scripts for easy deployment
 
@@ -116,11 +115,8 @@ cp examples/configs/development.yaml config.yaml
 
 ### Run MCP Server
 ```bash
-# Basic MCP server
+# Unified MCP server with all features
 python mcp_checkmk_server.py --config config.yaml
-
-# Enhanced MCP server with all features
-python mcp_checkmk_enhanced_server.py --config config.yaml
 ```
 
 ### Run CLI (MCP Client)
@@ -160,7 +156,7 @@ python -m checkmk_agent.cli
 - `MetricsCollector` - Real-time performance monitoring
 
 ### MCP Integration
-- `EnhancedCheckmkMCPServer` - Complete MCP server with all features
+- `CheckmkMCPServer` - Unified MCP server with all standard and advanced features
 - `CheckmkMCPClient` - MCP client for CLI and external integrations
 - Comprehensive tool and resource definitions
 

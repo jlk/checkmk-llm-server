@@ -17,7 +17,7 @@ The project is a **FULLY OPERATIONAL** Checkmk LLM Agent implementation with:
 - **Service status and management operations**
 - Natural language processing capabilities
 - CLI interface with interactive mode
-- **MCP Server Integration** - Both basic and enhanced servers fully functional with Claude
+- **MCP Server Integration** - Unified server with all advanced features fully functional with Claude  
 - **Robust error handling with syntax error detection**
 - Test coverage for core functionality
 - VS Code workspace configuration
@@ -122,8 +122,7 @@ checkmk_agent/
 │   └── ui_manager.py         # Rich UI formatting and messaging
 ├── mcp_server/              # MCP Server Integration (FULLY FUNCTIONAL)
 │   ├── __init__.py
-│   ├── server.py             # Basic MCP server - 14 tools exposed
-│   └── enhanced_server.py    # Enhanced MCP server - 18 tools exposed
+│   └── server.py             # Unified MCP server - 28 tools exposed
 └── services/                # Service Layer Architecture
     ├── __init__.py
     ├── status_service.py     # Status operations with all methods implemented
@@ -158,7 +157,7 @@ examples/
 1. **API Client**: ✅ Checkmk REST API client with host/rule/service operations
 2. **LLM Integration**: ✅ Natural language processing capabilities
 3. **Agent Logic**: ✅ Conversation flow and command routing for hosts/rules/services
-4. **MCP Server Integration**: ✅ Both basic and enhanced servers fully functional
+4. **MCP Server Integration**: ✅ Unified server with all advanced features fully functional
 5. **Testing**: ✅ Test coverage for core operations
 6. **Documentation**: ✅ Setup and usage guides
 
@@ -166,15 +165,12 @@ examples/
 
 The project includes comprehensive MCP (Model Context Protocol) server integration for seamless Claude AI integration:
 
-### Basic MCP Server (`checkmk_agent/mcp_server/server.py`)
-- **14 Tools Exposed**: Complete coverage of core Checkmk operations
+### Unified MCP Server (`checkmk_agent/mcp_server/server.py`)
+- **28 Tools Exposed**: Complete coverage of all Checkmk operations with advanced features
 - **Status**: ✅ Fully Functional - Successfully tested with Claude
-- **Features**: Host operations, service management, status monitoring, problem analysis
-
-### Enhanced MCP Server (`checkmk_agent/mcp_server/enhanced_server.py`) 
-- **18 Tools Exposed**: All basic tools plus advanced features
-- **Status**: ✅ Fully Functional - Advanced capabilities verified
-- **Features**: Batch processing, streaming operations, caching, performance metrics
+- **Core Features**: Host operations, service management, status monitoring, problem analysis
+- **Advanced Features**: Batch processing, streaming operations, caching, performance metrics
+- **Entry Point**: `mcp_checkmk_server.py` - Single server for all use cases
 
 ### Recent Fixes (2025-07-25)
 - Fixed tool registration using proper MCP SDK decorators (`@server.list_tools()`, `@server.call_tool()`)

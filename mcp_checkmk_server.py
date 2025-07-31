@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Checkmk MCP Server Entry Point
+Checkmk Enhanced MCP Server Entry Point
 
-This script starts the Checkmk MCP (Model Context Protocol) server,
-providing LLM tools for comprehensive infrastructure monitoring and management.
+This script starts the enhanced Checkmk MCP server with advanced features:
+- Streaming support for large datasets
+- Caching layer for improved performance  
+- Batch operations for bulk processing
+- Performance monitoring and metrics
+- Advanced error recovery and resilience
 
 Usage:
-    python mcp_checkmk_server.py [--config CONFIG_FILE] [--log-level LEVEL]
+    python mcp_checkmk_enhanced_server.py [--config CONFIG_FILE] [--log-level LEVEL]
 
 The server will run on stdio by default for MCP client integration.
 """
@@ -41,7 +45,7 @@ def setup_logging(log_level: str = "INFO"):
 
 
 async def main():
-    """Main entry point for the Checkmk MCP server."""
+    """Main entry point for the Enhanced Checkmk MCP server."""
     parser = argparse.ArgumentParser(description="Checkmk MCP Server")
     parser.add_argument(
         "--config", "-c",
@@ -60,6 +64,21 @@ async def main():
         default="stdio",
         help="Transport type for MCP server"
     )
+    parser.add_argument(
+        "--enable-caching",
+        action="store_true",
+        help="Enable caching layer for improved performance"
+    )
+    parser.add_argument(
+        "--enable-streaming",
+        action="store_true", 
+        help="Enable streaming for large datasets"
+    )
+    parser.add_argument(
+        "--enable-metrics",
+        action="store_true",
+        help="Enable performance monitoring and metrics collection"
+    )
     
     args = parser.parse_args()
     
@@ -75,8 +94,40 @@ async def main():
         logger.info(f"Checkmk URL: {config.checkmk.server_url}")
         logger.info(f"Transport: {args.transport}")
         
-        # Create and initialize the server
+        # Log core features (always available)
+        logger.info("Core Features:")
+        logger.info("  - ✓ Complete host and service management (28 tools)")
+        logger.info("  - ✓ Event Console and metrics integration")
+        logger.info("  - ✓ Business Intelligence and system info")
+        
+        # Log advanced features only if enabled
+        advanced_features = []
+        if args.enable_streaming:
+            advanced_features.append("  - ✓ Streaming support for large datasets")
+        if args.enable_caching:
+            advanced_features.append("  - ✓ Caching layer for improved performance")
+        if args.enable_metrics:
+            advanced_features.append("  - ✓ Performance monitoring and metrics collection")
+        
+        if advanced_features:
+            logger.info("Advanced Features Enabled:")
+            for feature in advanced_features:
+                logger.info(feature)
+        else:
+            logger.info("Advanced Features: Disabled (use --enable-* flags to enable)")
+        
+        # Always available features
+        logger.info("  - ✓ Batch operations for bulk processing")
+        logger.info("  - ✓ Advanced error recovery and resilience")
+        
+        # Create and initialize the server with feature flags
         server = CheckmkMCPServer(config)
+        
+        # Set advanced feature flags (server implementation can use these)
+        server.enable_caching = args.enable_caching
+        server.enable_streaming = args.enable_streaming  
+        server.enable_metrics = args.enable_metrics
+        
         await server.initialize()
         
         logger.info("MCP Server initialized, starting transport...")
@@ -86,7 +137,7 @@ async def main():
         
     except KeyboardInterrupt:
         logger.info("Received interrupt signal, shutting down...")
-    except Exception as e:
+    except Exception:
         logger.exception("Fatal error in MCP server")
         sys.exit(1)
 

@@ -4,7 +4,6 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
 from checkmk_agent.mcp_server.server import CheckmkMCPServer
-from checkmk_agent.mcp_server.enhanced_server import EnhancedCheckmkMCPServer
 from checkmk_agent.config import AppConfig
 
 
@@ -24,35 +23,14 @@ class TestMCPServerTools:
     """Test MCP server tool registration."""
     
     @pytest.mark.asyncio
-    async def test_basic_server_tool_registration(self, mock_config):
-        """Test that basic server registers tools correctly."""
+    async def test_server_tool_registration(self, mock_config):
+        """Test that the consolidated server registers all tools correctly."""
         server = CheckmkMCPServer(mock_config)
         
         with patch('checkmk_agent.api_client.CheckmkClient'):
             await server.initialize()
         
-        # Check tools are registered
-        assert len(server._tools) == 24
-        assert len(server._tool_handlers) == 24
-        
-        # Check essential tools
-        assert "list_hosts" in server._tools
-        assert "create_host" in server._tools
-        assert "get_health_dashboard" in server._tools
-        assert "list_all_services" in server._tools
-        
-        # Check tool/handler consistency
-        assert set(server._tools.keys()) == set(server._tool_handlers.keys())
-    
-    @pytest.mark.asyncio
-    async def test_enhanced_server_tool_registration(self, mock_config):
-        """Test that enhanced server registers all tools correctly."""
-        server = EnhancedCheckmkMCPServer(mock_config)
-        
-        with patch('checkmk_agent.api_client.CheckmkClient'):
-            await server.initialize()
-        
-        # Check tools are registered
+        # Check tools are registered (now has all 28 tools)
         assert len(server._tools) == 28
         assert len(server._tool_handlers) == 28
         
@@ -60,6 +38,16 @@ class TestMCPServerTools:
         assert "list_hosts" in server._tools
         assert "create_host" in server._tools
         assert "get_health_dashboard" in server._tools
+        assert "list_all_services" in server._tools
+        
+        # Check advanced tools
+        assert "stream_hosts" in server._tools
+        assert "batch_create_hosts" in server._tools
+        assert "get_server_metrics" in server._tools
+        assert "clear_cache" in server._tools
+        
+        # Check tool/handler consistency
+        assert set(server._tools.keys()) == set(server._tool_handlers.keys())
         
         # Check advanced tools
         assert "stream_hosts" in server._tools

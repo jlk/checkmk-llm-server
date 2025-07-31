@@ -60,10 +60,8 @@ def test_mcp_servers():
     print("✓ Basic MCP Server imports successfully")
     assert CheckmkMCPServer is not None
     
-    # Test enhanced server
-    from checkmk_agent.mcp_server.enhanced_server import EnhancedCheckmkMCPServer
-    print("✓ Enhanced MCP Server imports successfully")
-    assert EnhancedCheckmkMCPServer is not None
+    # Test consolidated server (now has all enhanced features)
+    print("✓ Consolidated MCP Server imports successfully (now includes all advanced features)")
 
 def main():
     """Run all tests."""

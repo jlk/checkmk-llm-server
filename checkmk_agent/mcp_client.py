@@ -41,9 +41,9 @@ class CheckmkMCPClient:
         try:
             # Determine server path
             if not server_path:
-                # Default to the enhanced MCP server in the project root
+                # Default to the MCP server in the project root
                 project_root = Path(__file__).parent.parent
-                server_path = str(project_root / "mcp_checkmk_enhanced_server.py")
+                server_path = str(project_root / "mcp_checkmk_server.py")
             
             # Ensure server path exists
             if not Path(server_path).exists():

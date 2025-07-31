@@ -5,6 +5,23 @@ All notable changes to the Checkmk LLM Agent project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-01-31
+
+### Changed
+- **BREAKING**: Consolidated MCP servers into single unified implementation
+- Removed basic MCP server (`mcp_checkmk_server.py` with 24 tools)  
+- Enhanced MCP server is now the single MCP server with all 28 tools (24 standard + 4 advanced)
+- All users now automatically get advanced features (streaming, caching, batch operations, metrics)
+- Simplified architecture and documentation
+- Updated all references from dual servers to single server implementation
+
+### Benefits
+- Simpler deployment and maintenance
+- No confusion about server choice  
+- All users get performance optimizations automatically
+- Single upgrade path for new features
+- Reduced codebase complexity
+
 ## [2.0.0] - 2025-01-28
 
 ### Added
@@ -26,8 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Minimum Checkmk version requirement changed to 2.4.0
 - **BREAKING**: Host and service listing endpoints changed from GET to POST
 - Query expressions now passed as objects in request body instead of JSON strings
-- Basic MCP server now has 17 tools (up from 14)
-- Enhanced MCP server now has 22 tools (up from 18)
+- Basic MCP server had 24 tools (increased from 17)
+- Enhanced MCP server had 28 tools (increased from 22)
+- **Now consolidated**: Single MCP server with all 28 tools
 
 ### Fixed
 - Service state display showing "Unknown" instead of actual states

@@ -85,36 +85,27 @@ cp examples/configs/development.yaml config.yaml
 # Edit config.yaml with your Checkmk server details and API keys
 ```
 
-### MCP Server Options
+### MCP Server
 
-Choose between two MCP server implementations based on your needs:
+The Checkmk MCP Server provides comprehensive monitoring capabilities with all advanced features included:
 
-#### Basic MCP Server (17 tools)
 **Entry Point**: `mcp_checkmk_server.py`  
-**Best for**: Standard monitoring operations, lightweight deployments
+**Tools Available**: 28 tools covering all monitoring operations
 ```bash
 python mcp_checkmk_server.py --config config.yaml
 ```
 
-**Core Tools Include**:
-- Host management (list, create, update, delete)
-- Service monitoring (list, status, acknowledge, downtime)
-- Status dashboards (overview, problems, critical/warning alerts)
-- Service parameters (get, set, validate)
-- Service discovery operations
-- **Event Console** (service history, event management) - New in 2.4!
-- **Metrics & Performance** (graphs, historical data) - New in 2.4!
-- **Business Intelligence** (BI aggregations, business status) - New in 2.4!
-- **System Information** (version, edition details) - New in 2.4!
+**Core Features**:
+- **Host Management**: Complete CRUD operations (list, create, update, delete)
+- **Service Monitoring**: Full lifecycle management (list, status, acknowledge, downtime)
+- **Status Dashboards**: Real-time health overviews and problem analysis
+- **Service Parameters**: Dynamic configuration management (get, set, validate)
+- **Event Console**: Service history and event management (New in 2.4!)
+- **Metrics & Performance**: Historical data and graph analysis (New in 2.4!)
+- **Business Intelligence**: BI aggregations and business status (New in 2.4!)
+- **System Information**: Version and configuration details (New in 2.4!)
 
-#### Enhanced MCP Server (22 tools)
-**Entry Point**: `mcp_checkmk_enhanced_server.py`  
-**Best for**: High-performance environments, large datasets, advanced features
-```bash
-python mcp_checkmk_enhanced_server.py --config config.yaml
-```
-
-**All Basic Tools Plus**:
+**Advanced Features**:
 - **Streaming Operations**: Memory-efficient processing of large datasets
 - **Batch Processing**: Concurrent bulk operations with progress tracking
 - **Advanced Caching**: LRU caching with TTL for optimal performance
@@ -132,7 +123,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "checkmk": {
       "command": "python",
-      "args": ["/path/to/checkmk_llm_agent/mcp_checkmk_enhanced_server.py", "--config", "/path/to/config.yaml"],
+      "args": ["/path/to/checkmk_llm_agent/mcp_checkmk_server.py", "--config", "/path/to/config.yaml"],
       "env": {
         "CHECKMK_SERVER_URL": "https://your-checkmk-server.com",
         "CHECKMK_USERNAME": "automation_user",
@@ -153,7 +144,7 @@ Add to your `config.json`:
     {
       "name": "checkmk",
       "command": "python",
-      "args": ["/path/to/checkmk_llm_agent/mcp_checkmk_enhanced_server.py", "--config", "/path/to/config.yaml"]
+      "args": ["/path/to/checkmk_llm_agent/mcp_checkmk_server.py", "--config", "/path/to/config.yaml"]
     }
   ]
 }
@@ -162,7 +153,7 @@ Add to your `config.json`:
 #### Other MCP-Compatible Clients
 For any MCP-compatible client, use these connection parameters:
 - **Command**: `python`
-- **Args**: `["/path/to/mcp_checkmk_enhanced_server.py", "--config", "/path/to/config.yaml"]`
+- **Args**: `["/path/to/mcp_checkmk_server.py", "--config", "/path/to/config.yaml"]`
 - **Transport**: `stdio`
 
 Once connected, you can use natural language commands like:
@@ -335,41 +326,24 @@ async def critical_operation():
 - **[Service Parameter Management](docs/service-parameter-management.md)** - Managing service thresholds
 - **[Configuration Examples](examples/)** - Environment-specific configurations
 
-## 📊 MCP Server Comparison
+## 📊 MCP Server Features
 
-| Feature | Basic MCP Server | Enhanced MCP Server |
-|---------|------------------|---------------------|
-| **Tools Available** | 14 tools | 18 tools |
-| **Entry Point** | `mcp_checkmk_server.py` | `mcp_checkmk_enhanced_server.py` |
-| **Memory Usage** | Low | Moderate |
-| **Performance** | Standard | Optimized |
-| **Best For** | Small-medium environments | Large environments, production |
+The unified Checkmk MCP Server includes all monitoring capabilities and advanced features:
 
-### Tool Categories
+| Feature Category | Available Tools & Capabilities |
+|------------------|------------------------------|
+| **Host Management** | ✅ list, create, update, delete + streaming operations |
+| **Service Operations** | ✅ list, status, acknowledge, downtime + batch processing |
+| **Status Monitoring** | ✅ overview, problems, alerts + cached responses |
+| **Service Parameters** | ✅ get, set, validate + bulk operations |
+| **Event Console** | ✅ service history, event search, acknowledgments |
+| **Metrics & Performance** | ✅ service metrics, historical data, performance graphs |
+| **Business Intelligence** | ✅ BI aggregations, critical business services |
+| **Advanced Features** | ✅ Streaming, caching, batch ops, metrics, recovery |
 
-| Category | Basic Server | Enhanced Server |
-|----------|-------------|----------------|
-| **Host Management** | ✅ list, create, update, delete | ✅ All basic + streaming |
-| **Service Operations** | ✅ list, status, acknowledge, downtime | ✅ All basic + batch processing |
-| **Status Monitoring** | ✅ overview, problems, alerts | ✅ All basic + cached responses |
-| **Service Parameters** | ✅ get, set, validate | ✅ All basic + bulk operations |
-| **Discovery** | ✅ Basic discovery | ✅ All basic + streaming discovery |
-| **Advanced Features** | ❌ Not available | ✅ Streaming, caching, metrics, recovery |
-
-### When to Choose Each Server
-
-**Choose Basic MCP Server if:**
-- Managing < 1,000 hosts/services
-- Standard monitoring operations
-- Limited resources
-- Simple deployment requirements
-
-**Choose Enhanced MCP Server if:**
-- Managing > 1,000 hosts/services
-- Need high-performance operations
-- Want advanced caching and streaming
-- Require performance monitoring
-- Running in production environments
+**Total Tools**: 28 comprehensive monitoring tools
+**Performance**: Optimized for all environment sizes (small to enterprise)
+**Memory Usage**: Efficient with intelligent caching and streaming
 
 ## 🏗️ Architecture Components
 
@@ -387,9 +361,8 @@ async def critical_operation():
 - `CircuitBreaker` - Automatic failure detection and recovery
 
 ### MCP Integration
-- **Basic MCP Server** (`mcp_checkmk_server.py`) - 14 core tools for standard operations
-- **Enhanced MCP Server** (`mcp_checkmk_enhanced_server.py`) - 18 tools with advanced features
-- **MCP Client** (`checkmk_cli_mcp.py`) - CLI interface connecting to MCP servers
+- **Unified MCP Server** (`mcp_checkmk_server.py`) - 28 comprehensive tools with all features
+- **MCP Client** (`checkmk_cli_mcp.py`) - CLI interface connecting to MCP server
 - **Direct CLI** (`checkmk_agent.cli`) - Legacy interface with direct API access
 
 ## 📊 Performance Characteristics
@@ -422,14 +395,12 @@ checkmk_llm_agent/
 │   │   ├── metrics.py        # Performance monitoring
 │   │   └── recovery.py       # Error recovery patterns
 │   ├── mcp_server/           # MCP server implementation
-│   │   ├── server.py         # Basic MCP server (14 tools)
-│   │   └── enhanced_server.py # Enhanced server (18 tools)
+│   │   └── server.py         # Unified MCP server (28 tools)
 │   ├── api_client.py         # Checkmk REST API client
 │   ├── async_api_client.py   # Async wrapper for API client
 │   ├── mcp_client.py         # MCP client implementation
 │   └── cli_mcp.py            # CLI using MCP backend
-├── mcp_checkmk_server.py     # Basic MCP server entry point
-├── mcp_checkmk_enhanced_server.py # Enhanced MCP server entry point
+├── mcp_checkmk_server.py     # Unified MCP server entry point
 └── checkmk_cli_mcp.py        # MCP-based CLI entry point
 ├── tests/                    # Comprehensive test suite
 ├── docs/                     # Documentation
