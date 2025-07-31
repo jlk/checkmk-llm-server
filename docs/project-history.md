@@ -2,6 +2,44 @@
 
 This document tracks the major development sessions and milestones for the Checkmk LLM Agent project.
 
+## Session: 2025-01-31 - MCP Server Consolidation
+
+**Focus**: Consolidated dual MCP server architecture into single unified implementation
+
+**Key Achievements**:
+- **Architecture Simplification**: Removed basic MCP server (24 tools) and made enhanced server the single unified server (28 tools)
+- **Tool Count Verification**: Confirmed actual tool counts (24 basic, 28 enhanced) vs documented counts (17/22)
+- **Feature Toggles**: Added conditional --enable-caching, --enable-streaming, --enable-metrics arguments
+- **Zero Functionality Loss**: Enhanced server is superset of basic, all users get advanced features automatically
+- **Comprehensive Testing**: Pre/post consolidation verification, all tests passing
+- **Documentation Overhaul**: Updated README, CLAUDE.md, IMPLEMENTATION_SUMMARY for single server architecture
+
+**Technical Details**:
+- Deleted basic server files: `mcp_checkmk_server.py`, `checkmk_agent/mcp_server/server.py`
+- Renamed enhanced server files to become the standard server implementation
+- Updated class names: `EnhancedCheckmkMCPServer` → `CheckmkMCPServer`
+- Updated server naming: `checkmk-agent-enhanced` → `checkmk-agent`
+- Consolidated test suite: single test verifying 28 tools (24 standard + 4 advanced)
+- Added conditional logging based on feature flags
+
+**Critical Benefits Achieved**:
+- Simpler deployment and maintenance (single server vs dual servers)
+- No user confusion about server choice
+- All users automatically get performance optimizations
+- Single upgrade path for new features
+- Reduced codebase complexity and maintenance overhead
+
+**Files Modified**:
+- Renamed and updated: `mcp_checkmk_server.py`, `checkmk_agent/mcp_server/server.py`
+- Updated imports: `checkmk_agent/mcp_server/__init__.py`, `checkmk_agent/mcp_client.py`
+- Consolidated tests: `tests/test_mcp_server_tools.py`, `test_new_features.py`
+- Documentation: `README.md`, `CLAUDE.md`, `IMPLEMENTATION_SUMMARY.md`, `CHANGELOG.md`
+- **Deleted**: `mcp_checkmk_enhanced_server.py`, `checkmk_agent/mcp_server/enhanced_server.py`
+
+**Verification**: All 28 tools confirmed available, imports working, tests passing, CLI functional
+
+**Status**: ✅ Complete - Single unified MCP server with all advanced features ready for production
+
 ## Session: 2025-07-30 - MCP Server Stability Improvements and Code Quality Fixes
 
 **Focus**: Fixed critical MCP server crashes and improved overall code quality
