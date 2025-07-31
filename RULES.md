@@ -18,6 +18,7 @@ This document defines mandatory operating principles for all AI instances. It en
 1. Example commands must be real and tested.
 1. Each doc must clearly outline: purpose, usage, parameters, and examples.
 1. Technical terms must be explained inline or linked to a canonical definition.
+2. Dates used in file names, directories, or timestamps in changelogs, project history, etc, *must be todays actual date*.
 
 ## Task Management Rules
 1. Tasks must be clear, specific, and actionable—avoid ambiguity.
