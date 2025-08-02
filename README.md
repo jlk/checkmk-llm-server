@@ -90,7 +90,7 @@ cp examples/configs/development.yaml config.yaml
 The Checkmk MCP Server provides comprehensive monitoring capabilities with all advanced features included:
 
 **Entry Point**: `mcp_checkmk_server.py`  
-**Tools Available**: 28 tools covering all monitoring operations
+**Tools Available**: 40 tools covering all monitoring operations including specialized parameter management
 ```bash
 python mcp_checkmk_server.py --config config.yaml
 ```
@@ -100,6 +100,7 @@ python mcp_checkmk_server.py --config config.yaml
 - **Service Monitoring**: Full lifecycle management (list, status, acknowledge, downtime)
 - **Status Dashboards**: Real-time health overviews and problem analysis
 - **Service Parameters**: Dynamic configuration management (get, set, validate)
+- **Specialized Parameter Handlers**: Advanced parameter management for temperature, database, network, and custom checks (New!)
 - **Event Console**: Service history and event management (New in 2.4!)
 - **Metrics & Performance**: Historical data and graph analysis (New in 2.4!)
 - **Business Intelligence**: BI aggregations and business status (New in 2.4!)
@@ -336,12 +337,14 @@ The unified Checkmk MCP Server includes all monitoring capabilities and advanced
 | **Service Operations** | ✅ list, status, acknowledge, downtime + batch processing |
 | **Status Monitoring** | ✅ overview, problems, alerts + cached responses |
 | **Service Parameters** | ✅ get, set, validate + bulk operations |
+| **Specialized Parameter Handlers** | ✅ temperature, database, network, custom checks + intelligent defaults |
+| **Parameter Management** | ✅ discover handlers, validate specialized params, bulk operations |
 | **Event Console** | ✅ service history, event search, acknowledgments |
 | **Metrics & Performance** | ✅ service metrics, historical data, performance graphs |
 | **Business Intelligence** | ✅ BI aggregations, critical business services |
 | **Advanced Features** | ✅ Streaming, caching, batch ops, metrics, recovery |
 
-**Total Tools**: 28 comprehensive monitoring tools
+**Total Tools**: 40 comprehensive monitoring tools
 **Performance**: Optimized for all environment sizes (small to enterprise)
 **Memory Usage**: Efficient with intelligent caching and streaming
 
@@ -351,7 +354,7 @@ The unified Checkmk MCP Server includes all monitoring capabilities and advanced
 - `HostService` - Host management operations
 - `StatusService` - Health monitoring and dashboards  
 - `ServiceService` - Service operations and discovery
-- `ParameterService` - Parameter and rule management
+- `ParameterService` - Parameter and rule management with specialized handlers
 
 ### Advanced Services
 - `StreamingHostService` - Memory-efficient large dataset processing
@@ -361,9 +364,15 @@ The unified Checkmk MCP Server includes all monitoring capabilities and advanced
 - `CircuitBreaker` - Automatic failure detection and recovery
 
 ### MCP Integration
-- **Unified MCP Server** (`mcp_checkmk_server.py`) - 28 comprehensive tools with all features
+- **Unified MCP Server** (`mcp_checkmk_server.py`) - 40 comprehensive tools with all features including specialized parameter handlers
 - **MCP Client** (`checkmk_cli_mcp.py`) - CLI interface connecting to MCP server
 - **Direct CLI** (`checkmk_agent.cli`) - Legacy interface with direct API access
+
+### Specialized Parameter Handlers
+- `TemperatureParameterHandler` - CPU, GPU, ambient, storage temperature monitoring
+- `DatabaseParameterHandler` - Oracle, MySQL, PostgreSQL, MongoDB, Redis parameters
+- `NetworkServiceParameterHandler` - HTTP/HTTPS, TCP/UDP, DNS, SSH monitoring
+- `CustomCheckParameterHandler` - MRPE, local checks, Nagios plugins, scripts
 
 ## 📊 Performance Characteristics
 

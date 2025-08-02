@@ -30,15 +30,21 @@ class TestMCPServerTools:
         with patch('checkmk_agent.api_client.CheckmkClient'):
             await server.initialize()
         
-        # Check tools are registered (now has all 28 tools)
-        assert len(server._tools) == 28
-        assert len(server._tool_handlers) == 28
+        # Check tools are registered (now has 47 tools - original + new parameter tools)
+        assert len(server._tools) == 47
+        assert len(server._tool_handlers) == 47
         
         # Check standard tools
         assert "list_hosts" in server._tools
         assert "create_host" in server._tools
         assert "get_health_dashboard" in server._tools
         assert "list_all_services" in server._tools
+        
+        # Check new Phase 3 parameter tools
+        assert "update_parameter_rule" in server._tools
+        assert "list_parameter_rules" in server._tools
+        assert "bulk_set_parameters" in server._tools
+        assert "search_parameter_rules" in server._tools
         
         # Check advanced tools
         assert "stream_hosts" in server._tools

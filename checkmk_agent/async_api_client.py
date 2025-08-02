@@ -185,13 +185,18 @@ class AsyncCheckmkClient:
         pass
     
     @async_wrapper("list_rules")
-    def list_rules(self, ruleset_name: Optional[str] = None) -> List[Dict[str, Any]]:
-        """List rules with optional ruleset filter."""
+    def list_rules(self, ruleset_name: str) -> List[Dict[str, Any]]:
+        """List rules for a specific ruleset."""
         pass
     
     @async_wrapper("list_rulesets")
     def list_rulesets(self) -> List[Dict[str, Any]]:
         """List available rulesets."""
+        pass
+    
+    @async_wrapper("get_ruleset_info")
+    def get_ruleset_info(self, ruleset_name: str) -> Dict[str, Any]:
+        """Get detailed information about a specific ruleset."""
         pass
     
     # Event Console operations
