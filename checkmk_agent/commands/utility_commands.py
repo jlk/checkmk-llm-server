@@ -9,11 +9,11 @@ from ..api_client import CheckmkClient, CheckmkAPIError
 
 class UtilityCommand(BaseCommand):
     """Base class for utility commands."""
-    
+
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
-    
+
     @property
     def category(self) -> CommandCategory:
         return CommandCategory.UTILITY
@@ -21,36 +21,36 @@ class UtilityCommand(BaseCommand):
 
 class GetInstructionsCommand(UtilityCommand):
     """Command to get instructions for service operations."""
-    
+
     @property
     def name(self) -> str:
         return "get_instructions"
-    
+
     @property
     def description(self) -> str:
         return "Get instructions on how to perform service operations"
-    
+
     @property
     def parameters(self) -> Dict[str, Any]:
         return {
-            'instruction_type': {
-                'type': str,
-                'required': False,
-                'description': 'Type of instruction to get (add_service, acknowledge_service, create_downtime)'
+            "instruction_type": {
+                "type": str,
+                "required": False,
+                "description": "Type of instruction to get (add_service, acknowledge_service, create_downtime)",
             },
-            'host_name': {
-                'type': str,
-                'required': False,
-                'description': 'Hostname for context-specific instructions'
-            }
+            "host_name": {
+                "type": str,
+                "required": False,
+                "description": "Hostname for context-specific instructions",
+            },
         }
-    
+
     def execute(self, context: CommandContext) -> CommandResult:
         """Execute the get instructions command."""
-        instruction_type = context.get_parameter('instruction_type', '')
-        host_name = context.get_parameter('host_name', '')
-        
-        if instruction_type == 'add_service':
+        instruction_type = context.get_parameter("instruction_type", "")
+        host_name = context.get_parameter("host_name", "")
+
+        if instruction_type == "add_service":
             message = f"""📖 How to add a service to {host_name if host_name else 'a host'}:
 
 **Method 1: Service Discovery (Recommended)**
@@ -78,7 +78,7 @@ class GetInstructionsCommand(UtilityCommand):
 • Run: `checkmk-agent services discover {host_name if host_name else 'HOSTNAME'}` to start
 • Or ask: "discover services on {host_name if host_name else 'HOSTNAME'}" for automatic discovery"""
 
-        elif instruction_type == 'acknowledge_service':
+        elif instruction_type == "acknowledge_service":
             message = """📖 How to acknowledge a service problem:
 
 **Purpose:** Acknowledging a service tells Checkmk that you're aware of the problem and working on it.
@@ -104,7 +104,7 @@ class GetInstructionsCommand(UtilityCommand):
 • Sticky: Acknowledgment persists until service is OK (default)
 • Send notifications: Notify contacts about the acknowledgment"""
 
-        elif instruction_type == 'create_downtime':
+        elif instruction_type == "create_downtime":
             message = """📖 How to schedule service downtime:
 
 **Purpose:** Schedule planned maintenance windows to suppress alerts.
@@ -153,33 +153,30 @@ class GetInstructionsCommand(UtilityCommand):
 Type your question to get detailed instructions for any service operation."""
 
         return CommandResult.success_result(
-            data={
-                'instruction_type': instruction_type,
-                'host_name': host_name
-            },
-            message=message
+            data={"instruction_type": instruction_type, "host_name": host_name},
+            message=message,
         )
 
 
 class ConnectionTestCommand(UtilityCommand):
     """Command to test connection to Checkmk API."""
-    
+
     def __init__(self, checkmk_client: CheckmkClient):
         super().__init__()
         self.checkmk_client = checkmk_client
-    
+
     @property
     def name(self) -> str:
         return "test_connection"
-    
+
     @property
     def description(self) -> str:
         return "Test connection to Checkmk API"
-    
+
     @property
     def parameters(self) -> Dict[str, Any]:
         return {}
-    
+
     def execute(self, context: CommandContext) -> CommandResult:
         """Execute the test connection command."""
         try:
@@ -188,17 +185,26 @@ class ConnectionTestCommand(UtilityCommand):
                 try:
                     services = self.checkmk_client.list_all_services()
                     service_count = len(services) if services else 0
-                    message = f"✅ Connection successful. Found {service_count} services."
+                    message = (
+                        f"✅ Connection successful. Found {service_count} services."
+                    )
                 except Exception:
                     message = "✅ Connection successful. Basic API access confirmed."
-                
+
                 return CommandResult.success_result(
-                    data={'connected': True, 'service_count': service_count if 'service_count' in locals() else None},
-                    message=message
+                    data={
+                        "connected": True,
+                        "service_count": (
+                            service_count if "service_count" in locals() else None
+                        ),
+                    },
+                    message=message,
                 )
             else:
-                return CommandResult.error_result("Connection failed: Unable to reach Checkmk API")
-                
+                return CommandResult.error_result(
+                    "Connection failed: Unable to reach Checkmk API"
+                )
+
         except CheckmkAPIError as e:
             return CommandResult.error_result(f"Connection failed: {e}")
         except Exception as e:
@@ -208,35 +214,35 @@ class ConnectionTestCommand(UtilityCommand):
 
 class HelpCommand(UtilityCommand):
     """Command to show help information."""
-    
+
     @property
     def name(self) -> str:
         return "help"
-    
+
     @property
     def description(self) -> str:
         return "Show help information for commands"
-    
+
     @property
     def parameters(self) -> Dict[str, Any]:
         return {
-            'command_name': {
-                'type': str,
-                'required': False,
-                'description': 'Specific command to get help for'
+            "command_name": {
+                "type": str,
+                "required": False,
+                "description": "Specific command to get help for",
             },
-            'category': {
-                'type': str,
-                'required': False,
-                'description': 'Command category to list (service, parameter, utility)'
-            }
+            "category": {
+                "type": str,
+                "required": False,
+                "description": "Command category to list (service, parameter, utility)",
+            },
         }
-    
+
     def execute(self, context: CommandContext) -> CommandResult:
         """Execute the help command."""
-        command_name = context.get_parameter('command_name')
-        category = context.get_parameter('category')
-        
+        command_name = context.get_parameter("command_name")
+        category = context.get_parameter("category")
+
         if command_name:
             # Help for specific command - this would need registry access
             message = f"""📖 Help for command: {command_name}
@@ -246,22 +252,22 @@ Use the command registry's get_command() method to get the command instance
 and call its get_help_text() method.
 
 For now, this is a placeholder that shows the help system is working."""
-        
+
         elif category:
             # Help for category
-            valid_categories = ['service', 'parameter', 'utility', 'host', 'rule']
+            valid_categories = ["service", "parameter", "utility", "host", "rule"]
             if category not in valid_categories:
                 return CommandResult.error_result(
                     f"Invalid category '{category}'. Valid categories: {', '.join(valid_categories)}"
                 )
-            
+
             message = f"""📖 Help for {category.title()} Commands:
 
 This category-specific help would be generated by listing all commands
 in the specified category from the command registry.
 
 For now, this is a placeholder that shows the help system is working."""
-        
+
         else:
             # General help
             message = """📖 Checkmk LLM Agent Help
@@ -299,9 +305,5 @@ For now, this is a placeholder that shows the help system is working."""
 For detailed command help, use: `help COMMAND_NAME`"""
 
         return CommandResult.success_result(
-            data={
-                'command_name': command_name,
-                'category': category
-            },
-            message=message
+            data={"command_name": command_name, "category": category}, message=message
         )

@@ -3,7 +3,4 @@
 from .base_formatter import BaseFormatter
 from .cli_formatter import CLIFormatter
 
-__all__ = [
-    "BaseFormatter",
-    "CLIFormatter"
-]
+__all__ = ["BaseFormatter", "CLIFormatter"]

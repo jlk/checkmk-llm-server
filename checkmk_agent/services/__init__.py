@@ -8,9 +8,9 @@ from .parameter_service import ParameterService
 
 __all__ = [
     "BaseService",
-    "ServiceResult", 
+    "ServiceResult",
     "HostService",
     "StatusService",
     "ServiceService",
-    "ParameterService"
+    "ParameterService",
 ]

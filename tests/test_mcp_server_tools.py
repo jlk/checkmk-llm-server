@@ -21,74 +21,71 @@ def mock_config():
 
 class TestMCPServerTools:
     """Test MCP server tool registration."""
-    
+
     @pytest.mark.asyncio
     async def test_server_tool_registration(self, mock_config):
         """Test that the consolidated server registers all tools correctly."""
         server = CheckmkMCPServer(mock_config)
-        
-        with patch('checkmk_agent.api_client.CheckmkClient'):
+
+        with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
-        
+
         # Check tools are registered (now has 47 tools - original + new parameter tools)
         assert len(server._tools) == 47
         assert len(server._tool_handlers) == 47
-        
+
         # Check standard tools
         assert "list_hosts" in server._tools
         assert "create_host" in server._tools
         assert "get_health_dashboard" in server._tools
         assert "list_all_services" in server._tools
-        
+
         # Check new Phase 3 parameter tools
         assert "update_parameter_rule" in server._tools
         assert "list_parameter_rules" in server._tools
         assert "bulk_set_parameters" in server._tools
         assert "search_parameter_rules" in server._tools
-        
+
         # Check advanced tools
         assert "stream_hosts" in server._tools
         assert "batch_create_hosts" in server._tools
         assert "get_server_metrics" in server._tools
         assert "clear_cache" in server._tools
-        
+
         # Check tool/handler consistency
         assert set(server._tools.keys()) == set(server._tool_handlers.keys())
-        
+
         # Check advanced tools
         assert "stream_hosts" in server._tools
         assert "batch_create_hosts" in server._tools
         assert "get_server_metrics" in server._tools
         assert "clear_cache" in server._tools
-        
+
         # Check tool/handler consistency
         assert set(server._tools.keys()) == set(server._tool_handlers.keys())
-    
+
     @pytest.mark.asyncio
     async def test_tool_handlers_callable(self, mock_config):
         """Test that tool handlers are properly callable."""
         server = CheckmkMCPServer(mock_config)
-        
-        with patch('checkmk_agent.api_client.CheckmkClient'):
+
+        with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
-        
+
         # Mock the host service
         server.host_service.list_hosts = AsyncMock(
             return_value=Mock(
                 success=True,
-                data=Mock(
-                    model_dump=lambda: {"hosts": []},
-                    total_count=0
-                ),
+                data=Mock(model_dump=lambda: {"hosts": []}, total_count=0),
                 error=None,
-                warnings=[]
+                warnings=[],
             )
         )
-        
+
         # Test calling a handler
         list_hosts_handler = server._tool_handlers["list_hosts"]
         result = await list_hosts_handler()
-        
+
         assert result["success"] is True
         assert "data" in result
         assert "message" in result

@@ -23,14 +23,14 @@ from .analyzer import LLMCommandAnalyzer, AnalysisResult
 from .facade import ServiceOperationsFacade, BackwardCompatibilityWrapper
 
 __all__ = [
-    'BaseCommand',
-    'CommandContext', 
-    'CommandResult',
-    'CommandCategory',
-    'CommandRegistry',
-    'CommandFactory',
-    'LLMCommandAnalyzer',
-    'AnalysisResult',
-    'ServiceOperationsFacade',
-    'BackwardCompatibilityWrapper'
+    "BaseCommand",
+    "CommandContext",
+    "CommandResult",
+    "CommandCategory",
+    "CommandRegistry",
+    "CommandFactory",
+    "LLMCommandAnalyzer",
+    "AnalysisResult",
+    "ServiceOperationsFacade",
+    "BackwardCompatibilityWrapper",
 ]

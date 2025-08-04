@@ -8,11 +8,11 @@ from .ui_manager import UIManager
 from .color_manager import ColorManager, MessageType
 
 __all__ = [
-    'ReadlineHandler',
-    'CommandParser', 
-    'HelpSystem',
-    'TabCompleter',
-    'UIManager',
-    'ColorManager',
-    'MessageType'
+    "ReadlineHandler",
+    "CommandParser",
+    "HelpSystem",
+    "TabCompleter",
+    "UIManager",
+    "ColorManager",
+    "MessageType",
 ]

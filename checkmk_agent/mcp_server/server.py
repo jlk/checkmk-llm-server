@@ -11,8 +11,13 @@ from typing import Optional, Dict, Any, List
 
 from mcp.server import Server
 from mcp.types import (
-    Resource, TextContent, EmbeddedResource, Tool,
-    Prompt, PromptMessage, CallToolResult
+    Resource,
+    TextContent,
+    EmbeddedResource,
+    Tool,
+    Prompt,
+    PromptMessage,
+    CallToolResult,
 )
 from mcp.server.models import InitializationOptions
 from mcp.server.lowlevel.server import NotificationOptions
@@ -41,7 +46,8 @@ def sanitize_error(error: Exception) -> str:
         sanitized = error_str.replace(str(Path.home()), "~")
         # Remove full file paths, keep only filename
         import re
-        sanitized = re.sub(r'/[a-zA-Z0-9_/.-]*/', '', sanitized)
+
+        sanitized = re.sub(r"/[a-zA-Z0-9_/.-]*/", "", sanitized)
         # Truncate overly long error messages
         if len(sanitized) > 200:
             sanitized = sanitized[:200] + "..."
@@ -52,7 +58,7 @@ def sanitize_error(error: Exception) -> str:
 
 class MCPJSONEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles datetime, Decimal, and Enum objects."""
-    
+
     def default(self, obj):
         if isinstance(obj, datetime):
             return obj.isoformat()
@@ -62,9 +68,9 @@ class MCPJSONEncoder(json.JSONEncoder):
             return float(obj)
         elif isinstance(obj, Enum):
             return obj.value
-        elif hasattr(obj, 'model_dump'):
+        elif hasattr(obj, "model_dump"):
             return obj.model_dump()
-        elif hasattr(obj, '__dict__'):
+        elif hasattr(obj, "__dict__"):
             return obj.__dict__
         return super().default(obj)
 
@@ -75,17 +81,19 @@ def safe_json_dumps(obj):
         return json.dumps(obj, cls=MCPJSONEncoder, ensure_ascii=False)
     except Exception as e:
         # Fallback: convert to string representation
-        return json.dumps({"error": f"Serialization failed: {str(e)}", "data": str(obj)})
+        return json.dumps(
+            {"error": f"Serialization failed: {str(e)}", "data": str(obj)}
+        )
 
 
 class CheckmkMCPServer:
     """Enhanced Checkmk MCP Server with advanced features."""
-    
+
     def __init__(self, config: AppConfig):
         self.config = config
         self.server = Server("checkmk-agent")
         self.checkmk_client: Optional[AsyncCheckmkClient] = None
-        
+
         # Standard services
         self.host_service: Optional[HostService] = None
         self.status_service: Optional[StatusService] = None
@@ -94,31 +102,31 @@ class CheckmkMCPServer:
         self.event_service: Optional[EventService] = None
         self.metrics_service: Optional[MetricsService] = None
         self.bi_service: Optional[BIService] = None
-        
+
         # Enhanced services
         self.streaming_host_service: Optional[StreamingHostService] = None
         self.streaming_service_service: Optional[StreamingServiceService] = None
         self.cached_host_service: Optional[CachedHostService] = None
-        
+
         # Advanced features
         self.batch_processor = BatchProcessor()
-        
+
         # Tool definitions
         self._tools = {}
         self._tool_handlers = {}
-        
-        # Prompt definitions  
+
+        # Prompt definitions
         self._prompts = {}
-        
+
         # Register handlers
         self._register_handlers()
         self._register_tool_handlers()
         self._register_prompt_handlers()
         self._register_advanced_resources()
-    
+
     def _register_handlers(self):
         """Register standard MCP server handlers."""
-        
+
         @self.server.list_resources()
         async def list_resources() -> List[Resource]:
             """List available MCP resources including streaming and performance data."""
@@ -127,139 +135,144 @@ class CheckmkMCPServer:
                     uri="checkmk://dashboard/health",
                     name="Health Dashboard",
                     description="Real-time infrastructure health dashboard",
-                    mimeType="application/json"
+                    mimeType="application/json",
                 ),
                 Resource(
                     uri="checkmk://dashboard/problems",
                     name="Critical Problems",
                     description="Current critical problems across infrastructure",
-                    mimeType="application/json"
+                    mimeType="application/json",
                 ),
                 Resource(
                     uri="checkmk://hosts/status",
                     name="Host Status Overview",
                     description="Current status of all monitored hosts",
-                    mimeType="application/json"
+                    mimeType="application/json",
                 ),
                 Resource(
                     uri="checkmk://services/problems",
                     name="Service Problems",
                     description="Current service problems requiring attention",
-                    mimeType="application/json"
+                    mimeType="application/json",
                 ),
                 Resource(
                     uri="checkmk://metrics/performance",
                     name="Performance Metrics",
                     description="Real-time performance metrics and trends",
-                    mimeType="application/json"
-                )
+                    mimeType="application/json",
+                ),
             ]
-            
+
             # Add streaming resources
             streaming_resources = [
                 Resource(
                     uri="checkmk://stream/hosts",
                     name="Host Stream",
                     description="Streaming host data for large environments",
-                    mimeType="application/x-ndjson"
+                    mimeType="application/x-ndjson",
                 ),
                 Resource(
                     uri="checkmk://stream/services",
-                    name="Service Stream", 
+                    name="Service Stream",
                     description="Streaming service data for large environments",
-                    mimeType="application/x-ndjson"
+                    mimeType="application/x-ndjson",
                 ),
                 Resource(
                     uri="checkmk://metrics/server",
                     name="Server Metrics",
                     description="MCP server performance metrics",
-                    mimeType="application/json"
+                    mimeType="application/json",
                 ),
                 Resource(
                     uri="checkmk://cache/stats",
                     name="Cache Statistics",
                     description="Cache performance and statistics",
-                    mimeType="application/json"
-                )
+                    mimeType="application/json",
+                ),
             ]
-            
+
             return basic_resources + streaming_resources
-        
+
         @self.server.read_resource()
         async def read_resource(uri: str) -> str:
             """Read MCP resource content including advanced features."""
             if not self._ensure_services():
                 raise RuntimeError("Services not initialized")
-            
+
             try:
                 # Standard resources
                 if uri == "checkmk://dashboard/health":
                     result = await self.status_service.get_health_dashboard()
                     return self._handle_service_result(result)
-                
+
                 elif uri == "checkmk://dashboard/problems":
                     result = await self.status_service.get_critical_problems()
                     return self._handle_service_result(result)
-                
+
                 elif uri == "checkmk://hosts/status":
                     result = await self.host_service.list_hosts(include_status=True)
                     return self._handle_service_result(result)
-                
+
                 elif uri == "checkmk://services/problems":
                     from ..services.models.services import ServiceState
+
                     result = await self.service_service.list_all_services(
-                        state_filter=[ServiceState.WARNING, ServiceState.CRITICAL, ServiceState.UNKNOWN]
+                        state_filter=[
+                            ServiceState.WARNING,
+                            ServiceState.CRITICAL,
+                            ServiceState.UNKNOWN,
+                        ]
                     )
                     return self._handle_service_result(result)
-                
+
                 elif uri == "checkmk://metrics/performance":
                     result = await self.status_service.get_performance_metrics()
                     return self._handle_service_result(result)
-                
+
                 # Streaming resources
                 elif uri == "checkmk://stream/hosts":
                     return await self._stream_hosts_resource()
-                
+
                 elif uri == "checkmk://stream/services":
                     return await self._stream_services_resource()
-                
+
                 # Advanced metrics
                 elif uri == "checkmk://metrics/server":
                     stats = await get_metrics_collector().get_stats()
                     return safe_json_dumps(stats)
-                
+
                 elif uri == "checkmk://cache/stats":
                     if self.cached_host_service:
                         cache_stats = await self.cached_host_service.get_cache_stats()
                         return safe_json_dumps(cache_stats)
                     else:
                         return safe_json_dumps({"error": "Cache not enabled"})
-                
+
                 else:
                     raise ValueError(f"Unknown resource URI: {uri}")
-            
+
             except Exception as e:
                 logger.exception(f"Error reading resource {uri}")
                 raise RuntimeError(f"Failed to read resource {uri}: {str(e)}")
-    
+
     def _register_tool_handlers(self):
         """Register MCP tool handlers."""
-        
+
         @self.server.list_tools()
         async def list_tools() -> List[Tool]:
             """List all available MCP tools."""
             return list(self._tools.values())
-        
+
         @self.server.call_tool()
         async def call_tool(name: str, arguments: dict):
             """Handle MCP tool calls."""
             if not self._ensure_services():
                 raise RuntimeError("Services not initialized")
-            
+
             handler = self._tool_handlers.get(name)
             if not handler:
                 raise ValueError(f"Unknown tool: {name}")
-            
+
             try:
                 result = await handler(**arguments)
                 # Return raw dict to avoid MCP framework tuple construction bug
@@ -269,12 +282,12 @@ class CheckmkMCPServer:
                             "type": "text",
                             "text": safe_json_dumps(result),
                             "annotations": None,
-                            "meta": None
+                            "meta": None,
                         }
                     ],
                     "isError": False,
                     "meta": None,
-                    "structuredContent": None
+                    "structuredContent": None,
                 }
             except Exception as e:
                 logger.exception(f"Error calling tool {name}")
@@ -285,17 +298,17 @@ class CheckmkMCPServer:
                             "type": "text",
                             "text": str(e),
                             "annotations": None,
-                            "meta": None
+                            "meta": None,
                         }
                     ],
                     "isError": True,
                     "meta": None,
-                    "structuredContent": None
+                    "structuredContent": None,
                 }
-    
+
     def _register_prompt_handlers(self):
         """Register MCP prompt handlers."""
-        
+
         # First define the prompts
         self._prompts = {
             "analyze_host_health": Prompt(
@@ -305,14 +318,14 @@ class CheckmkMCPServer:
                     {
                         "name": "host_name",
                         "description": "Name of the host to analyze",
-                        "required": True
+                        "required": True,
                     },
                     {
-                        "name": "include_grade", 
+                        "name": "include_grade",
                         "description": "Include health grade (A+ through F)",
-                        "required": False
-                    }
-                ]
+                        "required": False,
+                    },
+                ],
             ),
             "troubleshoot_service": Prompt(
                 name="troubleshoot_service",
@@ -321,14 +334,14 @@ class CheckmkMCPServer:
                     {
                         "name": "host_name",
                         "description": "Host name where the service is running",
-                        "required": True
+                        "required": True,
                     },
                     {
                         "name": "service_name",
                         "description": "Name of the service to troubleshoot",
-                        "required": True
-                    }
-                ]
+                        "required": True,
+                    },
+                ],
             ),
             "infrastructure_overview": Prompt(
                 name="infrastructure_overview",
@@ -337,54 +350,62 @@ class CheckmkMCPServer:
                     {
                         "name": "time_range_hours",
                         "description": "Time range in hours for the analysis",
-                        "required": False
+                        "required": False,
                     }
-                ]
+                ],
             ),
             "optimize_parameters": Prompt(
-                name="optimize_parameters", 
+                name="optimize_parameters",
                 description="Get parameter optimization recommendations for a service",
                 arguments=[
                     {
                         "name": "host_name",
                         "description": "Host name where the service is running",
-                        "required": True
+                        "required": True,
                     },
                     {
                         "name": "service_name",
                         "description": "Name of the service to optimize",
-                        "required": True
-                    }
-                ]
-            )
+                        "required": True,
+                    },
+                ],
+            ),
         }
-        
+
         @self.server.list_prompts()
         async def list_prompts() -> List[Prompt]:
             """List all available MCP prompts."""
             return list(self._prompts.values())
-        
+
         @self.server.get_prompt()
         async def get_prompt(name: str, arguments: dict):
             """Handle MCP prompt requests."""
             if not self._ensure_services():
                 raise RuntimeError("Services not initialized")
-            
+
             try:
                 if name == "analyze_host_health":
                     host_name = arguments.get("host_name", "")
-                    include_grade = arguments.get("include_grade", "true").lower() == "true"
-                    
+                    include_grade = (
+                        arguments.get("include_grade", "true").lower() == "true"
+                    )
+
                     # Get current host data
-                    host_result = await self.host_service.get_host(name=host_name, include_status=True)
-                    host_data = host_result.data.model_dump() if host_result.success else {}
-                    
+                    host_result = await self.host_service.get_host(
+                        name=host_name, include_status=True
+                    )
+                    host_data = (
+                        host_result.data.model_dump() if host_result.success else {}
+                    )
+
                     # Get host health analysis
                     health_result = await self.status_service.analyze_host_health(
-                        host_name=host_name, include_grade=include_grade, include_recommendations=True
+                        host_name=host_name,
+                        include_grade=include_grade,
+                        include_recommendations=True,
                     )
                     health_data = health_result.data if health_result.success else {}
-                    
+
                     prompt_text = f"""Analyze the health of host '{host_name}' based on the following monitoring data:
 
 HOST INFORMATION:
@@ -404,16 +425,18 @@ Focus on actionable insights for system administrators."""
                 elif name == "troubleshoot_service":
                     host_name = arguments.get("host_name", "")
                     service_name = arguments.get("service_name", "")
-                    
+
                     # Get service status and details
-                    services_result = await self.service_service.list_host_services(host_name=host_name)
+                    services_result = await self.service_service.list_host_services(
+                        host_name=host_name
+                    )
                     service_data = None
                     if services_result.success:
                         for service in services_result.data.services:
                             if service.description == service_name:
                                 service_data = service.model_dump()
                                 break
-                    
+
                     prompt_text = f"""Troubleshoot the service '{service_name}' on host '{host_name}' based on this monitoring data:
 
 SERVICE STATUS:
@@ -431,14 +454,18 @@ Be specific to the service type and provide practical commands where applicable.
 
                 elif name == "infrastructure_overview":
                     time_range_hours = int(arguments.get("time_range_hours", "24"))
-                    
+
                     # Get comprehensive infrastructure data
                     dashboard_result = await self.status_service.get_health_dashboard()
                     problems_result = await self.status_service.get_critical_problems()
-                    
-                    dashboard_data = dashboard_result.data if dashboard_result.success else {}
-                    problems_data = problems_result.data if problems_result.success else {}
-                    
+
+                    dashboard_data = (
+                        dashboard_result.data if dashboard_result.success else {}
+                    )
+                    problems_data = (
+                        problems_result.data if problems_result.success else {}
+                    )
+
                     prompt_text = f"""Provide a comprehensive infrastructure overview based on the last {time_range_hours} hours of monitoring data:
 
 HEALTH DASHBOARD:
@@ -460,22 +487,28 @@ Present this as an executive summary suitable for both technical teams and manag
                 elif name == "optimize_parameters":
                     host_name = arguments.get("host_name", "")
                     service_name = arguments.get("service_name", "")
-                    
+
                     # Get current parameters and service performance
-                    params_result = await self.parameter_service.get_effective_parameters(
-                        host_name=host_name, service_name=service_name
+                    params_result = (
+                        await self.parameter_service.get_effective_parameters(
+                            host_name=host_name, service_name=service_name
+                        )
                     )
-                    params_data = params_result.data.model_dump() if params_result.success else {}
-                    
+                    params_data = (
+                        params_result.data.model_dump() if params_result.success else {}
+                    )
+
                     # Get service status for context
-                    services_result = await self.service_service.list_host_services(host_name=host_name)
+                    services_result = await self.service_service.list_host_services(
+                        host_name=host_name
+                    )
                     service_status = None
                     if services_result.success:
                         for service in services_result.data.services:
                             if service.description == service_name:
                                 service_status = service.model_dump()
                                 break
-                    
+
                     prompt_text = f"""Optimize monitoring parameters for service '{service_name}' on host '{host_name}':
 
 CURRENT PARAMETERS:
@@ -496,29 +529,25 @@ Focus on reducing false positives while maintaining effective monitoring coverag
 
                 else:
                     raise ValueError(f"Unknown prompt: {name}")
-                
+
+                return PromptMessage(
+                    role="user", content=TextContent(type="text", text=prompt_text)
+                )
+
+            except Exception as e:
+                logger.exception(f"Error generating prompt {name}")
                 return PromptMessage(
                     role="user",
                     content=TextContent(
                         type="text",
-                        text=prompt_text
-                    )
+                        text=f"Error generating prompt: {sanitize_error(e)}",
+                    ),
                 )
-                
-            except Exception as e:
-                logger.exception(f"Error generating prompt {name}")
-                return PromptMessage(
-                    role="user", 
-                    content=TextContent(
-                        type="text",
-                        text=f"Error generating prompt: {sanitize_error(e)}"
-                    )
-                )
-    
+
     def _register_advanced_resources(self):
         """Register advanced resource handlers."""
         pass  # Resources are handled in the main read_resource handler
-    
+
     def _register_all_tools(self):
         """Register all tools including standard and advanced."""
         # First register all standard tools
@@ -529,10 +558,10 @@ Focus on reducing false positives while maintaining effective monitoring coverag
         self._register_event_console_tools()
         self._register_metrics_tools()
         self._register_bi_tools()
-        
+
         # Then register advanced tools
         self._register_advanced_tools()
-    
+
     def _register_host_tools(self):
         """Register host operation tools - same as basic server."""
         # List hosts tool
@@ -542,30 +571,74 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "search": {"type": "string", "description": "Search pattern for host names"},
-                    "folder": {"type": "string", "description": "Filter by Checkmk folder path"},
-                    "limit": {"type": "integer", "description": "Maximum number of hosts to return"},
-                    "offset": {"type": "integer", "description": "Starting index for pagination", "default": 0},
-                    "include_status": {"type": "boolean", "description": "Whether to include status information", "default": False}
-                }
-            }
+                    "search": {
+                        "type": "string",
+                        "description": "Search pattern for host names",
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "Filter by Checkmk folder path",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of hosts to return",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Starting index for pagination",
+                        "default": 0,
+                    },
+                    "include_status": {
+                        "type": "boolean",
+                        "description": "Whether to include status information",
+                        "default": False,
+                    },
+                    "effective_attributes": {
+                        "type": "boolean",
+                        "description": "Include inherited folder attributes and computed parameters (permissions enforced by Checkmk server)",
+                        "default": False,
+                    },
+                },
+            },
         )
-        
-        async def list_hosts(search=None, folder=None, limit=None, offset=0, include_status=False):
+
+        async def list_hosts(
+            search=None,
+            folder=None,
+            limit=None,
+            offset=0,
+            include_status=False,
+            effective_attributes=False,
+        ):
             try:
                 result = await self.host_service.list_hosts(
-                    search=search, folder=folder, limit=limit, offset=offset, include_status=include_status
+                    search=search,
+                    folder=folder,
+                    limit=limit,
+                    offset=offset,
+                    include_status=include_status,
+                    effective_attributes=effective_attributes,
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} hosts"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Retrieved {result.data.total_count} hosts",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
-                logger.exception(f"Error listing hosts: search={search}, folder={folder}")
+                logger.exception(
+                    f"Error listing hosts: search={search}, folder={folder}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["list_hosts"] = list_hosts
-        
+
         # Create host tool
         self._tools["create_host"] = Tool(
             name="create_host",
@@ -574,30 +647,54 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "Host name"},
-                    "folder": {"type": "string", "description": "Checkmk folder path", "default": "/"},
+                    "folder": {
+                        "type": "string",
+                        "description": "Checkmk folder path",
+                        "default": "/",
+                    },
                     "ip_address": {"type": "string", "description": "Host IP address"},
-                    "attributes": {"type": "object", "description": "Host attributes dictionary"},
-                    "labels": {"type": "object", "description": "Host labels dictionary"}
+                    "attributes": {
+                        "type": "object",
+                        "description": "Host attributes dictionary",
+                    },
+                    "labels": {
+                        "type": "object",
+                        "description": "Host labels dictionary",
+                    },
                 },
-                "required": ["name"]
-            }
+                "required": ["name"],
+            },
         )
-        
-        async def create_host(name, folder="/", ip_address=None, attributes=None, labels=None):
+
+        async def create_host(
+            name, folder="/", ip_address=None, attributes=None, labels=None
+        ):
             try:
                 result = await self.host_service.create_host(
-                    name=name, folder=folder, ip_address=ip_address, attributes=attributes, labels=labels
+                    name=name,
+                    folder=folder,
+                    ip_address=ip_address,
+                    attributes=attributes,
+                    labels=labels,
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Successfully created host {name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Successfully created host {name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
                 logger.exception(f"Error creating host: {name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["create_host"] = create_host
-        
+
         # Get host tool
         self._tools["get_host"] = Tool(
             name="get_host",
@@ -606,25 +703,46 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "Host name"},
-                    "include_status": {"type": "boolean", "description": "Whether to include status information", "default": True}
+                    "include_status": {
+                        "type": "boolean",
+                        "description": "Whether to include status information",
+                        "default": True,
+                    },
+                    "effective_attributes": {
+                        "type": "boolean",
+                        "description": "Include inherited folder attributes and computed parameters (permissions enforced by Checkmk server)",
+                        "default": False,
+                    },
                 },
-                "required": ["name"]
-            }
+                "required": ["name"],
+            },
         )
-        
-        async def get_host(name, include_status=True):
+
+        async def get_host(name, include_status=True, effective_attributes=False):
             try:
-                result = await self.host_service.get_host(name=name, include_status=include_status)
+                result = await self.host_service.get_host(
+                    name=name,
+                    include_status=include_status,
+                    effective_attributes=effective_attributes,
+                )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved details for host {name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Retrieved details for host {name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
                 logger.exception(f"Error getting host: {name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_host"] = get_host
-        
+
         # Update host tool
         self._tools["update_host"] = Tool(
             name="update_host",
@@ -635,29 +753,50 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     "name": {"type": "string", "description": "Host name"},
                     "folder": {"type": "string", "description": "New folder path"},
                     "ip_address": {"type": "string", "description": "New IP address"},
-                    "attributes": {"type": "object", "description": "Updated attributes"},
+                    "attributes": {
+                        "type": "object",
+                        "description": "Updated attributes",
+                    },
                     "labels": {"type": "object", "description": "Updated labels"},
-                    "etag": {"type": "string", "description": "ETag for optimistic locking"}
+                    "etag": {
+                        "type": "string",
+                        "description": "ETag for optimistic locking",
+                    },
                 },
-                "required": ["name"]
-            }
+                "required": ["name"],
+            },
         )
-        
-        async def update_host(name, folder=None, ip_address=None, attributes=None, labels=None, etag=None):
+
+        async def update_host(
+            name, folder=None, ip_address=None, attributes=None, labels=None, etag=None
+        ):
             try:
                 result = await self.host_service.update_host(
-                    name=name, folder=folder, ip_address=ip_address, attributes=attributes, labels=labels, etag=etag
+                    name=name,
+                    folder=folder,
+                    ip_address=ip_address,
+                    attributes=attributes,
+                    labels=labels,
+                    etag=etag,
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Successfully updated host {name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Successfully updated host {name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
                 logger.exception(f"Error updating host: {name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["update_host"] = update_host
-        
+
         # Delete host tool
         self._tools["delete_host"] = Tool(
             name="delete_host",
@@ -667,23 +806,31 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "properties": {
                     "name": {"type": "string", "description": "Host name to delete"}
                 },
-                "required": ["name"]
-            }
+                "required": ["name"],
+            },
         )
-        
+
         async def delete_host(name):
             try:
                 result = await self.host_service.delete_host(name=name)
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Successfully deleted host {name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Successfully deleted host {name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
                 logger.exception(f"Error deleting host: {name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["delete_host"] = delete_host
-    
+
     def _register_service_tools(self):
         """Register service operation tools - same as basic server."""
         # List host services tool
@@ -694,14 +841,24 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "host_name": {"type": "string", "description": "Name of the host"},
-                    "include_downtimes": {"type": "boolean", "description": "Include downtime information", "default": False},
-                    "include_acknowledged": {"type": "boolean", "description": "Include acknowledgment information", "default": False}
+                    "include_downtimes": {
+                        "type": "boolean",
+                        "description": "Include downtime information",
+                        "default": False,
+                    },
+                    "include_acknowledged": {
+                        "type": "boolean",
+                        "description": "Include acknowledgment information",
+                        "default": False,
+                    },
                 },
-                "required": ["host_name"]
-            }
+                "required": ["host_name"],
+            },
         )
-        
-        async def list_host_services(host_name, include_downtimes=False, include_acknowledged=False):
+
+        async def list_host_services(
+            host_name, include_downtimes=False, include_acknowledged=False
+        ):
             try:
                 # Note: include_downtimes and include_acknowledged are accepted by tool but not used by service
                 # This maintains backward compatibility with tool schema
@@ -709,15 +866,23 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     host_name=host_name
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services for host {host_name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Retrieved {result.data.total_count} services for host {host_name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
                 logger.exception(f"Error listing host services: {host_name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["list_host_services"] = list_host_services
-        
+
         # List all services tool
         self._tools["list_all_services"] = Tool(
             name="list_all_services",
@@ -725,18 +890,34 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "search": {"type": "string", "description": "Search pattern for service names"},
-                    "state_filter": {"type": "array", "items": {"type": "string"}, "description": "Filter by service states (OK, WARNING, CRITICAL, UNKNOWN)"},
-                    "limit": {"type": "integer", "description": "Maximum number of services to return"},
-                    "offset": {"type": "integer", "description": "Starting index for pagination", "default": 0}
-                }
-            }
+                    "search": {
+                        "type": "string",
+                        "description": "Search pattern for service names",
+                    },
+                    "state_filter": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by service states (OK, WARNING, CRITICAL, UNKNOWN)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of services to return",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Starting index for pagination",
+                        "default": 0,
+                    },
+                },
+            },
         )
-        
-        async def list_all_services(search=None, state_filter=None, limit=None, offset=0):
+
+        async def list_all_services(
+            search=None, state_filter=None, limit=None, offset=0
+        ):
             try:
                 from ..services.models.services import ServiceState
-                
+
                 # Convert string states to enum values
                 if state_filter:
                     state_enum_filter = []
@@ -747,22 +928,30 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                             pass
                 else:
                     state_enum_filter = None
-                
+
                 # Note: search and offset are not supported by the service layer
                 # Use host_filter as search pattern if provided
                 result = await self.service_service.list_all_services(
                     host_filter=search, state_filter=state_enum_filter, limit=limit
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Retrieved {result.data.total_count} services"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Retrieved {result.data.total_count} services",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
                 logger.exception(f"Error listing all services: search={search}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["list_all_services"] = list_all_services
-        
+
         # Acknowledge service problem tool
         self._tools["acknowledge_service_problem"] = Tool(
             name="acknowledge_service_problem",
@@ -772,32 +961,73 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
                     "service_name": {"type": "string", "description": "Service name"},
-                    "comment": {"type": "string", "description": "Acknowledgment comment"},
-                    "sticky": {"type": "boolean", "description": "Whether acknowledgment persists after recovery", "default": False},
-                    "notify": {"type": "boolean", "description": "Whether to send notifications", "default": True},
-                    "persistent": {"type": "boolean", "description": "Whether acknowledgment survives restarts", "default": False},
-                    "expire_on": {"type": "string", "description": "Expiration time as ISO timestamp (Checkmk 2.4+)"}
+                    "comment": {
+                        "type": "string",
+                        "description": "Acknowledgment comment",
+                    },
+                    "sticky": {
+                        "type": "boolean",
+                        "description": "Whether acknowledgment persists after recovery",
+                        "default": False,
+                    },
+                    "notify": {
+                        "type": "boolean",
+                        "description": "Whether to send notifications",
+                        "default": True,
+                    },
+                    "persistent": {
+                        "type": "boolean",
+                        "description": "Whether acknowledgment survives restarts",
+                        "default": False,
+                    },
+                    "expire_on": {
+                        "type": "string",
+                        "description": "Expiration time as ISO timestamp (Checkmk 2.4+)",
+                    },
                 },
-                "required": ["host_name", "service_name", "comment"]
-            }
+                "required": ["host_name", "service_name", "comment"],
+            },
         )
-        
-        async def acknowledge_service_problem(host_name, service_name, comment, sticky=False, notify=True, persistent=False, expire_on=None):
+
+        async def acknowledge_service_problem(
+            host_name,
+            service_name,
+            comment,
+            sticky=False,
+            notify=True,
+            persistent=False,
+            expire_on=None,
+        ):
             try:
                 result = await self.service_service.acknowledge_service_problems(
-                    host_name=host_name, service_name=service_name, comment=comment, 
-                    sticky=sticky, notify=notify, persistent=persistent, expire_on=expire_on
+                    host_name=host_name,
+                    service_name=service_name,
+                    comment=comment,
+                    sticky=sticky,
+                    notify=notify,
+                    persistent=persistent,
+                    expire_on=expire_on,
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Acknowledged problem for {service_name} on {host_name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Acknowledged problem for {service_name} on {host_name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
-                logger.exception(f"Error acknowledging service problem: {host_name}/{service_name}")
+                logger.exception(
+                    f"Error acknowledging service problem: {host_name}/{service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["acknowledge_service_problem"] = acknowledge_service_problem
-        
+
         # Create service downtime tool
         self._tools["create_service_downtime"] = Tool(
             name="create_service_downtime",
@@ -807,32 +1037,64 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
                     "service_name": {"type": "string", "description": "Service name"},
-                    "start_time": {"type": "string", "description": "Start time (ISO format or 'now')"},
-                    "end_time": {"type": "string", "description": "End time (ISO format)"},
+                    "start_time": {
+                        "type": "string",
+                        "description": "Start time (ISO format or 'now')",
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "description": "End time (ISO format)",
+                    },
                     "comment": {"type": "string", "description": "Downtime comment"},
-                    "duration_hours": {"type": "number", "description": "Duration in hours (alternative to end_time)"},
-                    "recur": {"type": "string", "description": "Recurrence rule"}
+                    "duration_hours": {
+                        "type": "number",
+                        "description": "Duration in hours (alternative to end_time)",
+                    },
+                    "recur": {"type": "string", "description": "Recurrence rule"},
                 },
-                "required": ["host_name", "service_name", "comment"]
-            }
+                "required": ["host_name", "service_name", "comment"],
+            },
         )
-        
-        async def create_service_downtime(host_name, service_name, comment, start_time=None, end_time=None, duration_hours=None, recur=None):
+
+        async def create_service_downtime(
+            host_name,
+            service_name,
+            comment,
+            start_time=None,
+            end_time=None,
+            duration_hours=None,
+            recur=None,
+        ):
             try:
                 result = await self.service_service.create_service_downtime(
-                    host_name=host_name, service_name=service_name, comment=comment,
-                    start_time=start_time, end_time=end_time, duration_hours=duration_hours, recur=recur
+                    host_name=host_name,
+                    service_name=service_name,
+                    comment=comment,
+                    start_time=start_time,
+                    end_time=end_time,
+                    duration_hours=duration_hours,
+                    recur=recur,
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Created downtime for {service_name} on {host_name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Created downtime for {service_name} on {host_name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error, "warnings": result.warnings}
+                    return {
+                        "success": False,
+                        "error": result.error,
+                        "warnings": result.warnings,
+                    }
             except Exception as e:
-                logger.exception(f"Error creating service downtime: {host_name}/{service_name}")
+                logger.exception(
+                    f"Error creating service downtime: {host_name}/{service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["create_service_downtime"] = create_service_downtime
-    
+
     def _register_status_tools(self):
         """Register status monitoring tools - same as basic server."""
         # Get health dashboard tool
@@ -842,28 +1104,43 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "include_services": {"type": "boolean", "description": "Include service statistics", "default": True},
-                    "include_metrics": {"type": "boolean", "description": "Include performance metrics", "default": True}
-                }
-            }
+                    "include_services": {
+                        "type": "boolean",
+                        "description": "Include service statistics",
+                        "default": True,
+                    },
+                    "include_metrics": {
+                        "type": "boolean",
+                        "description": "Include performance metrics",
+                        "default": True,
+                    },
+                },
+            },
         )
-        
+
         async def get_health_dashboard(**kwargs):
             try:
                 # Note: The service method doesn't accept parameters, ignore any passed
                 result = await self.status_service.get_health_dashboard()
                 if result.success:
                     # Handle both dict and Pydantic model data
-                    data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
+                    data = (
+                        result.data.model_dump()
+                        if hasattr(result.data, "model_dump")
+                        else result.data
+                    )
                     return {"success": True, "data": data}
                 else:
-                    return {"success": False, "error": result.error or "Health dashboard operation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Health dashboard operation failed",
+                    }
             except Exception as e:
                 logger.exception("Error getting health dashboard")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_health_dashboard"] = get_health_dashboard
-        
+
         # Get critical problems tool
         self._tools["get_critical_problems"] = Tool(
             name="get_critical_problems",
@@ -871,31 +1148,53 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "severity_filter": {"type": "array", "items": {"type": "string"}, "description": "Filter by severity levels"},
-                    "category_filter": {"type": "array", "items": {"type": "string"}, "description": "Filter by problem categories"},
-                    "include_acknowledged": {"type": "boolean", "description": "Include acknowledged problems", "default": False}
-                }
-            }
+                    "severity_filter": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by severity levels",
+                    },
+                    "category_filter": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by problem categories",
+                    },
+                    "include_acknowledged": {
+                        "type": "boolean",
+                        "description": "Include acknowledged problems",
+                        "default": False,
+                    },
+                },
+            },
         )
-        
-        async def get_critical_problems(severity_filter=None, category_filter=None, include_acknowledged=False):
+
+        async def get_critical_problems(
+            severity_filter=None, category_filter=None, include_acknowledged=False
+        ):
             try:
                 result = await self.status_service.get_critical_problems(
-                    severity_filter=severity_filter, category_filter=category_filter, 
-                    include_acknowledged=include_acknowledged
+                    severity_filter=severity_filter,
+                    category_filter=category_filter,
+                    include_acknowledged=include_acknowledged,
                 )
                 if result.success:
                     # Handle both dict and Pydantic model data
-                    data = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
+                    data = (
+                        result.data.model_dump()
+                        if hasattr(result.data, "model_dump")
+                        else result.data
+                    )
                     return {"success": True, "data": data}
                 else:
-                    return {"success": False, "error": result.error or "Critical problems operation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Critical problems operation failed",
+                    }
             except Exception as e:
                 logger.exception("Error getting critical problems")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_critical_problems"] = get_critical_problems
-        
+
         # Analyze host health tool
         self._tools["analyze_host_health"] = Tool(
             name="analyze_host_health",
@@ -903,27 +1202,52 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "host_name": {"type": "string", "description": "Name of the host to analyze"},
-                    "include_grade": {"type": "boolean", "description": "Include health grade (A+ through F)", "default": True},
-                    "include_recommendations": {"type": "boolean", "description": "Include maintenance recommendations", "default": True},
-                    "compare_to_peers": {"type": "boolean", "description": "Compare to infrastructure peers", "default": False}
+                    "host_name": {
+                        "type": "string",
+                        "description": "Name of the host to analyze",
+                    },
+                    "include_grade": {
+                        "type": "boolean",
+                        "description": "Include health grade (A+ through F)",
+                        "default": True,
+                    },
+                    "include_recommendations": {
+                        "type": "boolean",
+                        "description": "Include maintenance recommendations",
+                        "default": True,
+                    },
+                    "compare_to_peers": {
+                        "type": "boolean",
+                        "description": "Compare to infrastructure peers",
+                        "default": False,
+                    },
                 },
-                "required": ["host_name"]
-            }
+                "required": ["host_name"],
+            },
         )
-        
-        async def analyze_host_health(host_name, include_grade=True, include_recommendations=True, compare_to_peers=False):
+
+        async def analyze_host_health(
+            host_name,
+            include_grade=True,
+            include_recommendations=True,
+            compare_to_peers=False,
+        ):
             result = await self.status_service.analyze_host_health(
-                host_name=host_name, include_grade=include_grade, 
-                include_recommendations=include_recommendations, compare_to_peers=compare_to_peers
+                host_name=host_name,
+                include_grade=include_grade,
+                include_recommendations=include_recommendations,
+                compare_to_peers=compare_to_peers,
             )
             if result.success:
                 return {"success": True, "data": result.data}
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["analyze_host_health"] = analyze_host_health
-    
+
     def _register_parameter_tools(self):
         """Register parameter management tools - same as basic server."""
         # Get effective parameters tool
@@ -934,12 +1258,12 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
-                    "service_name": {"type": "string", "description": "Service name"}
+                    "service_name": {"type": "string", "description": "Service name"},
                 },
-                "required": ["host_name", "service_name"]
-            }
+                "required": ["host_name", "service_name"],
+            },
         )
-        
+
         async def get_effective_parameters(host_name, service_name):
             try:
                 result = await self.parameter_service.get_effective_parameters(
@@ -948,13 +1272,18 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 if result.success:
                     return {"success": True, "data": result.data.model_dump()}
                 else:
-                    return {"success": False, "error": result.error or "Parameter operation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Parameter operation failed",
+                    }
             except Exception as e:
-                logger.exception(f"Error getting effective parameters: {host_name}/{service_name}")
+                logger.exception(
+                    f"Error getting effective parameters: {host_name}/{service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_effective_parameters"] = get_effective_parameters
-        
+
         # Set service parameters tool
         self._tools["set_service_parameters"] = Tool(
             name="set_service_parameters",
@@ -964,29 +1293,53 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
                     "service_name": {"type": "string", "description": "Service name"},
-                    "parameters": {"type": "object", "description": "Parameter values to set"},
-                    "rule_properties": {"type": "object", "description": "Rule properties like description and folder"}
+                    "parameters": {
+                        "type": "object",
+                        "description": "Parameter values to set",
+                    },
+                    "rule_properties": {
+                        "type": "object",
+                        "description": "Rule properties like description and folder",
+                    },
+                    "context": {
+                        "type": "object",
+                        "description": "Optional context including user intent (e.g., {'include_trending': true})",
+                    },
                 },
-                "required": ["host_name", "service_name", "parameters"]
-            }
+                "required": ["host_name", "service_name", "parameters"],
+            },
         )
-        
-        async def set_service_parameters(host_name, service_name, parameters, rule_properties=None):
+
+        async def set_service_parameters(
+            host_name, service_name, parameters, rule_properties=None, context=None
+        ):
             try:
                 result = await self.parameter_service.set_service_parameters(
-                    host_name=host_name, service_name=service_name, 
-                    parameters=parameters, rule_properties=rule_properties
+                    host_name=host_name,
+                    service_name=service_name,
+                    parameters=parameters,
+                    rule_properties=rule_properties,
+                    context=context,
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump(), "message": f"Updated parameters for {service_name} on {host_name}"}
+                    return {
+                        "success": True,
+                        "data": result.data.model_dump(),
+                        "message": f"Updated parameters for {service_name} on {host_name}",
+                    }
                 else:
-                    return {"success": False, "error": result.error or "Parameter operation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Parameter operation failed",
+                    }
             except Exception as e:
-                logger.exception(f"Error setting service parameters: {host_name}/{service_name}")
+                logger.exception(
+                    f"Error setting service parameters: {host_name}/{service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["set_service_parameters"] = set_service_parameters
-        
+
         # Discover service ruleset tool
         self._tools["discover_service_ruleset"] = Tool(
             name="discover_service_ruleset",
@@ -994,15 +1347,20 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name to analyze"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name to analyze",
+                    }
                 },
-                "required": ["service_name"]
-            }
+                "required": ["service_name"],
+            },
         )
-        
+
         async def discover_service_ruleset(service_name):
             try:
-                result = await self.parameter_service.discover_ruleset_dynamic(service_name)
+                result = await self.parameter_service.discover_ruleset_dynamic(
+                    service_name
+                )
                 if result.success:
                     data = result.data
                     return {
@@ -1010,17 +1368,24 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "service_name": service_name,
                         "recommended_ruleset": data.get("recommended_ruleset"),
                         "confidence": data.get("confidence"),
-                        "discovered_rulesets": data.get("discovered_rulesets", [])[:5],  # Top 5 matches
-                        "message": f"Discovered ruleset for {service_name} with {data.get('confidence', 'unknown')} confidence"
+                        "discovered_rulesets": data.get("discovered_rulesets", [])[
+                            :5
+                        ],  # Top 5 matches
+                        "message": f"Discovered ruleset for {service_name} with {data.get('confidence', 'unknown')} confidence",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Ruleset discovery failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Ruleset discovery failed",
+                    }
             except Exception as e:
-                logger.exception(f"Error discovering ruleset for service: {service_name}")
+                logger.exception(
+                    f"Error discovering ruleset for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["discover_service_ruleset"] = discover_service_ruleset
-        
+
         # Get parameter schema tool
         self._tools["get_parameter_schema"] = Tool(
             name="get_parameter_schema",
@@ -1028,12 +1393,15 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "ruleset_name": {"type": "string", "description": "Name of the ruleset (e.g., 'checkgroup_parameters:temperature')"}
+                    "ruleset_name": {
+                        "type": "string",
+                        "description": "Name of the ruleset (e.g., 'checkgroup_parameters:temperature')",
+                    }
                 },
-                "required": ["ruleset_name"]
-            }
+                "required": ["ruleset_name"],
+            },
         )
-        
+
         async def get_parameter_schema(ruleset_name):
             try:
                 result = await self.parameter_service.get_parameter_schema(ruleset_name)
@@ -1041,16 +1409,19 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     return {
                         "success": True,
                         "schema": result.data,
-                        "message": f"Retrieved schema for ruleset {ruleset_name}"
+                        "message": f"Retrieved schema for ruleset {ruleset_name}",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Failed to retrieve parameter schema"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Failed to retrieve parameter schema",
+                    }
             except Exception as e:
                 logger.exception(f"Error getting parameter schema: {ruleset_name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_parameter_schema"] = get_parameter_schema
-        
+
         # Validate service parameters tool
         self._tools["validate_service_parameters"] = Tool(
             name="validate_service_parameters",
@@ -1058,16 +1429,24 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "ruleset": {"type": "string", "description": "Ruleset name for validation"},
-                    "parameters": {"type": "object", "description": "Parameters to validate"}
+                    "ruleset": {
+                        "type": "string",
+                        "description": "Ruleset name for validation",
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "description": "Parameters to validate",
+                    },
                 },
-                "required": ["ruleset", "parameters"]
-            }
+                "required": ["ruleset", "parameters"],
+            },
         )
-        
+
         async def validate_service_parameters(ruleset, parameters):
             try:
-                result = await self.parameter_service.validate_parameters(ruleset, parameters)
+                result = await self.parameter_service.validate_parameters(
+                    ruleset, parameters
+                )
                 if result.success:
                     validation = result.data
                     return {
@@ -1076,16 +1455,23 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "errors": validation.errors,
                         "warnings": validation.warnings,
                         "normalized_parameters": validation.normalized_parameters,
-                        "message": "Validation complete" if validation.is_valid else f"Validation failed: {', '.join(validation.errors)}"
+                        "message": (
+                            "Validation complete"
+                            if validation.is_valid
+                            else f"Validation failed: {', '.join(validation.errors)}"
+                        ),
                     }
                 else:
-                    return {"success": False, "error": result.error or "Validation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Validation failed",
+                    }
             except Exception as e:
                 logger.exception(f"Error validating parameters for ruleset: {ruleset}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["validate_service_parameters"] = validate_service_parameters
-        
+
         # Update parameter rule tool
         self._tools["update_parameter_rule"] = Tool(
             name="update_parameter_rule",
@@ -1093,39 +1479,64 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "rule_id": {"type": "string", "description": "ID of the rule to update"},
-                    "parameters": {"type": "object", "description": "New parameter values"},
-                    "preserve_conditions": {"type": "boolean", "description": "Whether to preserve existing conditions", "default": True},
-                    "rule_properties": {"type": "object", "description": "Rule properties to update"},
-                    "etag": {"type": "string", "description": "ETag for concurrent update protection"}
+                    "rule_id": {
+                        "type": "string",
+                        "description": "ID of the rule to update",
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "description": "New parameter values",
+                    },
+                    "preserve_conditions": {
+                        "type": "boolean",
+                        "description": "Whether to preserve existing conditions",
+                        "default": True,
+                    },
+                    "rule_properties": {
+                        "type": "object",
+                        "description": "Rule properties to update",
+                    },
+                    "etag": {
+                        "type": "string",
+                        "description": "ETag for concurrent update protection",
+                    },
                 },
-                "required": ["rule_id", "parameters"]
-            }
+                "required": ["rule_id", "parameters"],
+            },
         )
-        
-        async def update_parameter_rule(rule_id, parameters, preserve_conditions=True, rule_properties=None, etag=None):
+
+        async def update_parameter_rule(
+            rule_id,
+            parameters,
+            preserve_conditions=True,
+            rule_properties=None,
+            etag=None,
+        ):
             try:
                 result = await self.parameter_service.update_parameter_rule(
                     rule_id=rule_id,
                     parameters=parameters,
                     preserve_conditions=preserve_conditions,
                     rule_properties=rule_properties,
-                    etag=etag
+                    etag=etag,
                 )
                 if result.success:
                     return {
                         "success": True,
                         "data": result.data,
-                        "message": f"Successfully updated rule {rule_id}"
+                        "message": f"Successfully updated rule {rule_id}",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Rule update failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Rule update failed",
+                    }
             except Exception as e:
                 logger.exception(f"Error updating parameter rule: {rule_id}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["update_parameter_rule"] = update_parameter_rule
-        
+
         # Get service handler info tool
         self._tools["get_service_handler_info"] = Tool(
             name="get_service_handler_info",
@@ -1133,12 +1544,15 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name to analyze"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name to analyze",
+                    }
                 },
-                "required": ["service_name"]
-            }
+                "required": ["service_name"],
+            },
         )
-        
+
         async def get_service_handler_info(service_name):
             try:
                 result = await self.parameter_service.get_handler_info(service_name)
@@ -1146,16 +1560,21 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     return {
                         "success": True,
                         "data": result.data,
-                        "message": f"Found {result.data.get('handler_count', 0)} handlers for {service_name}"
+                        "message": f"Found {result.data.get('handler_count', 0)} handlers for {service_name}",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Failed to get handler info"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Failed to get handler info",
+                    }
             except Exception as e:
-                logger.exception(f"Error getting handler info for service: {service_name}")
+                logger.exception(
+                    f"Error getting handler info for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_service_handler_info"] = get_service_handler_info
-        
+
         # Get specialized defaults tool
         self._tools["get_specialized_defaults"] = Tool(
             name="get_specialized_defaults",
@@ -1163,30 +1582,46 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name to get defaults for"},
-                    "context": {"type": "object", "description": "Optional context for specialized defaults"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name to get defaults for",
+                    },
+                    "context": {
+                        "type": "object",
+                        "description": "Optional context for specialized defaults",
+                    },
                 },
-                "required": ["service_name"]
-            }
+                "required": ["service_name"],
+            },
         )
-        
+
         async def get_specialized_defaults(service_name, context=None):
             try:
-                result = await self.parameter_service.get_specialized_defaults(service_name, context)
+                result = await self.parameter_service.get_specialized_defaults(
+                    service_name, context
+                )
                 if result.success:
                     return {
                         "success": True,
                         "data": result.data,
-                        "message": result.data.get('message', f"Generated specialized defaults for {service_name}")
+                        "message": result.data.get(
+                            "message",
+                            f"Generated specialized defaults for {service_name}",
+                        ),
                     }
                 else:
-                    return {"success": False, "error": result.error or "Failed to get specialized defaults"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Failed to get specialized defaults",
+                    }
             except Exception as e:
-                logger.exception(f"Error getting specialized defaults for service: {service_name}")
+                logger.exception(
+                    f"Error getting specialized defaults for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_specialized_defaults"] = get_specialized_defaults
-        
+
         # Validate with handler tool
         self._tools["validate_with_handler"] = Tool(
             name="validate_with_handler",
@@ -1194,39 +1629,55 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name for handler selection"},
-                    "parameters": {"type": "object", "description": "Parameters to validate"},
-                    "context": {"type": "object", "description": "Optional context for specialized validation"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name for handler selection",
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "description": "Parameters to validate",
+                    },
+                    "context": {
+                        "type": "object",
+                        "description": "Optional context for specialized validation",
+                    },
                 },
-                "required": ["service_name", "parameters"]
-            }
+                "required": ["service_name", "parameters"],
+            },
         )
-        
+
         async def validate_with_handler(service_name, parameters, context=None):
             try:
-                result = await self.parameter_service.validate_with_handler(service_name, parameters, context)
+                result = await self.parameter_service.validate_with_handler(
+                    service_name, parameters, context
+                )
                 if result.success:
                     data = result.data
                     return {
                         "success": True,
                         "service_name": service_name,
-                        "handler_used": data.get('handler_used'),
-                        "is_valid": data.get('is_valid', False),
-                        "errors": data.get('errors', []),
-                        "warnings": data.get('warnings', []),
-                        "info_messages": data.get('info_messages', []),
-                        "suggestions": data.get('suggestions', []),
-                        "normalized_parameters": data.get('normalized_parameters'),
-                        "message": f"Validation complete using {data.get('handler_used', 'no')} handler"
+                        "handler_used": data.get("handler_used"),
+                        "is_valid": data.get("is_valid", False),
+                        "errors": data.get("errors", []),
+                        "warnings": data.get("warnings", []),
+                        "info_messages": data.get("info_messages", []),
+                        "suggestions": data.get("suggestions", []),
+                        "normalized_parameters": data.get("normalized_parameters"),
+                        "message": f"Validation complete using {data.get('handler_used', 'no')} handler",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Handler validation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Handler validation failed",
+                    }
             except Exception as e:
-                logger.exception(f"Error validating with handler for service: {service_name}")
+                logger.exception(
+                    f"Error validating with handler for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["validate_with_handler"] = validate_with_handler
-        
+
         # Get parameter suggestions tool
         self._tools["get_parameter_suggestions"] = Tool(
             name="get_parameter_suggestions",
@@ -1234,46 +1685,60 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name to get suggestions for"},
-                    "current_parameters": {"type": "object", "description": "Current parameter values"},
-                    "context": {"type": "object", "description": "Optional context for suggestions"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name to get suggestions for",
+                    },
+                    "current_parameters": {
+                        "type": "object",
+                        "description": "Current parameter values",
+                    },
+                    "context": {
+                        "type": "object",
+                        "description": "Optional context for suggestions",
+                    },
                 },
-                "required": ["service_name"]
-            }
+                "required": ["service_name"],
+            },
         )
-        
-        async def get_parameter_suggestions(service_name, current_parameters=None, context=None):
+
+        async def get_parameter_suggestions(
+            service_name, current_parameters=None, context=None
+        ):
             try:
-                result = await self.parameter_service.get_parameter_suggestions(service_name, current_parameters, context)
+                result = await self.parameter_service.get_parameter_suggestions(
+                    service_name, current_parameters, context
+                )
                 if result.success:
                     return {
                         "success": True,
                         "data": {
                             "service_name": service_name,
                             "suggestions": result.data,
-                            "suggestion_count": len(result.data)
+                            "suggestion_count": len(result.data),
                         },
-                        "message": f"Generated {len(result.data)} suggestions for {service_name}"
+                        "message": f"Generated {len(result.data)} suggestions for {service_name}",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Failed to get parameter suggestions"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Failed to get parameter suggestions",
+                    }
             except Exception as e:
-                logger.exception(f"Error getting parameter suggestions for service: {service_name}")
+                logger.exception(
+                    f"Error getting parameter suggestions for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_parameter_suggestions"] = get_parameter_suggestions
-        
+
         # List available handlers tool
         self._tools["list_parameter_handlers"] = Tool(
             name="list_parameter_handlers",
             description="List all available specialized parameter handlers",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
+            inputSchema={"type": "object", "properties": {}, "required": []},
         )
-        
+
         async def list_parameter_handlers():
             try:
                 result = await self.parameter_service.list_available_handlers()
@@ -1281,16 +1746,19 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     return {
                         "success": True,
                         "data": result.data,
-                        "message": f"Found {result.data.get('total_handlers', 0)} available handlers"
+                        "message": f"Found {result.data.get('total_handlers', 0)} available handlers",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Failed to list handlers"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Failed to list handlers",
+                    }
             except Exception as e:
                 logger.exception("Error listing parameter handlers")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["list_parameter_handlers"] = list_parameter_handlers
-        
+
         # List parameter rules with advanced filtering tool
         self._tools["list_parameter_rules"] = Tool(
             name="list_parameter_rules",
@@ -1298,47 +1766,80 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "host_patterns": {"type": "array", "items": {"type": "string"}, "description": "Host patterns to filter by"},
-                    "service_patterns": {"type": "array", "items": {"type": "string"}, "description": "Service patterns to filter by"},
-                    "parameter_filters": {"type": "object", "description": "Parameter value filters"},
-                    "rule_properties": {"type": "object", "description": "Rule property filters"},
-                    "rulesets": {"type": "array", "items": {"type": "string"}, "description": "Specific rulesets to search"},
-                    "enabled_only": {"type": "boolean", "description": "Only return enabled rules", "default": True}
+                    "host_patterns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Host patterns to filter by",
+                    },
+                    "service_patterns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Service patterns to filter by",
+                    },
+                    "parameter_filters": {
+                        "type": "object",
+                        "description": "Parameter value filters",
+                    },
+                    "rule_properties": {
+                        "type": "object",
+                        "description": "Rule property filters",
+                    },
+                    "rulesets": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific rulesets to search",
+                    },
+                    "enabled_only": {
+                        "type": "boolean",
+                        "description": "Only return enabled rules",
+                        "default": True,
+                    },
                 },
-                "required": []
-            }
+                "required": [],
+            },
         )
-        
-        async def list_parameter_rules(host_patterns=None, service_patterns=None, parameter_filters=None, 
-                                     rule_properties=None, rulesets=None, enabled_only=True):
+
+        async def list_parameter_rules(
+            host_patterns=None,
+            service_patterns=None,
+            parameter_filters=None,
+            rule_properties=None,
+            rulesets=None,
+            enabled_only=True,
+        ):
             try:
                 from ..services.parameter_service import RuleSearchFilter
-                
+
                 search_filter = RuleSearchFilter(
                     host_patterns=host_patterns,
                     service_patterns=service_patterns,
                     parameter_filters=parameter_filters,
                     rule_properties=rule_properties,
                     rulesets=rulesets,
-                    enabled_only=enabled_only
+                    enabled_only=enabled_only,
                 )
-                
-                result = await self.parameter_service.find_parameter_rules(search_filter)
+
+                result = await self.parameter_service.find_parameter_rules(
+                    search_filter
+                )
                 if result.success:
                     return {
                         "success": True,
                         "rules": result.data,
                         "count": len(result.data),
-                        "message": f"Found {len(result.data)} matching parameter rules"
+                        "message": f"Found {len(result.data)} matching parameter rules",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Rule search failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Rule search failed",
+                    }
             except Exception as e:
                 logger.exception("Error searching parameter rules")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["list_parameter_rules"] = list_parameter_rules
-        
+
         # Bulk set parameters tool
         self._tools["bulk_set_parameters"] = Tool(
             name="bulk_set_parameters",
@@ -1351,28 +1852,50 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "items": {
                             "type": "object",
                             "properties": {
-                                "host_name": {"type": "string", "description": "Host name"},
-                                "service_name": {"type": "string", "description": "Service name"},
-                                "parameters": {"type": "object", "description": "Parameter values"},
-                                "rule_properties": {"type": "object", "description": "Rule properties"}
+                                "host_name": {
+                                    "type": "string",
+                                    "description": "Host name",
+                                },
+                                "service_name": {
+                                    "type": "string",
+                                    "description": "Service name",
+                                },
+                                "parameters": {
+                                    "type": "object",
+                                    "description": "Parameter values",
+                                },
+                                "rule_properties": {
+                                    "type": "object",
+                                    "description": "Rule properties",
+                                },
                             },
-                            "required": ["host_name", "service_name", "parameters"]
+                            "required": ["host_name", "service_name", "parameters"],
                         },
-                        "description": "List of parameter operations to perform"
+                        "description": "List of parameter operations to perform",
                     },
-                    "validate_all": {"type": "boolean", "description": "Validate all operations before executing", "default": True},
-                    "stop_on_error": {"type": "boolean", "description": "Stop on first error", "default": False}
+                    "validate_all": {
+                        "type": "boolean",
+                        "description": "Validate all operations before executing",
+                        "default": True,
+                    },
+                    "stop_on_error": {
+                        "type": "boolean",
+                        "description": "Stop on first error",
+                        "default": False,
+                    },
                 },
-                "required": ["operations"]
-            }
+                "required": ["operations"],
+            },
         )
-        
-        async def bulk_set_parameters(operations, validate_all=True, stop_on_error=False):
+
+        async def bulk_set_parameters(
+            operations, validate_all=True, stop_on_error=False
+        ):
             try:
                 result = await self.parameter_service.set_bulk_parameters(
                     operations=operations,
                     validate_all=validate_all,
-                    stop_on_error=stop_on_error
+                    stop_on_error=stop_on_error,
                 )
                 if result.success:
                     bulk_result = result.data
@@ -1383,16 +1906,19 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "failed_operations": bulk_result.failed_operations,
                         "results": bulk_result.results,
                         "errors": bulk_result.errors,
-                        "message": f"Bulk operation completed: {bulk_result.successful_operations}/{bulk_result.total_operations} successful"
+                        "message": f"Bulk operation completed: {bulk_result.successful_operations}/{bulk_result.total_operations} successful",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Bulk operation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Bulk operation failed",
+                    }
             except Exception as e:
                 logger.exception("Error in bulk parameter operation")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["bulk_set_parameters"] = bulk_set_parameters
-        
+
         # Search parameter rules tool (alias for list_parameter_rules with search-focused interface)
         self._tools["search_parameter_rules"] = Tool(
             name="search_parameter_rules",
@@ -1400,55 +1926,86 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "search_term": {"type": "string", "description": "General search term for hosts, services, or parameters"},
-                    "ruleset": {"type": "string", "description": "Specific ruleset to search within"},
-                    "host_pattern": {"type": "string", "description": "Host pattern to match"},
-                    "service_pattern": {"type": "string", "description": "Service pattern to match"},
-                    "parameter_key": {"type": "string", "description": "Parameter key to filter by"},
-                    "parameter_value": {"type": "string", "description": "Parameter value to match"},
-                    "enabled_only": {"type": "boolean", "description": "Only return enabled rules", "default": True}
+                    "search_term": {
+                        "type": "string",
+                        "description": "General search term for hosts, services, or parameters",
+                    },
+                    "ruleset": {
+                        "type": "string",
+                        "description": "Specific ruleset to search within",
+                    },
+                    "host_pattern": {
+                        "type": "string",
+                        "description": "Host pattern to match",
+                    },
+                    "service_pattern": {
+                        "type": "string",
+                        "description": "Service pattern to match",
+                    },
+                    "parameter_key": {
+                        "type": "string",
+                        "description": "Parameter key to filter by",
+                    },
+                    "parameter_value": {
+                        "type": "string",
+                        "description": "Parameter value to match",
+                    },
+                    "enabled_only": {
+                        "type": "boolean",
+                        "description": "Only return enabled rules",
+                        "default": True,
+                    },
                 },
-                "required": []
-            }
+                "required": [],
+            },
         )
-        
-        async def search_parameter_rules(search_term=None, ruleset=None, host_pattern=None, 
-                                       service_pattern=None, parameter_key=None, parameter_value=None, enabled_only=True):
+
+        async def search_parameter_rules(
+            search_term=None,
+            ruleset=None,
+            host_pattern=None,
+            service_pattern=None,
+            parameter_key=None,
+            parameter_value=None,
+            enabled_only=True,
+        ):
             try:
                 from ..services.parameter_service import RuleSearchFilter
-                
+
                 # Build search filter from search criteria
                 host_patterns = []
                 service_patterns = []
                 parameter_filters = {}
                 rulesets = []
-                
+
                 if search_term:
                     # Apply search term to multiple fields
                     host_patterns.append(f"*{search_term}*")
                     service_patterns.append(f"*{search_term}*")
-                
+
                 if host_pattern:
                     host_patterns.append(host_pattern)
-                
+
                 if service_pattern:
                     service_patterns.append(service_pattern)
-                    
+
                 if parameter_key and parameter_value:
                     parameter_filters[parameter_key] = parameter_value
-                    
+
                 if ruleset:
                     rulesets.append(ruleset)
-                
+
                 search_filter = RuleSearchFilter(
                     host_patterns=host_patterns if host_patterns else None,
                     service_patterns=service_patterns if service_patterns else None,
                     parameter_filters=parameter_filters if parameter_filters else None,
                     rulesets=rulesets if rulesets else None,
-                    enabled_only=enabled_only
+                    enabled_only=enabled_only,
                 )
-                
-                result = await self.parameter_service.find_parameter_rules(search_filter)
+
+                result = await self.parameter_service.find_parameter_rules(
+                    search_filter
+                )
                 if result.success:
                     return {
                         "success": True,
@@ -1460,18 +2017,21 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                             "host_pattern": host_pattern,
                             "service_pattern": service_pattern,
                             "parameter_key": parameter_key,
-                            "parameter_value": parameter_value
+                            "parameter_value": parameter_value,
                         },
-                        "message": f"Found {len(result.data)} rules matching search criteria"
+                        "message": f"Found {len(result.data)} rules matching search criteria",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Rule search failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Rule search failed",
+                    }
             except Exception as e:
                 logger.exception("Error searching parameter rules")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["search_parameter_rules"] = search_parameter_rules
-        
+
         # Validate specialized parameters tool (alias for validate_with_handler)
         self._tools["validate_specialized_parameters"] = Tool(
             name="validate_specialized_parameters",
@@ -1479,41 +2039,61 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name for handler selection"},
-                    "parameters": {"type": "object", "description": "Parameters to validate"},
-                    "context": {"type": "object", "description": "Optional context for specialized validation"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name for handler selection",
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "description": "Parameters to validate",
+                    },
+                    "context": {
+                        "type": "object",
+                        "description": "Optional context for specialized validation",
+                    },
                 },
-                "required": ["service_name", "parameters"]
-            }
+                "required": ["service_name", "parameters"],
+            },
         )
-        
-        async def validate_specialized_parameters(service_name, parameters, context=None):
+
+        async def validate_specialized_parameters(
+            service_name, parameters, context=None
+        ):
             try:
-                result = await self.parameter_service.validate_with_handler(service_name, parameters, context)
+                result = await self.parameter_service.validate_with_handler(
+                    service_name, parameters, context
+                )
                 if result.success:
                     data = result.data
                     return {
                         "success": True,
                         "data": {
                             "service_name": service_name,
-                            "handler_used": data.get('handler_used'),
-                            "is_valid": data.get('is_valid', False),
-                            "errors": data.get('errors', []),
-                            "warnings": data.get('warnings', []),
-                            "info_messages": data.get('info_messages', []),
-                            "suggestions": data.get('suggestions', []),
-                            "normalized_parameters": data.get('normalized_parameters')
+                            "handler_used": data.get("handler_used"),
+                            "is_valid": data.get("is_valid", False),
+                            "errors": data.get("errors", []),
+                            "warnings": data.get("warnings", []),
+                            "info_messages": data.get("info_messages", []),
+                            "suggestions": data.get("suggestions", []),
+                            "normalized_parameters": data.get("normalized_parameters"),
                         },
-                        "message": f"Validation complete using {data.get('handler_used', 'no')} handler"
+                        "message": f"Validation complete using {data.get('handler_used', 'no')} handler",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Handler validation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Handler validation failed",
+                    }
             except Exception as e:
-                logger.exception(f"Error validating specialized parameters for service: {service_name}")
+                logger.exception(
+                    f"Error validating specialized parameters for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
-        self._tool_handlers["validate_specialized_parameters"] = validate_specialized_parameters
-        
+
+        self._tool_handlers["validate_specialized_parameters"] = (
+            validate_specialized_parameters
+        )
+
         # Create specialized rule tool
         self._tools["create_specialized_rule"] = Tool(
             name="create_specialized_rule",
@@ -1521,13 +2101,19 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name for handler selection"},
-                    "rule_data": {"type": "object", "description": "Rule data including parameters and conditions"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name for handler selection",
+                    },
+                    "rule_data": {
+                        "type": "object",
+                        "description": "Rule data including parameters and conditions",
+                    },
                 },
-                "required": ["service_name", "rule_data"]
-            }
+                "required": ["service_name", "rule_data"],
+            },
         )
-        
+
         async def create_specialized_rule(service_name, rule_data):
             try:
                 # Extract rule components
@@ -1536,105 +2122,153 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 folder = rule_data.get("folder", "/")
                 conditions = rule_data.get("conditions", {})
                 properties = rule_data.get("properties", {})
-                
+
                 # Use parameter service to create rule with specialized handling
                 # For testing, provide a default host_name if not specified
                 host_name = ""
                 if conditions and conditions.get("host_name"):
-                    host_name = conditions["host_name"][0] if isinstance(conditions["host_name"], list) else conditions["host_name"]
+                    host_name = (
+                        conditions["host_name"][0]
+                        if isinstance(conditions["host_name"], list)
+                        else conditions["host_name"]
+                    )
                 elif not host_name:
                     # For testing purposes, use a default host name
                     host_name = "test_host"
-                
+
                 result = await self.parameter_service.set_service_parameters(
                     host_name=host_name,
                     service_name=service_name,
                     parameters=parameters,
-                    rule_properties=properties
+                    rule_properties=properties,
                 )
-                
+
                 if result.success:
                     # Get handler info for the response
-                    handler_info_result = await self.parameter_service.get_handler_info(service_name)
+                    handler_info_result = await self.parameter_service.get_handler_info(
+                        service_name
+                    )
                     handler_used = "unknown"
                     if handler_info_result.success:
                         # Handle both dict and Pydantic model responses
-                        info_data = handler_info_result.data.model_dump() if hasattr(handler_info_result.data, 'model_dump') else handler_info_result.data
-                        handlers = info_data.get("handlers", []) if isinstance(info_data, dict) else getattr(info_data, "handlers", [])
+                        info_data = (
+                            handler_info_result.data.model_dump()
+                            if hasattr(handler_info_result.data, "model_dump")
+                            else handler_info_result.data
+                        )
+                        handlers = (
+                            info_data.get("handlers", [])
+                            if isinstance(info_data, dict)
+                            else getattr(info_data, "handlers", [])
+                        )
                         if handlers:
-                            handler_used = handlers[0].get("name", "unknown") if isinstance(handlers[0], dict) else getattr(handlers[0], "name", "unknown")
-                    
+                            handler_used = (
+                                handlers[0].get("name", "unknown")
+                                if isinstance(handlers[0], dict)
+                                else getattr(handlers[0], "name", "unknown")
+                            )
+
                     # Handle both dict and Pydantic model responses
-                    data_dict = result.data.model_dump() if hasattr(result.data, 'model_dump') else result.data
-                    rule_id = data_dict.get("rule_id", "created") if isinstance(data_dict, dict) else getattr(data_dict, "rule_id", "created")
-                    
+                    data_dict = (
+                        result.data.model_dump()
+                        if hasattr(result.data, "model_dump")
+                        else result.data
+                    )
+                    rule_id = (
+                        data_dict.get("rule_id", "created")
+                        if isinstance(data_dict, dict)
+                        else getattr(data_dict, "rule_id", "created")
+                    )
+
                     return {
                         "success": True,
                         "data": {
                             "rule_id": rule_id,
                             "handler_used": handler_used,
                             "ruleset": ruleset,
-                            "folder": folder
+                            "folder": folder,
                         },
-                        "message": f"Created specialized rule for {service_name}"
+                        "message": f"Created specialized rule for {service_name}",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Rule creation failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Rule creation failed",
+                    }
             except Exception as e:
-                logger.exception(f"Error creating specialized rule for service: {service_name}")
+                logger.exception(
+                    f"Error creating specialized rule for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["create_specialized_rule"] = create_specialized_rule
-        
+
         # Discover parameter handlers tool
         self._tools["discover_parameter_handlers"] = Tool(
             name="discover_parameter_handlers",
             description="Discover available parameter handlers for a service or ruleset",
             inputSchema={
-                "type": "object", 
+                "type": "object",
                 "properties": {
-                    "service_name": {"type": "string", "description": "Service name to analyze"},
-                    "ruleset": {"type": "string", "description": "Optional ruleset name"}
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name to analyze",
+                    },
+                    "ruleset": {
+                        "type": "string",
+                        "description": "Optional ruleset name",
+                    },
                 },
-                "required": ["service_name"]
-            }
+                "required": ["service_name"],
+            },
         )
-        
+
         async def discover_parameter_handlers(service_name, ruleset=None):
             try:
                 result = await self.parameter_service.get_handler_info(service_name)
                 if result.success:
                     handlers_data = result.data.get("handlers", [])
-                    
+
                     # Format handlers for discovery response
                     handlers = []
                     for handler_info in handlers_data:
-                        handlers.append({
-                            "name": handler_info.get("name", "unknown"),
-                            "matches": handler_info.get("matches", False),
-                            "priority": handler_info.get("priority", 0),
-                            "description": handler_info.get("description", ""),
-                            "capabilities": handler_info.get("capabilities", []),
-                            "service_patterns": handler_info.get("service_patterns", [])
-                        })
-                    
+                        handlers.append(
+                            {
+                                "name": handler_info.get("name", "unknown"),
+                                "matches": handler_info.get("matches", False),
+                                "priority": handler_info.get("priority", 0),
+                                "description": handler_info.get("description", ""),
+                                "capabilities": handler_info.get("capabilities", []),
+                                "service_patterns": handler_info.get(
+                                    "service_patterns", []
+                                ),
+                            }
+                        )
+
                     return {
                         "success": True,
                         "data": {
                             "service_name": service_name,
                             "handlers": handlers,
-                            "primary_handler": handlers[0]["name"] if handlers else None
+                            "primary_handler": (
+                                handlers[0]["name"] if handlers else None
+                            ),
                         },
-                        "message": f"Discovered {len(handlers)} handlers for {service_name}"
+                        "message": f"Discovered {len(handlers)} handlers for {service_name}",
                     }
                 else:
-                    return {"success": False, "error": result.error or "Handler discovery failed"}
+                    return {
+                        "success": False,
+                        "error": result.error or "Handler discovery failed",
+                    }
             except Exception as e:
-                logger.exception(f"Error discovering handlers for service: {service_name}")
+                logger.exception(
+                    f"Error discovering handlers for service: {service_name}"
+                )
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["discover_parameter_handlers"] = discover_parameter_handlers
-        
+
         # Bulk parameter operations tool
         self._tools["bulk_parameter_operations"] = Tool(
             name="bulk_parameter_operations",
@@ -1642,114 +2276,159 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "service_names": {"type": "array", "items": {"type": "string"}, "description": "List of service names"},
-                    "operation": {"type": "string", "enum": ["get_defaults", "validate", "get_suggestions"], "description": "Operation to perform"},
-                    "operations": {"type": "array", "items": {"type": "object"}, "description": "List of specific operations with parameters"}
-                }
-            }
+                    "service_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of service names",
+                    },
+                    "operation": {
+                        "type": "string",
+                        "enum": ["get_defaults", "validate", "get_suggestions"],
+                        "description": "Operation to perform",
+                    },
+                    "operations": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "List of specific operations with parameters",
+                    },
+                },
+            },
         )
-        
-        async def bulk_parameter_operations(service_names=None, operation=None, operations=None):
+
+        async def bulk_parameter_operations(
+            service_names=None, operation=None, operations=None
+        ):
             try:
                 results = []
-                
+
                 if service_names and operation:
                     # Simple bulk operation on service names
                     for service_name in service_names:
                         try:
                             if operation == "get_defaults":
-                                result = await self.parameter_service.get_specialized_defaults(service_name)
+                                result = await self.parameter_service.get_specialized_defaults(
+                                    service_name
+                                )
                                 if result.success:
-                                    results.append({
-                                        "service_name": service_name,
-                                        "success": True,
-                                        "data": result.data
-                                    })
+                                    results.append(
+                                        {
+                                            "service_name": service_name,
+                                            "success": True,
+                                            "data": result.data,
+                                        }
+                                    )
                                 else:
-                                    results.append({
-                                        "service_name": service_name,
-                                        "success": False,
-                                        "error": result.error
-                                    })
+                                    results.append(
+                                        {
+                                            "service_name": service_name,
+                                            "success": False,
+                                            "error": result.error,
+                                        }
+                                    )
                             elif operation == "get_suggestions":
-                                result = await self.parameter_service.get_parameter_suggestions(service_name)
+                                result = await self.parameter_service.get_parameter_suggestions(
+                                    service_name
+                                )
                                 if result.success:
-                                    results.append({
-                                        "service_name": service_name,
-                                        "success": True,
-                                        "data": {"suggestions": result.data}
-                                    })
+                                    results.append(
+                                        {
+                                            "service_name": service_name,
+                                            "success": True,
+                                            "data": {"suggestions": result.data},
+                                        }
+                                    )
                                 else:
-                                    results.append({
-                                        "service_name": service_name,
-                                        "success": False,
-                                        "error": result.error
-                                    })
+                                    results.append(
+                                        {
+                                            "service_name": service_name,
+                                            "success": False,
+                                            "error": result.error,
+                                        }
+                                    )
                         except Exception as e:
-                            results.append({
-                                "service_name": service_name,
-                                "success": False,
-                                "error": str(e)
-                            })
-                
+                            results.append(
+                                {
+                                    "service_name": service_name,
+                                    "success": False,
+                                    "error": str(e),
+                                }
+                            )
+
                 elif operations:
                     # Complex operations with individual parameters
                     for op in operations:
                         service_name = op.get("service_name")
                         op_type = op.get("operation", "validate")
                         parameters = op.get("parameters", {})
-                        
+
                         try:
                             if op_type == "validate":
-                                result = await self.parameter_service.validate_with_handler(service_name, parameters)
+                                result = (
+                                    await self.parameter_service.validate_with_handler(
+                                        service_name, parameters
+                                    )
+                                )
                                 if result.success:
-                                    results.append({
-                                        "service_name": service_name,
-                                        "success": True,
-                                        "data": result.data
-                                    })
+                                    results.append(
+                                        {
+                                            "service_name": service_name,
+                                            "success": True,
+                                            "data": result.data,
+                                        }
+                                    )
                                 else:
-                                    results.append({
-                                        "service_name": service_name,
-                                        "success": False,
-                                        "error": result.error
-                                    })
+                                    results.append(
+                                        {
+                                            "service_name": service_name,
+                                            "success": False,
+                                            "error": result.error,
+                                        }
+                                    )
                         except Exception as e:
-                            results.append({
-                                "service_name": service_name,
-                                "success": False,
-                                "error": str(e)
-                            })
-                
+                            results.append(
+                                {
+                                    "service_name": service_name,
+                                    "success": False,
+                                    "error": str(e),
+                                }
+                            )
+
                 return {
                     "success": True,
                     "data": {
                         "results": results,
                         "total_operations": len(results),
-                        "successful_operations": len([r for r in results if r["success"]]),
-                        "failed_operations": len([r for r in results if not r["success"]])
+                        "successful_operations": len(
+                            [r for r in results if r["success"]]
+                        ),
+                        "failed_operations": len(
+                            [r for r in results if not r["success"]]
+                        ),
                     },
-                    "message": f"Completed {len(results)} bulk operations"
+                    "message": f"Completed {len(results)} bulk operations",
                 }
-                
+
             except Exception as e:
                 logger.exception("Error in bulk parameter operations")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["bulk_parameter_operations"] = bulk_parameter_operations
-        
+
         # Get handler info tool
         self._tools["get_handler_info"] = Tool(
             name="get_handler_info",
-            description="Get information about parameter handlers", 
+            description="Get information about parameter handlers",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "handler_name": {"type": "string", "description": "Specific handler name to get info for"}
-                }
-            }
+                    "handler_name": {
+                        "type": "string",
+                        "description": "Specific handler name to get info for",
+                    }
+                },
+            },
         )
-        
+
         async def get_handler_info(handler_name=None):
             try:
                 if handler_name:
@@ -1757,17 +2436,25 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     result = await self.parameter_service.list_available_handlers()
                     if result.success:
                         handlers = result.data.get("handlers", [])
-                        handler_info = next((h for h in handlers if h.get("name") == handler_name), None)
+                        handler_info = next(
+                            (h for h in handlers if h.get("name") == handler_name), None
+                        )
                         if handler_info:
                             return {
                                 "success": True,
                                 "data": {"handler_info": handler_info},
-                                "message": f"Found handler info for {handler_name}"
+                                "message": f"Found handler info for {handler_name}",
                             }
                         else:
-                            return {"success": False, "error": f"Handler {handler_name} not found"}
+                            return {
+                                "success": False,
+                                "error": f"Handler {handler_name} not found",
+                            }
                     else:
-                        return {"success": False, "error": result.error or "Failed to get handler info"}
+                        return {
+                            "success": False,
+                            "error": result.error or "Failed to get handler info",
+                        }
                 else:
                     # Get all handlers
                     result = await self.parameter_service.list_available_handlers()
@@ -1775,16 +2462,19 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         return {
                             "success": True,
                             "data": {"handlers": result.data.get("handlers", [])},
-                            "message": f"Found {result.data.get('total_handlers', 0)} handlers"
+                            "message": f"Found {result.data.get('total_handlers', 0)} handlers",
                         }
                     else:
-                        return {"success": False, "error": result.error or "Failed to list handlers"}
+                        return {
+                            "success": False,
+                            "error": result.error or "Failed to list handlers",
+                        }
             except Exception as e:
                 logger.exception(f"Error getting handler info: {handler_name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["get_handler_info"] = get_handler_info
-        
+
         # Search services by handler tool
         self._tools["search_services_by_handler"] = Tool(
             name="search_services_by_handler",
@@ -1792,62 +2482,79 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "handler_name": {"type": "string", "description": "Handler name to search for"},
-                    "service_pattern": {"type": "string", "description": "Optional service pattern filter"}
+                    "handler_name": {
+                        "type": "string",
+                        "description": "Handler name to search for",
+                    },
+                    "service_pattern": {
+                        "type": "string",
+                        "description": "Optional service pattern filter",
+                    },
                 },
-                "required": ["handler_name"]
-            }
+                "required": ["handler_name"],
+            },
         )
-        
+
         async def search_services_by_handler(handler_name, service_pattern=None):
             try:
                 # Get all services first
                 all_services_result = await self.service_service.list_all_services()
                 if not all_services_result.success:
                     return {"success": False, "error": "Failed to list services"}
-                
+
                 matching_services = []
-                
+
                 # Check each service against the handler
                 for service in all_services_result.data.services:
                     service_name = service.description
-                    
+
                     # Apply pattern filter if provided
                     if service_pattern:
                         import fnmatch
+
                         if not fnmatch.fnmatch(service_name, service_pattern):
                             continue
-                    
+
                     # Check if handler matches this service
-                    handler_result = await self.parameter_service.get_handler_info(service_name)
+                    handler_result = await self.parameter_service.get_handler_info(
+                        service_name
+                    )
                     if handler_result.success:
                         handlers = handler_result.data.get("handlers", [])
                         for handler in handlers:
-                            if handler.get("name") == handler_name and handler.get("matches"):
-                                matching_services.append({
-                                    "service_name": service_name,
-                                    "host_name": service.host,
-                                    "state": service.state.value if hasattr(service.state, 'value') else str(service.state),
-                                    "handler_priority": handler.get("priority", 0)
-                                })
+                            if handler.get("name") == handler_name and handler.get(
+                                "matches"
+                            ):
+                                matching_services.append(
+                                    {
+                                        "service_name": service_name,
+                                        "host_name": service.host,
+                                        "state": (
+                                            service.state.value
+                                            if hasattr(service.state, "value")
+                                            else str(service.state)
+                                        ),
+                                        "handler_priority": handler.get("priority", 0),
+                                    }
+                                )
                                 break
-                
+
                 return {
                     "success": True,
                     "data": {
                         "services": matching_services,
                         "handler_name": handler_name,
-                        "service_pattern": service_pattern
+                        "service_pattern": service_pattern,
                     },
-                    "message": f"Found {len(matching_services)} services matching handler {handler_name}"
+                    "message": f"Found {len(matching_services)} services matching handler {handler_name}",
                 }
-                
+
             except Exception as e:
                 logger.exception(f"Error searching services by handler: {handler_name}")
                 return {"success": False, "error": sanitize_error(e)}
-        
+
         self._tool_handlers["search_services_by_handler"] = search_services_by_handler
-        
+
         # Export parameter configuration tool
         self._tools["export_parameter_configuration"] = Tool(
             name="export_parameter_configuration",
@@ -1855,13 +2562,22 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "services": {"type": "array", "items": {"type": "string"}, "description": "List of service names"},
-                    "format": {"type": "string", "enum": ["json", "yaml"], "default": "json", "description": "Export format"}
+                    "services": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of service names",
+                    },
+                    "format": {
+                        "type": "string",
+                        "enum": ["json", "yaml"],
+                        "default": "json",
+                        "description": "Export format",
+                    },
                 },
-                "required": ["services"]
-            }
+                "required": ["services"],
+            },
         )
-        
+
         async def export_parameter_configuration(services, format="json"):
             try:
                 configuration = {
@@ -1869,71 +2585,93 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     "export_metadata": {
                         "timestamp": datetime.now().isoformat(),
                         "format": format,
-                        "service_count": len(services)
-                    }
+                        "service_count": len(services),
+                    },
                 }
-                
+
                 for service_name in services:
                     service_config = {
                         "service_name": service_name,
                         "handler_used": "unknown",
                         "parameters": {},
-                        "metadata": {}
+                        "metadata": {},
                     }
-                    
+
                     try:
                         # Get defaults for the service
-                        defaults_result = await self.parameter_service.get_specialized_defaults(service_name)
+                        defaults_result = (
+                            await self.parameter_service.get_specialized_defaults(
+                                service_name
+                            )
+                        )
                         if defaults_result.success:
-                            service_config["parameters"] = defaults_result.data.get("parameters", {})
-                            service_config["handler_used"] = defaults_result.data.get("handler_used", "unknown")
-                        
+                            service_config["parameters"] = defaults_result.data.get(
+                                "parameters", {}
+                            )
+                            service_config["handler_used"] = defaults_result.data.get(
+                                "handler_used", "unknown"
+                            )
+
                         # Get handler info
-                        handler_result = await self.parameter_service.get_handler_info(service_name)
+                        handler_result = await self.parameter_service.get_handler_info(
+                            service_name
+                        )
                         if handler_result.success:
                             handlers = handler_result.data.get("handlers", [])
                             if handlers:
                                 service_config["metadata"] = {
-                                    "available_handlers": [h.get("name") for h in handlers],
+                                    "available_handlers": [
+                                        h.get("name") for h in handlers
+                                    ],
                                     "primary_handler": handlers[0].get("name"),
-                                    "handler_capabilities": handlers[0].get("capabilities", [])
+                                    "handler_capabilities": handlers[0].get(
+                                        "capabilities", []
+                                    ),
                                 }
-                    
+
                     except Exception as e:
                         service_config["error"] = str(e)
-                    
+
                     configuration["services"].append(service_config)
-                
+
                 if format == "yaml":
                     try:
                         import yaml
-                        yaml_content = yaml.dump(configuration, default_flow_style=False)
+
+                        yaml_content = yaml.dump(
+                            configuration, default_flow_style=False
+                        )
                         return {
                             "success": True,
                             "data": {
                                 "configuration": configuration,
-                                "configuration_yaml": yaml_content
+                                "configuration_yaml": yaml_content,
                             },
-                            "message": f"Exported configuration for {len(services)} services in YAML format"
+                            "message": f"Exported configuration for {len(services)} services in YAML format",
                         }
                     except ImportError:
-                        return {"success": False, "error": "YAML format not available - install PyYAML"}
+                        return {
+                            "success": False,
+                            "error": "YAML format not available - install PyYAML",
+                        }
                 else:
                     return {
                         "success": True,
                         "data": {"configuration": configuration},
-                        "message": f"Exported configuration for {len(services)} services in JSON format"
+                        "message": f"Exported configuration for {len(services)} services in JSON format",
                     }
-                
+
             except Exception as e:
                 logger.exception("Error exporting parameter configuration")
                 return {"success": False, "error": sanitize_error(e)}
-        
-        self._tool_handlers["export_parameter_configuration"] = export_parameter_configuration
-    
+
+        self._tool_handlers["export_parameter_configuration"] = (
+            export_parameter_configuration
+        )
+
     def _register_event_console_tools(self):
         """Register Event Console MCP tools."""
-        
+
         # List service events tool
         self._tools["list_service_events"] = Tool(
             name="list_service_events",
@@ -1943,43 +2681,66 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
                     "service_name": {"type": "string", "description": "Service name"},
-                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 50},
-                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"}
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of events",
+                        "default": 50,
+                    },
+                    "state_filter": {
+                        "type": "string",
+                        "description": "Filter by state: ok, warning, critical, unknown",
+                    },
                 },
-                "required": ["host_name", "service_name"]
-            }
+                "required": ["host_name", "service_name"],
+            },
         )
-        
-        async def list_service_events(host_name, service_name, limit=50, state_filter=None):
-            
+
+        async def list_service_events(
+            host_name, service_name, limit=50, state_filter=None
+        ):
+
             event_service = self._get_service("event")
-            result = await event_service.list_service_events(host_name, service_name, limit, state_filter)
-            
+            result = await event_service.list_service_events(
+                host_name, service_name, limit, state_filter
+            )
+
             if result.success:
                 events_data = []
-                if result.data:  # result.data could be an empty list, which is still success
+                if (
+                    result.data
+                ):  # result.data could be an empty list, which is still success
                     for event in result.data:
-                        events_data.append({
-                        "event_id": event.event_id,
-                        "host_name": event.host_name,
-                        "service_description": event.service_description,
-                        "text": event.text,
-                        "state": event.state,
-                        "phase": event.phase,
-                        "first_time": event.first_time,
-                        "last_time": event.last_time,
-                        "count": event.count,
-                        "comment": event.comment
-                    })
+                        events_data.append(
+                            {
+                                "event_id": event.event_id,
+                                "host_name": event.host_name,
+                                "service_description": event.service_description,
+                                "text": event.text,
+                                "state": event.state,
+                                "phase": event.phase,
+                                "first_time": event.first_time,
+                                "last_time": event.last_time,
+                                "count": event.count,
+                                "comment": event.comment,
+                            }
+                        )
                 message = f"Found {len(events_data)} events for service {service_name} on host {host_name}"
                 if len(events_data) == 0:
                     message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active service monitoring."
-                return {"success": True, "events": events_data, "count": len(events_data), "message": message}
+                return {
+                    "success": True,
+                    "events": events_data,
+                    "count": len(events_data),
+                    "message": message,
+                }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["list_service_events"] = list_service_events
-        
+
         # List host events tool
         self._tools["list_host_events"] = Tool(
             name="list_host_events",
@@ -1988,42 +2749,63 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
-                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 100},
-                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"}
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of events",
+                        "default": 100,
+                    },
+                    "state_filter": {
+                        "type": "string",
+                        "description": "Filter by state: ok, warning, critical, unknown",
+                    },
                 },
-                "required": ["host_name"]
-            }
+                "required": ["host_name"],
+            },
         )
-        
+
         async def list_host_events(host_name, limit=100, state_filter=None):
-            
+
             event_service = self._get_service("event")
-            result = await event_service.list_host_events(host_name, limit, state_filter)
-            
+            result = await event_service.list_host_events(
+                host_name, limit, state_filter
+            )
+
             if result.success:
                 events_data = []
-                if result.data:  # result.data could be an empty list, which is still success
+                if (
+                    result.data
+                ):  # result.data could be an empty list, which is still success
                     for event in result.data:
-                        events_data.append({
-                            "event_id": event.event_id,
-                            "host_name": event.host_name,
-                            "service_description": event.service_description,
-                            "text": event.text,
-                            "state": event.state,
-                            "phase": event.phase,
-                            "first_time": event.first_time,
-                            "last_time": event.last_time,
-                            "count": event.count
-                        })
+                        events_data.append(
+                            {
+                                "event_id": event.event_id,
+                                "host_name": event.host_name,
+                                "service_description": event.service_description,
+                                "text": event.text,
+                                "state": event.state,
+                                "phase": event.phase,
+                                "first_time": event.first_time,
+                                "last_time": event.last_time,
+                                "count": event.count,
+                            }
+                        )
                 message = f"Found {len(events_data)} events for host {host_name}"
                 if len(events_data) == 0:
                     message += ". Note: Event Console is used for external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active monitoring."
-                return {"success": True, "events": events_data, "count": len(events_data), "message": message}
+                return {
+                    "success": True,
+                    "events": events_data,
+                    "count": len(events_data),
+                    "message": message,
+                }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["list_host_events"] = list_host_events
-        
+
         # Get recent critical events tool
         self._tools["get_recent_critical_events"] = Tool(
             name="get_recent_critical_events",
@@ -2031,40 +2813,56 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 20}
-                }
-            }
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of events",
+                        "default": 20,
+                    }
+                },
+            },
         )
-        
+
         async def get_recent_critical_events(limit=20):
-            
+
             event_service = self._get_service("event")
             result = await event_service.get_recent_critical_events(limit)
-            
+
             if result.success:
                 events_data = []
-                if result.data:  # result.data could be an empty list, which is still success
+                if (
+                    result.data
+                ):  # result.data could be an empty list, which is still success
                     for event in result.data:
-                        events_data.append({
-                        "event_id": event.event_id,
-                        "host_name": event.host_name,
-                        "service_description": event.service_description,
-                        "text": event.text,
-                        "state": event.state,
-                        "phase": event.phase,
-                        "first_time": event.first_time,
-                        "last_time": event.last_time,
-                        "count": event.count
-                    })
+                        events_data.append(
+                            {
+                                "event_id": event.event_id,
+                                "host_name": event.host_name,
+                                "service_description": event.service_description,
+                                "text": event.text,
+                                "state": event.state,
+                                "phase": event.phase,
+                                "first_time": event.first_time,
+                                "last_time": event.last_time,
+                                "count": event.count,
+                            }
+                        )
                 message = f"Found {len(events_data)} critical events"
                 if len(events_data) == 0:
                     message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty if not configured for log processing."
-                return {"success": True, "critical_events": events_data, "count": len(events_data), "message": message}
+                return {
+                    "success": True,
+                    "critical_events": events_data,
+                    "count": len(events_data),
+                    "message": message,
+                }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["get_recent_critical_events"] = get_recent_critical_events
-        
+
         # Acknowledge event tool
         self._tools["acknowledge_event"] = Tool(
             name="acknowledge_event",
@@ -2073,26 +2871,37 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "event_id": {"type": "string", "description": "Event ID"},
-                    "comment": {"type": "string", "description": "Comment for acknowledgment"},
+                    "comment": {
+                        "type": "string",
+                        "description": "Comment for acknowledgment",
+                    },
                     "contact": {"type": "string", "description": "Contact name"},
-                    "site_id": {"type": "string", "description": "Site ID"}
+                    "site_id": {"type": "string", "description": "Site ID"},
                 },
-                "required": ["event_id", "comment"]
-            }
+                "required": ["event_id", "comment"],
+            },
         )
-        
+
         async def acknowledge_event(event_id, comment, contact=None, site_id=None):
-            
+
             event_service = self._get_service("event")
-            result = await event_service.acknowledge_event(event_id, comment, contact, site_id)
-            
+            result = await event_service.acknowledge_event(
+                event_id, comment, contact, site_id
+            )
+
             if result.success:
-                return {"success": True, "message": f"Event {event_id} acknowledged successfully"}
+                return {
+                    "success": True,
+                    "message": f"Event {event_id} acknowledged successfully",
+                }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["acknowledge_event"] = acknowledge_event
-        
+
         # Search events tool
         self._tools["search_events"] = Tool(
             name="search_events",
@@ -2100,47 +2909,77 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "search_term": {"type": "string", "description": "Text to search for"},
-                    "limit": {"type": "integer", "description": "Maximum number of events", "default": 50},
-                    "state_filter": {"type": "string", "description": "Filter by state: ok, warning, critical, unknown"},
-                    "host_filter": {"type": "string", "description": "Filter by host name"}
+                    "search_term": {
+                        "type": "string",
+                        "description": "Text to search for",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of events",
+                        "default": 50,
+                    },
+                    "state_filter": {
+                        "type": "string",
+                        "description": "Filter by state: ok, warning, critical, unknown",
+                    },
+                    "host_filter": {
+                        "type": "string",
+                        "description": "Filter by host name",
+                    },
                 },
-                "required": ["search_term"]
-            }
+                "required": ["search_term"],
+            },
         )
-        
-        async def search_events(search_term, limit=50, state_filter=None, host_filter=None):
-            
+
+        async def search_events(
+            search_term, limit=50, state_filter=None, host_filter=None
+        ):
+
             event_service = self._get_service("event")
-            result = await event_service.search_events(search_term, limit, state_filter, host_filter)
-            
+            result = await event_service.search_events(
+                search_term, limit, state_filter, host_filter
+            )
+
             if result.success:
                 events_data = []
-                if result.data:  # result.data could be an empty list, which is still success
+                if (
+                    result.data
+                ):  # result.data could be an empty list, which is still success
                     for event in result.data:
-                        events_data.append({
-                        "event_id": event.event_id,
-                        "host_name": event.host_name,
-                        "service_description": event.service_description,
-                        "text": event.text,
-                        "state": event.state,
-                        "phase": event.phase,
-                        "first_time": event.first_time,
-                        "last_time": event.last_time,
-                        "count": event.count
-                    })
+                        events_data.append(
+                            {
+                                "event_id": event.event_id,
+                                "host_name": event.host_name,
+                                "service_description": event.service_description,
+                                "text": event.text,
+                                "state": event.state,
+                                "phase": event.phase,
+                                "first_time": event.first_time,
+                                "last_time": event.last_time,
+                                "count": event.count,
+                            }
+                        )
                 message = f"Found {len(events_data)} events matching '{search_term}'"
                 if len(events_data) == 0:
                     message += ". Note: Event Console searches external events (logs, SNMP traps, etc.) and is often empty in monitoring-only installations."
-                return {"success": True, "events": events_data, "count": len(events_data), "search_term": search_term, "message": message}
+                return {
+                    "success": True,
+                    "events": events_data,
+                    "count": len(events_data),
+                    "search_term": search_term,
+                    "message": message,
+                }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["search_events"] = search_events
-    
+
     def _register_metrics_tools(self):
         """Register Metrics MCP tools."""
-        
+
         # Get service metrics tool
         self._tools["get_service_metrics"] = Tool(
             name="get_service_metrics",
@@ -2149,30 +2988,46 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
-                    "service_description": {"type": "string", "description": "Service description"},
-                    "time_range_hours": {"type": "integer", "description": "Hours of data to retrieve", "default": 24},
-                    "reduce": {"type": "string", "description": "Data reduction method", "enum": ["min", "max", "average"], "default": "average"},
-                    "site": {"type": "string", "description": "Site name for performance optimization"}
+                    "service_description": {
+                        "type": "string",
+                        "description": "Service description",
+                    },
+                    "time_range_hours": {
+                        "type": "integer",
+                        "description": "Hours of data to retrieve",
+                        "default": 24,
+                    },
+                    "reduce": {
+                        "type": "string",
+                        "description": "Data reduction method",
+                        "enum": ["min", "max", "average"],
+                        "default": "average",
+                    },
+                    "site": {
+                        "type": "string",
+                        "description": "Site name for performance optimization",
+                    },
                 },
-                "required": ["host_name", "service_description"]
-            }
+                "required": ["host_name", "service_description"],
+            },
         )
-        
-        async def get_service_metrics(host_name, service_description, time_range_hours=24, reduce="average"):
-            site = arguments.get("site")
-            
+
+        async def get_service_metrics(
+            host_name, service_description, time_range_hours=24, reduce="average", site=None
+        ):
+
             metrics_service = self._get_service("metrics")
             result = await metrics_service.get_service_metrics(
                 host_name, service_description, time_range_hours, reduce, site
             )
-            
+
             if result.success:
                 metrics_data = []
                 for graph in result.data:
                     graph_info = {
                         "time_range": graph.time_range,
                         "step": graph.step,
-                        "metrics": []
+                        "metrics": [],
                     }
                     for metric in graph.metrics:
                         metric_info = {
@@ -2180,17 +3035,26 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                             "color": metric.color,
                             "line_type": metric.line_type,
                             "data_points_count": len(metric.data_points),
-                            "latest_value": metric.data_points[-1] if metric.data_points else None
+                            "latest_value": (
+                                metric.data_points[-1] if metric.data_points else None
+                            ),
                         }
                         graph_info["metrics"].append(metric_info)
                     metrics_data.append(graph_info)
-                
-                return {"success": True, "graphs": metrics_data, "count": len(metrics_data)}
+
+                return {
+                    "success": True,
+                    "graphs": metrics_data,
+                    "count": len(metrics_data),
+                }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["get_service_metrics"] = get_service_metrics
-        
+
         # Get metric history tool
         self._tools["get_metric_history"] = Tool(
             name="get_metric_history",
@@ -2199,25 +3063,48 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "type": "object",
                 "properties": {
                     "host_name": {"type": "string", "description": "Host name"},
-                    "service_description": {"type": "string", "description": "Service description"},
-                    "metric_id": {"type": "string", "description": "Metric ID (enable 'Show internal IDs' in Checkmk UI)"},
-                    "time_range_hours": {"type": "integer", "description": "Hours of data to retrieve", "default": 168},
-                    "reduce": {"type": "string", "description": "Data reduction method", "enum": ["min", "max", "average"], "default": "average"},
-                    "site": {"type": "string", "description": "Site name for performance optimization"}
+                    "service_description": {
+                        "type": "string",
+                        "description": "Service description",
+                    },
+                    "metric_id": {
+                        "type": "string",
+                        "description": "Metric ID (enable 'Show internal IDs' in Checkmk UI)",
+                    },
+                    "time_range_hours": {
+                        "type": "integer",
+                        "description": "Hours of data to retrieve",
+                        "default": 168,
+                    },
+                    "reduce": {
+                        "type": "string",
+                        "description": "Data reduction method",
+                        "enum": ["min", "max", "average"],
+                        "default": "average",
+                    },
+                    "site": {
+                        "type": "string",
+                        "description": "Site name for performance optimization",
+                    },
                 },
-                "required": ["host_name", "service_description", "metric_id"]
-            }
+                "required": ["host_name", "service_description", "metric_id"],
+            },
         )
-        
-        async def get_metric_history(host_name, service_description, metric_id, time_range_hours=168):
-            reduce = arguments.get("reduce", "average")
-            site = arguments.get("site")
-            
+
+        async def get_metric_history(
+            host_name, service_description, metric_id, time_range_hours=168, reduce="average", site=None
+        ):
+
             metrics_service = self._get_service("metrics")
             result = await metrics_service.get_metric_history(
-                host_name, service_description, metric_id, time_range_hours, reduce, site
+                host_name,
+                service_description,
+                metric_id,
+                time_range_hours,
+                reduce,
+                site,
             )
-            
+
             if result.success:
                 graph = result.data
                 metrics_data = []
@@ -2227,25 +3114,28 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "color": metric.color,
                         "line_type": metric.line_type,
                         "data_points": metric.data_points,
-                        "data_points_count": len(metric.data_points)
+                        "data_points_count": len(metric.data_points),
                     }
                     metrics_data.append(metric_info)
-                
+
                 return {
                     "success": True,
                     "time_range": graph.time_range,
                     "step": graph.step,
                     "metrics": metrics_data,
-                    "metric_id": metric_id
+                    "metric_id": metric_id,
                 }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["get_metric_history"] = get_metric_history
-    
+
     def _register_bi_tools(self):
         """Register Business Intelligence MCP tools."""
-        
+
         # Get business status summary tool
         self._tools["get_business_status_summary"] = Tool(
             name="get_business_status_summary",
@@ -2253,77 +3143,87 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "filter_groups": {"type": "array", "items": {"type": "string"}, "description": "Filter by group names"}
-                }
-            }
+                    "filter_groups": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by group names",
+                    }
+                },
+            },
         )
-        
+
         async def get_business_status_summary(filter_groups=None):
-            
+
             bi_service = self._get_service("bi")
             result = await bi_service.get_business_status_summary(filter_groups)
-            
+
             if result.success:
                 return {"success": True, "business_summary": result.data}
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
         self._tool_handlers["get_business_status_summary"] = get_business_status_summary
-        
+
         # Get critical business services tool
         self._tools["get_critical_business_services"] = Tool(
             name="get_critical_business_services",
             description="Get list of critical business services from BI aggregations",
-            inputSchema={
-                "type": "object",
-                "properties": {}
-            }
+            inputSchema={"type": "object", "properties": {}},
         )
-        
+
         async def get_critical_business_services():
             bi_service = self._get_service("bi")
             result = await bi_service.get_critical_business_services()
-            
+
             if result.success:
-                return {"success": True, "critical_services": result.data, "count": len(result.data)}
+                return {
+                    "success": True,
+                    "critical_services": result.data,
+                    "count": len(result.data),
+                }
             else:
-                return {"success": False, "error": result.error or "Event Console operation failed"}
-        
-        self._tool_handlers["get_critical_business_services"] = get_critical_business_services
-        
+                return {
+                    "success": False,
+                    "error": result.error or "Event Console operation failed",
+                }
+
+        self._tool_handlers["get_critical_business_services"] = (
+            get_critical_business_services
+        )
+
         # Get system version info tool
         self._tools["get_system_info"] = Tool(
             name="get_system_info",
             description="Get Checkmk system version and basic information",
-            inputSchema={
-                "type": "object",
-                "properties": {}
-            }
+            inputSchema={"type": "object", "properties": {}},
         )
-        
+
         async def get_system_info():
             # Use the direct async client method for this simple operation
             version_info = await self.checkmk_client.get_version_info()
-            
+
             # Extract key information
-            versions = version_info.get('versions', {})
-            site_info = version_info.get('site', 'unknown')
-            edition = version_info.get('edition', 'unknown')
-            
+            versions = version_info.get("versions", {})
+            site_info = version_info.get("site", "unknown")
+            edition = version_info.get("edition", "unknown")
+
             return {
                 "success": True,
-                "checkmk_version": versions.get('checkmk', 'unknown'),
+                "checkmk_version": versions.get("checkmk", "unknown"),
                 "edition": edition,
                 "site": site_info,
-                "python_version": versions.get('python', 'unknown'),
-                "apache_version": versions.get('apache', 'unknown')
+                "python_version": versions.get("python", "unknown"),
+                "apache_version": versions.get("apache", "unknown"),
             }
-        
+
         self._tool_handlers["get_system_info"] = get_system_info
-    
+
     def _register_advanced_tools(self):
         """Register advanced MCP tools."""
-        
+
         # Stream hosts tool
         self._tools["stream_hosts"] = Tool(
             name="stream_hosts",
@@ -2331,48 +3231,60 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "batch_size": {"type": "integer", "description": "Number of hosts per batch", "default": 100},
-                    "search": {"type": "string", "description": "Optional search filter"},
-                    "folder": {"type": "string", "description": "Optional folder filter"}
-                }
-            }
+                    "batch_size": {
+                        "type": "integer",
+                        "description": "Number of hosts per batch",
+                        "default": 100,
+                    },
+                    "search": {
+                        "type": "string",
+                        "description": "Optional search filter",
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "Optional folder filter",
+                    },
+                },
+            },
         )
-        
+
         async def stream_hosts(batch_size=100, search=None, folder=None):
             try:
                 if not self.streaming_host_service:
                     return {"success": False, "error": "Streaming not enabled"}
-                
+
                 batches = []
                 async for batch in self.streaming_host_service.list_hosts_streamed(
                     batch_size=batch_size, search=search, folder=folder
                 ):
                     batch_data = batch.model_dump()
-                    batches.append({
-                        "batch_number": batch_data["batch_number"],
-                        "items_count": len(batch_data["items"]),
-                        "has_more": batch_data["has_more"],
-                        "timestamp": batch_data["timestamp"]
-                    })
-                    
+                    batches.append(
+                        {
+                            "batch_number": batch_data["batch_number"],
+                            "items_count": len(batch_data["items"]),
+                            "has_more": batch_data["has_more"],
+                            "timestamp": batch_data["timestamp"],
+                        }
+                    )
+
                     # Limit to prevent overwhelming response
                     if len(batches) >= 10:
                         break
-                
+
                 return {
                     "success": True,
                     "data": {
                         "total_batches_processed": len(batches),
                         "batches": batches,
-                        "message": f"Processed {len(batches)} batches with {batch_size} items each"
-                    }
+                        "message": f"Processed {len(batches)} batches with {batch_size} items each",
+                    },
                 }
-                
+
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         self._tool_handlers["stream_hosts"] = stream_hosts
-        
+
         # Batch create hosts tool
         self._tools["batch_create_hosts"] = Tool(
             name="batch_create_hosts",
@@ -2383,32 +3295,32 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     "hosts_data": {
                         "type": "array",
                         "items": {"type": "object"},
-                        "description": "List of host creation data"
+                        "description": "List of host creation data",
                     },
                     "max_concurrent": {
                         "type": "integer",
                         "description": "Maximum concurrent operations",
-                        "default": 5
-                    }
+                        "default": 5,
+                    },
                 },
-                "required": ["hosts_data"]
-            }
+                "required": ["hosts_data"],
+            },
         )
-        
+
         async def batch_create_hosts(hosts_data, max_concurrent=5):
             try:
                 # Use batch processor for efficient creation
                 self.batch_processor.max_concurrent = max_concurrent
-                
+
                 async def create_single_host(host_data: Dict[str, Any]):
                     return await self.host_service.create_host(**host_data)
-                
+
                 result = await self.batch_processor.process_batch(
                     items=hosts_data,
                     operation=create_single_host,
-                    batch_id=f"create_hosts_{datetime.now().timestamp()}"
+                    batch_id=f"create_hosts_{datetime.now().timestamp()}",
                 )
-                
+
                 return {
                     "success": True,
                     "data": {
@@ -2418,48 +3330,49 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "failed": result.progress.failed,
                         "skipped": result.progress.skipped,
                         "duration_seconds": result.progress.duration,
-                        "items_per_second": result.progress.items_per_second
+                        "items_per_second": result.progress.items_per_second,
                     },
-                    "message": f"Batch completed: {result.progress.success} created, {result.progress.failed} failed"
+                    "message": f"Batch completed: {result.progress.success} created, {result.progress.failed} failed",
                 }
-                
+
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         self._tool_handlers["batch_create_hosts"] = batch_create_hosts
-        
+
         # Get server metrics tool
         self._tools["get_server_metrics"] = Tool(
             name="get_server_metrics",
             description="Get comprehensive server performance metrics",
-            inputSchema={
-                "type": "object",
-                "properties": {}
-            }
+            inputSchema={"type": "object", "properties": {}},
         )
-        
+
         async def get_server_metrics():
             try:
                 # Get metrics from various sources
                 server_stats = await get_metrics_collector().get_stats()
-                
+
                 # Add service-specific metrics if available
                 service_metrics = {}
-                if hasattr(self.host_service, 'get_service_metrics'):
-                    service_metrics['host_service'] = await self.host_service.get_service_metrics()
-                if hasattr(self.service_service, 'get_service_metrics'):
-                    service_metrics['service_service'] = await self.service_service.get_service_metrics()
-                
+                if hasattr(self.host_service, "get_service_metrics"):
+                    service_metrics["host_service"] = (
+                        await self.host_service.get_service_metrics()
+                    )
+                if hasattr(self.service_service, "get_service_metrics"):
+                    service_metrics["service_service"] = (
+                        await self.service_service.get_service_metrics()
+                    )
+
                 # Add cache stats if available
                 cache_stats = {}
                 if self.cached_host_service:
                     cache_stats = await self.cached_host_service.get_cache_stats()
-                
+
                 # Add recovery stats if available
                 recovery_stats = {}
-                if hasattr(self.host_service, 'get_recovery_stats'):
+                if hasattr(self.host_service, "get_recovery_stats"):
                     recovery_stats = await self.host_service.get_recovery_stats()
-                
+
                 return {
                     "success": True,
                     "data": {
@@ -2467,15 +3380,15 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "service_metrics": service_metrics,
                         "cache_metrics": cache_stats,
                         "recovery_metrics": recovery_stats,
-                        "timestamp": datetime.now().isoformat()
-                    }
+                        "timestamp": datetime.now().isoformat(),
+                    },
                 }
-                
+
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         self._tool_handlers["get_server_metrics"] = get_server_metrics
-        
+
         # Clear cache tool
         self._tools["clear_cache"] = Tool(
             name="clear_cache",
@@ -2485,100 +3398,113 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                 "properties": {
                     "pattern": {
                         "type": "string",
-                        "description": "Optional pattern to match cache keys"
+                        "description": "Optional pattern to match cache keys",
                     }
-                }
-            }
+                },
+            },
         )
-        
+
         async def clear_cache(pattern=None):
             try:
                 if not self.cached_host_service:
                     return {"success": False, "error": "Cache not enabled"}
-                
+
                 if pattern:
-                    cleared = await self.cached_host_service.invalidate_cache_pattern(pattern)
+                    cleared = await self.cached_host_service.invalidate_cache_pattern(
+                        pattern
+                    )
                     message = f"Cleared {cleared} cache entries matching '{pattern}'"
                 else:
                     await self.cached_host_service._cache.clear()
                     message = "Cleared all cache entries"
-                
+
                 return {
                     "success": True,
                     "data": {"cleared_entries": cleared if pattern else "all"},
-                    "message": message
+                    "message": message,
                 }
-                
+
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         self._tool_handlers["clear_cache"] = clear_cache
-    
+
     async def _stream_hosts_resource(self) -> str:
         """Generate streaming hosts resource content."""
         if not self.streaming_host_service:
             return safe_json_dumps({"error": "Streaming not enabled"})
-        
+
         lines = []
         batch_count = 0
-        
+
         try:
-            async for batch in self.streaming_host_service.list_hosts_streamed(batch_size=50):
+            async for batch in self.streaming_host_service.list_hosts_streamed(
+                batch_size=50
+            ):
                 # Convert each host in batch to JSON line
                 for host in batch.items:
                     lines.append(host.model_dump_json())
-                
+
                 batch_count += 1
                 # Limit output to prevent overwhelming
                 if batch_count >= 5:
                     break
-            
+
             return "\n".join(lines)
-            
+
         except Exception as e:
             logger.exception("Error streaming hosts")
             return safe_json_dumps({"error": str(e)})
-    
+
     async def _stream_services_resource(self) -> str:
         """Generate streaming services resource content."""
         if not self.streaming_service_service:
             return safe_json_dumps({"error": "Streaming not enabled"})
-        
+
         lines = []
         batch_count = 0
-        
+
         try:
-            async for batch in self.streaming_service_service.list_all_services_streamed(batch_size=100):
+            async for (
+                batch
+            ) in self.streaming_service_service.list_all_services_streamed(
+                batch_size=100
+            ):
                 # Convert each service in batch to JSON line
                 for service in batch.items:
                     lines.append(service.model_dump_json())
-                
+
                 batch_count += 1
                 # Limit output to prevent overwhelming
                 if batch_count >= 3:
                     break
-            
+
             return "\n".join(lines)
-            
+
         except Exception as e:
             logger.exception("Error streaming services")
             return safe_json_dumps({"error": str(e)})
-    
+
     def _handle_service_result(self, result) -> str:
         """Handle service result and return appropriate JSON."""
         if result.success:
-            return result.data.model_dump_json() if hasattr(result.data, 'model_dump_json') else safe_json_dumps(result.data)
+            return (
+                result.data.model_dump_json()
+                if hasattr(result.data, "model_dump_json")
+                else safe_json_dumps(result.data)
+            )
         else:
             raise RuntimeError(f"Service operation failed: {result.error}")
-    
+
     async def initialize(self):
         """Initialize the enhanced MCP server and its dependencies."""
         try:
             # Initialize the async Checkmk client
             from ..api_client import CheckmkClient
+
             sync_client = CheckmkClient(self.config.checkmk)
             self.checkmk_client = AsyncCheckmkClient(sync_client)
-            
+
             # Initialize standard services
             self.host_service = HostService(self.checkmk_client, self.config)
             self.status_service = StatusService(self.checkmk_client, self.config)
@@ -2587,35 +3513,45 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             self.event_service = EventService(self.checkmk_client, self.config)
             self.metrics_service = MetricsService(self.checkmk_client, self.config)
             self.bi_service = BIService(self.checkmk_client, self.config)
-            
+
             # Initialize enhanced services
-            self.streaming_host_service = StreamingHostService(self.checkmk_client, self.config)
-            self.streaming_service_service = StreamingServiceService(self.checkmk_client, self.config)
-            self.cached_host_service = CachedHostService(self.checkmk_client, self.config)
-            
+            self.streaming_host_service = StreamingHostService(
+                self.checkmk_client, self.config
+            )
+            self.streaming_service_service = StreamingServiceService(
+                self.checkmk_client, self.config
+            )
+            self.cached_host_service = CachedHostService(
+                self.checkmk_client, self.config
+            )
+
             # Register all tools (standard + advanced)
             self._register_all_tools()
-            
-            logger.info("Enhanced Checkmk MCP Server initialized successfully with advanced features")
+
+            logger.info(
+                "Enhanced Checkmk MCP Server initialized successfully with advanced features"
+            )
             logger.info(f"Registered {len(self._tools)} tools (standard + advanced)")
-            
+
         except Exception as e:
             logger.exception("Failed to initialize enhanced MCP server")
             raise RuntimeError(f"Initialization failed: {str(e)}")
-    
+
     def _ensure_services(self) -> bool:
         """Ensure all services are initialized."""
-        return all([
-            self.checkmk_client,
-            self.host_service,
-            self.status_service, 
-            self.service_service,
-            self.parameter_service,
-            self.event_service,
-            self.metrics_service,
-            self.bi_service
-        ])
-    
+        return all(
+            [
+                self.checkmk_client,
+                self.host_service,
+                self.status_service,
+                self.service_service,
+                self.parameter_service,
+                self.event_service,
+                self.metrics_service,
+                self.bi_service,
+            ]
+        )
+
     def _get_service(self, service_name: str):
         """Get service instance by name."""
         service_map = {
@@ -2625,26 +3561,26 @@ Focus on reducing false positives while maintaining effective monitoring coverag
             "parameter": self.parameter_service,
             "event": self.event_service,
             "metrics": self.metrics_service,
-            "bi": self.bi_service
+            "bi": self.bi_service,
         }
-        
+
         service = service_map.get(service_name)
         if service is None:
             raise ValueError(f"Unknown service: {service_name}")
         return service
-    
+
     async def call_tool(self, name: str, arguments: dict = None):
         """Direct tool call method for testing and integration."""
         if arguments is None:
             arguments = {}
-            
+
         if not self._ensure_services():
             raise RuntimeError("Services not initialized")
-        
+
         handler = self._tool_handlers.get(name)
         if not handler:
             raise ValueError(f"Unknown tool: {name}")
-        
+
         try:
             result = await handler(**arguments)
             # Return raw dict to avoid MCP framework tuple construction bug
@@ -2654,50 +3590,46 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                         "type": "text",
                         "text": safe_json_dumps(result),
                         "annotations": None,
-                        "meta": None
+                        "meta": None,
                     }
                 ],
                 "isError": False,
                 "meta": None,
-                "structuredContent": None
+                "structuredContent": None,
             }
         except Exception as e:
             logger.exception(f"Error calling tool {name}")
             # Return raw dict for error case too
             return {
                 "content": [
-                    {
-                        "type": "text",
-                        "text": str(e),
-                        "annotations": None,
-                        "meta": None
-                    }
+                    {"type": "text", "text": str(e), "annotations": None, "meta": None}
                 ],
                 "isError": True,
                 "meta": None,
-                "structuredContent": None
+                "structuredContent": None,
             }
-    
+
     async def run(self, transport_type: str = "stdio"):
         """Run the enhanced MCP server with the specified transport."""
         if not self._ensure_services():
             await self.initialize()
-        
+
         if transport_type == "stdio":
             # For stdio transport (most common for MCP)
             from mcp.server.stdio import stdio_server
+
             async with stdio_server() as (read_stream, write_stream):
                 await self.server.run(
                     read_stream,
-                    write_stream, 
+                    write_stream,
                     InitializationOptions(
                         server_name="checkmk-agent",
                         server_version="1.0.0",
                         capabilities=self.server.get_capabilities(
                             notification_options=NotificationOptions(),
-                            experimental_capabilities={}
-                        )
-                    )
+                            experimental_capabilities={},
+                        ),
+                    ),
                 )
         else:
             raise ValueError(f"Unsupported transport type: {transport_type}")

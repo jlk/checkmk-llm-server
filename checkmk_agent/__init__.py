@@ -1,7 +1,7 @@
 """
 Checkmk LLM Agent
 
-A Python agent that connects LLMs (Claude/ChatGPT) to Checkmk for easier 
+A Python agent that connects LLMs (Claude/ChatGPT) to Checkmk for easier
 configuration management through natural language interactions.
 """
 
