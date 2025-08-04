@@ -2,6 +2,49 @@
 
 This document tracks the major development sessions and milestones for the Checkmk LLM Agent project.
 
+## Session: 2025-08-04 - Temperature Parameter Strategy Pattern Refactoring
+
+**Focus**: Refactored temperature parameter trending control from scattered filtering logic to clean Strategy Pattern architecture
+
+**Key Achievements**:
+- **Strategy Pattern Implementation**: Created proper architectural pattern replacing scattered boolean filtering logic
+- **Centralized Policy Management**: Built ParameterPolicyManager for consistent parameter filtering across all handlers
+- **Clean Handler Integration**: Updated BaseParameterHandler to use policy-based filtering with apply_parameter_policies() method
+- **Simplified Service Layer**: Replaced include_trending boolean parameter with flexible context-based approach
+- **Context-Driven MCP Interface**: Updated MCP server to use structured context objects instead of boolean flags
+- **Architectural Cleanup**: Deprecated old filtering methods while maintaining backward compatibility
+
+**Technical Implementation**:
+- **New Strategy Pattern**: Created handlers/parameter_policies.py with ParameterFilterStrategy abstract base class and TrendingParameterFilter concrete implementation
+- **Policy Coordination**: ParameterPolicyManager centrally manages all filtering strategies with extensible design
+- **Handler Refactoring**: Temperature handler now generates full parameters and applies policies, removing complex boolean logic
+- **Service Interface Simplification**: set_service_parameters() uses handler policies with context-aware filtering
+- **MCP Server Enhancement**: Tool schema updated to use context parameter instead of hardcoded boolean flags
+
+**Business Logic Preserved**:
+- Default behavior: trending parameters excluded unless explicitly requested or already present in existing rules
+- Context {"include_trending": true} enables trending parameters for new rules
+- Existing rules with trending parameters preserve them during updates
+- Clean separation of policy logic from handler implementation logic
+
+**Architectural Improvements**:
+- Single Responsibility Principle compliance through clear separation of concerns
+- Open/Closed Principle support for adding new filtering strategies
+- Strategy Pattern eliminates complex conditional logic and magic strings
+- Centralized policy management improves maintainability and testability
+- Context-based approach provides extensibility for future parameter control needs
+
+**Files Modified**:
+- `checkmk_agent/services/handlers/parameter_policies.py` - New Strategy Pattern implementation with filtering strategies
+- `checkmk_agent/services/handlers/base.py` - Added policy manager integration and helper methods
+- `checkmk_agent/services/handlers/temperature.py` - Refactored to use policy-based filtering, simplified suggestion logic
+- `checkmk_agent/services/parameter_service.py` - Updated interface to use context parameter, deprecated old filtering
+- `checkmk_agent/mcp_server/server.py` - Updated tool schema and handler for context-based approach
+
+**Verification**: All tests pass with Strategy Pattern implementation, temperature parameters properly filtered based on context
+
+**Status**: ✅ Complete - Clean architectural implementation using proper design patterns for maintainable parameter control
+
 ## Session: 2025-08-02 - Comprehensive Service Parameter Management Implementation
 
 **Focus**: Complete 5-phase implementation of comprehensive service parameter management system with specialized handlers
@@ -192,175 +235,3 @@ This document tracks the major development sessions and milestones for the Check
 **Verification**: Event Console tools now correctly return success with count=0 and helpful messages when no events exist
 
 **Status**: ✅ Complete - All 22 enhanced MCP tools fully functional with Checkmk 2.4 API
-
-## Session: 2025-07-25 - MCP Server Error Monitoring and Critical Service State Fixes
-
-**Focus**: Real-time monitoring and fixing of MCP server errors during Claude testing, resolving critical service state display issues
-
-**Key Achievements**:
-- **Live Error Monitoring**: Implemented continuous monitoring of mcp-server-checkmk.log during user testing
-- **Service State Fix**: Resolved critical issue where services showed "Unknown" instead of actual states (OK, WARNING, CRITICAL)
-- **API Endpoint Correction**: Fixed CLI to use monitoring endpoint instead of configuration endpoint for service data
-- **State Extraction Logic**: Fixed falsy value handling where state 0 (OK) was treated as false
-- **Parameter Mismatch Fixes**: Resolved multiple MCP tool parameter validation errors
-- **Data Type Conversions**: Added proper handling for numeric state_type values from API
-
-**Critical Issues Resolved**:
-- Services displaying "Unknown" state despite having real monitoring data in Checkmk
-- CLI using wrong API endpoint (/objects/host/services vs /domain-types/service/collections/all)
-- State extraction logic treating numeric 0 (OK) as falsy value
-- MCP tool handlers receiving unexpected parameters (include_downtimes, search, etc.)
-- Pydantic validation errors for state_type field expecting string but receiving integer
-- Multiple TypeError exceptions in service operations during Claude testing
-
-**Technical Details**:
-- Root cause analysis revealed configuration vs monitoring endpoint distinction
-- Added list_host_services_with_monitoring_data() and list_all_services_with_monitoring_data() methods
-- Fixed state extraction: `extensions.get('state') if extensions.get('state') is not None else service.get('state', 'Unknown')`
-- Added _convert_state_type_to_string() method to handle numeric state_type values (0=soft, 1=hard)
-- Updated MCP handlers to accept but ignore unsupported tool parameters
-
-**Files Modified**:
-- `checkmk_agent/mcp_server/enhanced_server.py` - Fixed parameter handling in tool handlers
-- `checkmk_agent/services/service_service.py` - Updated to use monitoring endpoints, added state_type conversion
-- `checkmk_agent/api_client.py` - Added new monitoring data methods
-- `checkmk_agent/async_api_client.py` - Added async wrappers for monitoring methods
-- `checkmk_agent/cli.py` - Fixed critical state extraction logic
-
-**Verification**: User confirmed services now display correct states, MCP server processes requests successfully with real monitoring data
-
-**Status**: ✅ Complete - MCP server fully operational with accurate service state reporting
-
-## Session: 2025-07-25 - MCP Server Tool Registration Fixes and Error Resolution
-
-**Focus**: Fixed critical MCP server issues preventing tool exposure to Claude
-
-**Key Achievements**:
-- **MCP Tool Registration**: Fixed both basic and enhanced MCP servers to properly expose tools (14 and 18 tools respectively)
-- **Missing StatusService Methods**: Implemented 6 missing methods that MCP servers were calling
-- **JSON Serialization**: Added custom MCPJSONEncoder to handle datetime objects
-- **MCP SDK Bug Workaround**: Resolved "20 validation errors for CallToolResult" by returning raw dicts
-- **Parameter Handling**: Fixed "unexpected keyword argument" errors using `**kwargs` in handlers
-- **Code Cleanup**: Removed broken tool registration modules and outdated MCP integration tests
-
-**Technical Details**:
-- Fixed commented-out tool registration code in both server files
-- Added get_critical_problems, get_performance_metrics, analyze_host_health, get_host_problems, get_infrastructure_summary, get_problem_trends methods to StatusService
-- Implemented safe_json_dumps function with custom datetime serialization
-- Worked around MCP SDK v1.12.0 CallToolResult construction bug
-- Real-time log monitoring confirmed all issues resolved
-
-**Files Modified**:
-- `checkmk_agent/mcp_server/server.py` - Fixed tool registration and error handling
-- `checkmk_agent/mcp_server/enhanced_server.py` - Same fixes for enhanced server
-- `checkmk_agent/services/status_service.py` - Added missing methods
-- Deleted: `checkmk_agent/mcp_server/tools/` directory and `tests/test_mcp_integration.py`
-
-**Verification**: Claude successfully called MCP tools and received proper JSON responses with real infrastructure data
-
-**Status**: ✅ Complete - MCP servers now fully functional for Claude integration
-
-## Session: 2025-07-19 - Enhanced Host Status Functionality
-
-**Focus**: Comprehensive enhancement of host service status capabilities
-
-**Key Achievements**:
-- **Rich Host Dashboards**: Implemented health metrics, grades (A+ through F), and infrastructure comparison
-- **Advanced Problem Categorization**: Added categorization by type (disk, network, performance, connectivity, monitoring)
-- **Natural Language Support**: Enhanced conversational host queries like "How is server01 doing?"
-- **CLI Filtering Options**: Added --problems-only, --critical-only, --category, --sort-by, --compact flags
-- **Urgent Issues Identification**: Implemented criticality scoring and recommended actions
-- **Context Tracking**: Added conversation context for follow-up queries ("show problems on that host")
-- **Command Routing Fixes**: Fixed critical routing issues for "show critical problems" commands
-- **Maintenance Recommendations**: Tailored recommendations based on specific host problems and dependencies
-
-**Status**: ✅ Complete - Enhanced host status functionality fully operational
-
-## Session: 2025-07-19 - Service Status Monitoring Implementation
-
-**Focus**: Implementation of comprehensive service status monitoring capabilities
-
-**Key Achievements**:
-- **Service Status Operations**: Full CRUD operations for service management
-- **Service Discovery**: Automated service detection and configuration
-- **Problem Management**: Service acknowledgments and downtime scheduling
-- **CLI Interface**: Complete service command group with natural language support
-- **API Integration**: Robust integration with Checkmk REST API
-- **Error Handling**: Comprehensive error handling with meaningful messages
-
-**Status**: ✅ Complete - Service operations fully functional
-
-## Session: 2025-07-18 - Enhanced Interactive Mode Implementation
-
-**Focus**: Major enhancement of interactive mode with advanced features
-
-**Key Achievements**:
-- **Advanced Command Parsing**: Fuzzy matching and intelligent command interpretation
-- **Rich UI Components**: Enhanced formatting, progress indicators, and status displays
-- **Tab Completion**: Intelligent completion for commands and parameters
-- **Contextual Help**: Dynamic help system with command-specific guidance
-- **Readline Integration**: Command history and line editing capabilities
-- **Session Management**: Persistent context and conversation tracking
-
-**Status**: ✅ Complete - Interactive mode significantly enhanced
-
-## Session: 2025-07-17 - Interactive Mode Syntax Error Bug Fix
-
-**Focus**: Critical bug fix for interactive mode syntax error detection
-
-**Key Achievements**:
-- **Syntax Error Detection**: Implemented robust Python syntax validation
-- **Error Recovery**: Graceful handling of malformed commands
-- **User Feedback**: Clear error messages and correction suggestions
-- **Input Validation**: Pre-processing validation before command execution
-
-**Status**: ✅ Complete - Interactive mode stability issues resolved
-
-## Session: 2025-01-18 - Color Customization and Command Fixes
-
-**Focus**: UI improvements and command system enhancements
-
-**Key Achievements**:
-- **Color Customization**: Configurable color themes for CLI output
-- **Command Improvements**: Enhanced command parsing and execution
-- **UI Polish**: Improved visual feedback and user experience
-
-**Status**: ✅ Complete - UI and command system enhanced
-
-## Session: 2025-01-10 - Rules API Implementation
-
-**Focus**: Implementation of Checkmk rules management functionality
-
-**Key Achievements**:
-- **Rules CRUD Operations**: Complete create, read, update, delete operations for rules
-- **API Integration**: Full integration with Checkmk rules endpoints
-- **CLI Interface**: Rules management commands and interactive mode support
-- **Validation**: Rule validation and error handling
-
-**Status**: ✅ Complete - Rules management fully operational
-
-## Session: 2025-01-08 - Complete Implementation
-
-**Focus**: Major implementation milestone with core functionality completion
-
-**Key Achievements**:
-- **API Client**: Complete Checkmk REST API client implementation
-- **Host Operations**: Full host management CRUD operations
-- **LLM Integration**: Natural language processing capabilities
-- **CLI Framework**: Comprehensive command-line interface
-- **Testing**: Test coverage for core operations
-
-**Status**: ✅ Complete - Core functionality established
-
-## Session: 2025-01-08 - Project Setup
-
-**Focus**: Initial project setup and architecture establishment
-
-**Key Achievements**:
-- **Project Structure**: Established comprehensive project organization
-- **OpenAPI Integration**: Integrated Checkmk REST API specification
-- **Development Environment**: Set up development workflow and tooling
-- **Architecture Design**: Defined service-oriented architecture
-- **Documentation**: Created initial project documentation
-
-**Status**: ✅ Complete - Project foundation established
