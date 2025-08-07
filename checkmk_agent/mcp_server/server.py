@@ -370,6 +370,74 @@ class CheckmkMCPServer:
                     },
                 ],
             ),
+            "adjust_host_check_attempts": Prompt(
+                name="adjust_host_check_attempts",
+                description="Configure host check sensitivity by adjusting maximum check attempts",
+                arguments=[
+                    {
+                        "name": "host_name",
+                        "description": "Name of the host to configure (or 'all' for global rule)",
+                        "required": True,
+                    },
+                    {
+                        "name": "max_attempts",
+                        "description": "Maximum number of check attempts before host is considered down (1-10)",
+                        "required": True,
+                    },
+                    {
+                        "name": "reason",
+                        "description": "Reason for adjustment (e.g., 'unreliable network', 'critical host')",
+                        "required": False,
+                    },
+                ],
+            ),
+            "adjust_host_retry_interval": Prompt(
+                name="adjust_host_retry_interval",
+                description="Configure retry interval for host checks when in soft problem state",
+                arguments=[
+                    {
+                        "name": "host_name",
+                        "description": "Name of the host to configure (or 'all' for global rule)",
+                        "required": True,
+                    },
+                    {
+                        "name": "retry_interval",
+                        "description": "Retry interval in minutes (0.1-60)",
+                        "required": True,
+                    },
+                    {
+                        "name": "reason",
+                        "description": "Reason for adjustment (e.g., 'reduce load', 'faster recovery detection')",
+                        "required": False,
+                    },
+                ],
+            ),
+            "adjust_host_check_timeout": Prompt(
+                name="adjust_host_check_timeout",
+                description="Configure timeout for host check commands",
+                arguments=[
+                    {
+                        "name": "host_name",
+                        "description": "Name of the host to configure (or 'all' for global rule)",
+                        "required": True,
+                    },
+                    {
+                        "name": "timeout_seconds",
+                        "description": "Timeout in seconds (1-60)",
+                        "required": True,
+                    },
+                    {
+                        "name": "check_type",
+                        "description": "Type of check: 'icmp', 'snmp', or 'all' (default: 'icmp')",
+                        "required": False,
+                    },
+                    {
+                        "name": "reason",
+                        "description": "Reason for adjustment (e.g., 'slow network', 'distant location')",
+                        "required": False,
+                    },
+                ],
+            ),
         }
 
         @self.server.list_prompts()
@@ -526,6 +594,406 @@ Please provide parameter optimization recommendations:
 6. Performance impact considerations
 
 Focus on reducing false positives while maintaining effective monitoring coverage."""
+
+                elif name == "adjust_host_check_attempts":
+                    host_name = arguments.get("host_name", "")
+                    max_attempts = arguments.get("max_attempts")
+                    reason = arguments.get("reason", "Not specified")
+
+                    # Validate parameters
+                    if not host_name:
+                        raise ValueError("host_name is required")
+
+                    try:
+                        max_attempts = int(max_attempts)
+                        if max_attempts < 1 or max_attempts > 10:
+                            raise ValueError("max_attempts must be between 1 and 10")
+                    except (TypeError, ValueError):
+                        raise ValueError(
+                            "max_attempts must be a valid integer between 1 and 10"
+                        )
+
+                    # Get current host configuration
+                    current_config = {}
+                    if host_name != "all":
+                        try:
+                            # Get current host data
+                            host_result = await self.host_service.get_host(
+                                name=host_name, include_status=True
+                            )
+                            if host_result.success:
+                                host_data = host_result.data
+                                current_config = {
+                                    "current_attempts": getattr(
+                                        host_data, "host_max_check_attempts", "Unknown"
+                                    ),
+                                    "retry_interval": getattr(
+                                        host_data, "host_retry_interval", "Unknown"
+                                    ),
+                                    "check_interval": getattr(
+                                        host_data, "host_check_interval", "Unknown"
+                                    ),
+                                }
+                        except Exception as e:
+                            current_config = {
+                                "error": f"Could not retrieve current configuration: {str(e)}"
+                            }
+
+                    # Create rule for max_check_attempts
+                    try:
+                        if host_name == "all":
+                            conditions = {}
+                        else:
+                            conditions = {"host_name": [host_name]}
+
+                        rule_result = await self.checkmk_client.create_rule(
+                            ruleset="extra_host_conf:max_check_attempts",
+                            folder="/",
+                            value_raw=str(max_attempts),
+                            conditions=conditions,
+                            properties={
+                                "comment": f"Host check attempts adjustment - {reason}"
+                            },
+                        )
+                        rule_created = rule_result.get("id", "created successfully")
+                    except Exception as e:
+                        rule_created = f"Error creating rule: {str(e)}"
+
+                    # Calculate sensitivity level
+                    if max_attempts <= 2:
+                        sensitivity = "High (fast detection)"
+                    elif max_attempts <= 4:
+                        sensitivity = "Medium (balanced)"
+                    else:
+                        sensitivity = "Low (reduce false alerts)"
+
+                    check_interval = current_config.get("check_interval", "Unknown")
+                    if check_interval != "Unknown" and isinstance(
+                        check_interval, (int, float)
+                    ):
+                        detection_time = max_attempts * check_interval
+                        current_attempts = current_config.get(
+                            "current_attempts", "Unknown"
+                        )
+                        if current_attempts != "Unknown" and isinstance(
+                            current_attempts, (int, float)
+                        ):
+                            current_time = current_attempts * check_interval
+                        else:
+                            current_time = "Unknown"
+                    else:
+                        detection_time = "Unknown"
+                        current_time = "Unknown"
+
+                    prompt_text = f"""Configure host check sensitivity for '{host_name}'
+
+CURRENT CONFIGURATION:
+- Host: {host_name}
+- Current max check attempts: {current_config.get('current_attempts', 'Unknown')}
+- Current retry interval: {current_config.get('retry_interval', 'Unknown')} minutes
+- Check interval: {current_config.get('check_interval', 'Unknown')} minutes
+- Current sensitivity: {current_config.get('current_sensitivity', 'Unknown')}
+
+PROPOSED CHANGE:
+- New max check attempts: {max_attempts}
+- Reason: {reason}
+- New sensitivity: {sensitivity}
+- Impact: Host must fail {max_attempts} consecutive checks before DOWN state
+
+ANALYSIS:
+1. Detection timing:
+   - Current: DOWN state after {current_time} minutes
+   - Proposed: DOWN state after {detection_time} minutes
+
+2. Recommendations by use case:
+   - Stable networks: 1-2 attempts (fast detection)
+   - Normal networks: 3-4 attempts (balanced)
+   - Unreliable networks: 5-10 attempts (reduce false alerts)
+
+3. Trade-offs:
+   - Higher attempts: Fewer false positives, slower problem detection
+   - Lower attempts: Faster alerts, more false positives on network issues
+
+CONFIGURATION:
+Rule creation: {rule_created}
+Ruleset: extra_host_conf:max_check_attempts
+Folder: / (root)
+
+The rule has been configured to adjust host check sensitivity. Monitor the results and adjust as needed based on your network reliability."""
+
+                elif name == "adjust_host_retry_interval":
+                    host_name = arguments.get("host_name", "")
+                    retry_interval = arguments.get("retry_interval")
+                    reason = arguments.get("reason", "Not specified")
+
+                    # Validate parameters
+                    if not host_name:
+                        raise ValueError("host_name is required")
+
+                    try:
+                        retry_interval = float(retry_interval)
+                        if retry_interval < 0.1 or retry_interval > 60:
+                            raise ValueError(
+                                "retry_interval must be between 0.1 and 60 minutes"
+                            )
+                    except (TypeError, ValueError):
+                        raise ValueError(
+                            "retry_interval must be a valid number between 0.1 and 60 minutes"
+                        )
+
+                    # Get current host configuration
+                    current_config = {}
+                    if host_name != "all":
+                        try:
+                            host_result = await self.host_service.get_host(
+                                name=host_name, include_status=True
+                            )
+                            if host_result.success:
+                                host_data = host_result.data
+                                current_config = {
+                                    "current_retry": getattr(
+                                        host_data, "host_retry_interval", "Unknown"
+                                    ),
+                                    "check_interval": getattr(
+                                        host_data, "host_check_interval", "Unknown"
+                                    ),
+                                    "max_attempts": getattr(
+                                        host_data, "host_max_check_attempts", "Unknown"
+                                    ),
+                                }
+                        except Exception as e:
+                            current_config = {
+                                "error": f"Could not retrieve current configuration: {str(e)}"
+                            }
+
+                    # Create rule for retry_interval
+                    try:
+                        if host_name == "all":
+                            conditions = {}
+                        else:
+                            conditions = {"host_name": [host_name]}
+
+                        rule_result = await self.checkmk_client.create_rule(
+                            ruleset="extra_host_conf:retry_interval",
+                            folder="/",
+                            value_raw=str(retry_interval),
+                            conditions=conditions,
+                            properties={
+                                "comment": f"Host retry interval adjustment - {reason}"
+                            },
+                        )
+                        rule_created = rule_result.get("id", "created successfully")
+                    except Exception as e:
+                        rule_created = f"Error creating rule: {str(e)}"
+
+                    # Calculate impact
+                    max_attempts = current_config.get("max_attempts", "Unknown")
+                    if max_attempts != "Unknown" and isinstance(
+                        max_attempts, (int, float)
+                    ):
+                        total_time = retry_interval * (max_attempts - 1)
+                        current_retry = current_config.get("current_retry", "Unknown")
+                        if current_retry != "Unknown" and isinstance(
+                            current_retry, (int, float)
+                        ):
+                            current_total = current_retry * (max_attempts - 1)
+                        else:
+                            current_total = "Unknown"
+                    else:
+                        total_time = "Unknown"
+                        current_total = "Unknown"
+
+                    # Resource impact assessment
+                    if retry_interval < 1:
+                        resource_impact = "High (frequent checks during problems)"
+                    elif retry_interval <= 5:
+                        resource_impact = "Medium (balanced approach)"
+                    else:
+                        resource_impact = "Low (infrequent retry checks)"
+
+                    prompt_text = f"""Configure host retry interval for '{host_name}'
+
+CURRENT CONFIGURATION:
+- Host: {host_name}
+- Normal check interval: {current_config.get('check_interval', 'Unknown')} minutes
+- Current retry interval: {current_config.get('current_retry', 'Unknown')} minutes
+- Max check attempts: {current_config.get('max_attempts', 'Unknown')}
+
+PROPOSED CHANGE:
+- New retry interval: {retry_interval} minutes
+- Reason: {reason}
+- Resource impact: {resource_impact}
+
+IMPACT ANALYSIS:
+1. Soft state behavior:
+   - When host enters soft DOWN state, checks will run every {retry_interval} minutes
+   - Current total time to hard state: {current_total} minutes
+   - Proposed total time to hard state: {total_time} minutes
+
+2. Resource impact:
+   - More frequent retries: Higher load but faster recovery detection
+   - Less frequent retries: Lower load but slower recovery detection
+
+3. Best practices:
+   - Fast recovery needed: 0.5-1 minute
+   - Balanced approach: 1-5 minutes
+   - Resource constrained: 5-10 minutes
+   - Very slow networks: 10+ minutes
+
+4. Network considerations:
+   - Stable networks can handle shorter intervals
+   - Unreliable networks benefit from longer intervals
+   - Consider monitoring system load impact
+
+CONFIGURATION:
+Rule creation: {rule_created}
+Ruleset: extra_host_conf:retry_interval
+Folder: / (root)
+
+The rule has been configured to adjust host retry behavior. Monitor system load and alert timing after deployment."""
+
+                elif name == "adjust_host_check_timeout":
+                    host_name = arguments.get("host_name", "")
+                    timeout_seconds = arguments.get("timeout_seconds")
+                    check_type = arguments.get("check_type", "icmp").lower()
+                    reason = arguments.get("reason", "Not specified")
+
+                    # Validate parameters
+                    if not host_name:
+                        raise ValueError("host_name is required")
+
+                    try:
+                        timeout_seconds = int(timeout_seconds)
+                        if timeout_seconds < 1 or timeout_seconds > 60:
+                            raise ValueError("timeout_seconds must be between 1 and 60")
+                    except (TypeError, ValueError):
+                        raise ValueError(
+                            "timeout_seconds must be a valid integer between 1 and 60"
+                        )
+
+                    if check_type not in ["icmp", "snmp", "all"]:
+                        check_type = "icmp"  # Default to ICMP
+
+                    # Get current host configuration
+                    current_config = {}
+                    if host_name != "all":
+                        try:
+                            host_result = await self.host_service.get_host(
+                                name=host_name, include_status=True
+                            )
+                            if host_result.success:
+                                host_data = host_result.data
+                                current_config = {
+                                    "host_exists": True,
+                                    "check_command": getattr(
+                                        host_data, "host_check_command", "Unknown"
+                                    ),
+                                }
+                        except Exception as e:
+                            current_config = {
+                                "error": f"Could not retrieve host info: {str(e)}"
+                            }
+
+                    # Create appropriate rule based on check type
+                    rules_created = []
+
+                    try:
+                        if host_name == "all":
+                            conditions = {}
+                        else:
+                            conditions = {"host_name": [host_name]}
+
+                        if check_type in ["icmp", "all"]:
+                            # Create ICMP timeout rule
+                            icmp_rule = await self.checkmk_client.create_rule(
+                                ruleset="active_checks:icmp",
+                                folder="/",
+                                value_raw=f'{{"timeout": {timeout_seconds}}}',
+                                conditions=conditions,
+                                properties={
+                                    "comment": f"ICMP timeout adjustment - {reason}"
+                                },
+                            )
+                            rules_created.append(
+                                f"ICMP rule: {icmp_rule.get('id', 'created')}"
+                            )
+
+                        if check_type in ["snmp", "all"]:
+                            # Create SNMP timeout rule
+                            snmp_rule = await self.checkmk_client.create_rule(
+                                ruleset="snmp_timing",
+                                folder="/",
+                                value_raw=f'{{"timeout": {timeout_seconds}, "retries": 2}}',
+                                conditions=conditions,
+                                properties={
+                                    "comment": f"SNMP timeout adjustment - {reason}"
+                                },
+                            )
+                            rules_created.append(
+                                f"SNMP rule: {snmp_rule.get('id', 'created')}"
+                            )
+
+                    except Exception as e:
+                        rules_created.append(f"Error creating rules: {str(e)}")
+
+                    # Network recommendations based on timeout
+                    if timeout_seconds <= 5:
+                        network_type = "LAN/Ethernet (1-5s)"
+                    elif timeout_seconds <= 8:
+                        network_type = "Good WiFi/5GHz (3-8s)"
+                    elif timeout_seconds <= 12:
+                        network_type = "Normal WiFi/2.4GHz (5-12s)"
+                    elif timeout_seconds <= 20:
+                        network_type = "Poor WiFi/WAN (10-20s)"
+                    elif timeout_seconds <= 35:
+                        network_type = "Mobile/Cellular (20-35s)"
+                    else:
+                        network_type = "Satellite/Very high latency (35-60s)"
+
+                    prompt_text = f"""Configure host check timeout for '{host_name}'
+
+CURRENT CONFIGURATION:
+- Host: {host_name}
+- Check command: {current_config.get('check_command', 'Unknown')}
+- Current timeout: Unknown (checking existing rules...)
+
+PROPOSED CHANGE:
+- New timeout: {timeout_seconds} seconds
+- Check type affected: {check_type}
+- Reason: {reason}
+- Suitable for: {network_type}
+
+ANALYSIS:
+1. Timeout implications:
+   - Too short: False DOWN states due to network delays
+   - Too long: Delayed detection of actual problems
+2. Recommendations by network type:
+   - LAN/Ethernet: 1-5 seconds
+   - Good WiFi (5GHz): 3-8 seconds
+   - Normal WiFi (2.4GHz): 5-12 seconds
+   - Poor WiFi/Congested: 10-20 seconds
+   - WAN/Internet: 5-15 seconds
+   - Slow Internet (DSL/Cable): 15-25 seconds
+   - Mobile/Cellular: 20-35 seconds
+   - Satellite/Distant: 25-45 seconds
+   - Very high-latency: 45-60 seconds
+
+3. Performance considerations:
+   - Longer timeouts may delay check scheduling
+   - Consider network RTT: timeout should be > 3×RTT
+   - Balance between false positives and detection speed
+
+4. Check type specifics:
+   - ICMP: Direct network reachability test
+   - SNMP: Query device for status information
+   - Consider device response capabilities
+
+CONFIGURATION:
+Rules created: {'; '.join(rules_created)}
+Rulesets: {"active_checks:icmp" if check_type in ["icmp", "all"] else ""}{"snmp_timing" if check_type in ["snmp", "all"] else ""}
+Folder: / (root)
+
+The timeout rules have been configured. Monitor for false positives or missed problems and adjust as needed."""
 
                 else:
                     raise ValueError(f"Unknown prompt: {name}")
@@ -3013,7 +3481,11 @@ Focus on reducing false positives while maintaining effective monitoring coverag
         )
 
         async def get_service_metrics(
-            host_name, service_description, time_range_hours=24, reduce="average", site=None
+            host_name,
+            service_description,
+            time_range_hours=24,
+            reduce="average",
+            site=None,
         ):
 
             metrics_service = self._get_service("metrics")
@@ -3092,7 +3564,12 @@ Focus on reducing false positives while maintaining effective monitoring coverag
         )
 
         async def get_metric_history(
-            host_name, service_description, metric_id, time_range_hours=168, reduce="average", site=None
+            host_name,
+            service_description,
+            metric_id,
+            time_range_hours=168,
+            reduce="average",
+            site=None,
         ):
 
             metrics_service = self._get_service("metrics")
