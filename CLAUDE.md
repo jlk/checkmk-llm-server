@@ -26,7 +26,14 @@ The project is a **FULLY OPERATIONAL** Checkmk LLM Agent implementation with:
 
 ## Current Focus
 
-**Recently Completed - Temperature Parameter API Fix** (2025-08-03):
+**Recently Completed - Host Check Configuration Prompts** (2025-08-07):
+- **3 New MCP Prompts**: Implemented comprehensive host check parameter management with adjust_host_check_attempts, adjust_host_retry_interval, and adjust_host_check_timeout
+- **Intelligent Configuration**: Network-aware recommendations based on host location, connection type, and performance characteristics
+- **Production Validation**: Comprehensive parameter validation with range checking (1-10 attempts, 0.1-60 minute intervals)
+- **Checkmk API Integration**: Direct rule creation and management through REST API with proper folder handling
+- **Documentation Accuracy**: Technical review of README removing marketing language, fixing tool count to 47, adding limitations section
+
+**Previously Completed - Temperature Parameter API Fix** (2025-08-03):
 - **Fixed Critical API Error**: Resolved "The value 75 has type int, but must be of type float" error for temperature parameter rules
 - **Integer-to-Float Conversion**: Automatically converts integer temperature thresholds (75) to floats (75.0) for API compliance  
 - **Backward Compatibility**: Preserves integers for non-temperature rulesets to maintain existing functionality
