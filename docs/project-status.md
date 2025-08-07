@@ -97,11 +97,12 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - ✅ **Zero Functionality Loss**: All features from both previous servers included
 
 **Recent Changes (2025-08-07)**:
+- **Request ID Tracing System**: Implemented comprehensive request ID tracing infrastructure with 6-digit hex IDs (req_xxxxxx) and system-wide propagation
+- **Thread-Safe Context Propagation**: Added contextvars-based request tracking across all async and sync operations
+- **Enhanced Logging System**: Fixed logging configuration with RequestIDFormatter to display request IDs in all log messages
+- **System-Wide Integration**: Integrated request tracing in MCP server (47 tools), API clients, CLI interfaces, and service layers
 - **Host Check Configuration Prompts**: Implemented 3 new MCP prompts for comprehensive host check parameter management (adjust_host_check_attempts, adjust_host_retry_interval, adjust_host_check_timeout)
 - **Documentation Technical Review**: Improved README accuracy by removing marketing language, fixing tool count to 47, and adding realistic limitations section
-- **MCP Server Enhancement**: Added ~400 lines of production-ready code with intelligent analysis and network-aware recommendations
-- **Parameter Validation**: Comprehensive input validation with range checking and error sanitization
-- **Network-Aware Configuration**: Context-aware recommendations based on host characteristics and network conditions
 
 **Previous Changes (2025-08-02)**:
 - **Comprehensive Parameter Management**: Implemented complete 5-phase system for reading/writing ALL service parameters
@@ -209,9 +210,11 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 
 ## Recent Achievements (Last 30 Days)
 
+- ✅ **Request ID Tracing Infrastructure**: Complete request ID tracing system with 6-digit hex IDs and system-wide propagation using contextvars (2025-08-07)
+- ✅ **Enhanced Logging System**: Fixed logging configuration to display request IDs in all log messages with RequestIDFormatter (2025-08-07)
+- ✅ **System-Wide Integration**: Request tracing integrated across MCP server, API clients, CLI interfaces, and service layers (2025-08-07)
 - ✅ **Host Check Configuration**: Implemented 3 comprehensive MCP prompts for host check parameter tuning with intelligent analysis (2025-08-07)
 - ✅ **Documentation Accuracy Review**: Technical review and improvement of README with realistic expectations and accurate tool counts (2025-08-07)
-- ✅ **Network-Aware Recommendations**: Context-aware configuration suggestions based on host location and connection characteristics (2025-08-07)
 
 - ✅ **Comprehensive Parameter Management**: Complete 5-phase implementation supporting ALL service parameters (2025-08-02)
 - ✅ **Specialized Handlers**: Created 4 intelligent handlers for temperature, database, network, and custom monitoring (2025-08-02)
