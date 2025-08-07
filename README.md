@@ -1,6 +1,6 @@
 # Checkmk LLM Agent
 
-A modern Python agent that connects Large Language Models to Checkmk through the Model Context Protocol (MCP), enabling natural language interactions for infrastructure monitoring and management.
+A Python agent that connects Large Language Models to Checkmk through the Model Context Protocol (MCP), enabling natural language interactions for infrastructure monitoring and management.
 
 ## 🚀 Key Features
 
@@ -8,10 +8,10 @@ A modern Python agent that connects Large Language Models to Checkmk through the
 - **Primary Interface**: Model Context Protocol (MCP) server for standardized LLM integration
 - **Universal Compatibility**: Works with any MCP-compatible client (Claude Desktop, VS Code, etc.)
 - **Streaming Support**: Efficient handling of large datasets with async streaming
-- **Advanced Caching**: Intelligent LRU caching with TTL for optimal performance
+- **Caching**: LRU caching with TTL for improved performance
 - **Batch Operations**: Concurrent bulk operations with progress tracking
 - **Performance Monitoring**: Real-time metrics and performance insights
-- **Error Recovery**: Circuit breakers, retry policies, and fallback mechanisms
+- **Error Recovery**: Circuit breakers and retry policies for API resilience
 
 ### Natural Language Operations
 
@@ -27,10 +27,10 @@ A modern Python agent that connects Large Language Models to Checkmk through the
 | **Downtime Scheduling**       | `services downtime server01 "disk space" --hours 4`           | `"create 4 hour downtime for disk space on server01"` |
 | **Rule Management**           | `rules create filesystem --folder /web`                       | `"create filesystem rule for web servers"`            |
 | **Discovery**                 | `services discover server01`                                  | `"discover services on server01"`                     |
-| **Event History** (New!)      | `services events server01 "CPU utilization"`                  | `"show event history for CPU on server01"`            |
-| **Performance Metrics** (New!)| `services metrics server01 "Memory" --hours 24`               | `"show memory metrics for server01"`                  |
-| **Business Status** (New!)    | `bi status`                                                   | `"what's the business service status?"`               |
-| **System Info** (New!)        | `system info`                                                 | `"what version of Checkmk is running?"`               |
+| **Event History**              | `services events server01 "CPU utilization"`                  | `"show event history for CPU on server01"`            |
+| **Performance Metrics**        | `services metrics server01 "Memory" --hours 24`               | `"show memory metrics for server01"`                  |
+| **Business Status**            | `bi status`                                                   | `"what's the business service status?"`               |
+| **System Info**                | `system info`                                                 | `"what version of Checkmk is running?"`               |
 
 ## 📋 Architecture Overview
 
@@ -55,7 +55,7 @@ A modern Python agent that connects Large Language Models to Checkmk through the
 ### Prerequisites
 - Python 3.8 or higher
 - Checkmk server version 2.4.0 or higher with REST API enabled
-- OpenAI or Anthropic API key (for natural language processing)
+- OpenAI or Anthropic API key (optional, for enhanced natural language processing)
 
 > **Note**: This agent requires Checkmk 2.4+ due to API changes. For older versions, see the [Migration Guide](#migration-from-checkmk-20)
 
@@ -87,10 +87,10 @@ cp examples/configs/development.yaml config.yaml
 
 ### MCP Server
 
-The Checkmk MCP Server provides comprehensive monitoring capabilities with all advanced features included:
+The Checkmk MCP Server provides monitoring capabilities through the MCP protocol:
 
 **Entry Point**: `mcp_checkmk_server.py`  
-**Tools Available**: 40 tools covering all monitoring operations including specialized parameter management
+**Tools Available**: 47 tools covering monitoring operations including parameter management
 ```bash
 python mcp_checkmk_server.py --config config.yaml
 ```
@@ -100,18 +100,18 @@ python mcp_checkmk_server.py --config config.yaml
 - **Service Monitoring**: Full lifecycle management (list, status, acknowledge, downtime)
 - **Status Dashboards**: Real-time health overviews and problem analysis
 - **Service Parameters**: Dynamic configuration management (get, set, validate)
-- **Specialized Parameter Handlers**: Advanced parameter management for temperature, database, network, and custom checks (New!)
-- **Event Console**: Service history and event management (New in 2.4!)
-- **Metrics & Performance**: Historical data and graph analysis (New in 2.4!)
-- **Business Intelligence**: BI aggregations and business status (New in 2.4!)
-- **System Information**: Version and configuration details (New in 2.4!)
+- **Specialized Parameter Handlers**: Parameter management for temperature, database, network, and custom checks
+- **Event Console**: Service history and event management (via Checkmk 2.4 API)
+- **Metrics & Performance**: Historical data and graph analysis (via Checkmk 2.4 API)
+- **Business Intelligence**: BI aggregations and business status (via Checkmk 2.4 API)
+- **System Information**: Version and configuration details
 
-**Advanced Features**:
+**Additional Features**:
 - **Streaming Operations**: Memory-efficient processing of large datasets
 - **Batch Processing**: Concurrent bulk operations with progress tracking
-- **Advanced Caching**: LRU caching with TTL for optimal performance
-- **Performance Metrics**: Real-time system performance monitoring
-- **Error Recovery**: Circuit breakers and automatic retry mechanisms
+- **Caching**: LRU caching with TTL for improved performance
+- **Performance Metrics**: System performance monitoring
+- **Error Recovery**: Circuit breakers and retry mechanisms
 
 ### Connecting GenAI Programs to the MCP Server
 
@@ -162,11 +162,11 @@ Once connected, you can use natural language commands like:
 - "List services for server01"
 - "Create a 2-hour downtime for database maintenance on prod-db-01"
 - "What hosts are having disk space issues?"
-- "Show me the event history for CPU load on server01" (New!)
-- "Get CPU performance metrics for the last 24 hours" (New!)
-- "What's the business service status?" (New!)
+- "Show me the event history for CPU load on server01"
+- "Get CPU performance metrics for the last 24 hours"
+- "What's the business service status?"
 
-📚 **See [Usage Examples](docs/USAGE_EXAMPLES.md) for comprehensive examples of all features**
+📚 **See [Usage Examples](docs/USAGE_EXAMPLES.md) for examples of available features**
 
 ## 🖥️ CLI Interface Options
 
@@ -329,7 +329,7 @@ async def critical_operation():
 
 ## 📊 MCP Server Features
 
-The unified Checkmk MCP Server includes all monitoring capabilities and advanced features:
+The unified Checkmk MCP Server includes monitoring capabilities and additional features:
 
 | Feature Category | Available Tools & Capabilities |
 |------------------|------------------------------|
@@ -344,9 +344,9 @@ The unified Checkmk MCP Server includes all monitoring capabilities and advanced
 | **Business Intelligence** | ✅ BI aggregations, critical business services |
 | **Advanced Features** | ✅ Streaming, caching, batch ops, metrics, recovery |
 
-**Total Tools**: 40 comprehensive monitoring tools
-**Performance**: Optimized for all environment sizes (small to enterprise)
-**Memory Usage**: Efficient with intelligent caching and streaming
+**Total Tools**: 47 monitoring tools
+**Performance**: Includes caching and streaming capabilities
+**Memory Usage**: Uses LRU caching and streaming for memory efficiency
 
 ## 🏗️ Architecture Components
 
@@ -364,7 +364,7 @@ The unified Checkmk MCP Server includes all monitoring capabilities and advanced
 - `CircuitBreaker` - Automatic failure detection and recovery
 
 ### MCP Integration
-- **Unified MCP Server** (`mcp_checkmk_server.py`) - 40 comprehensive tools with all features including specialized parameter handlers
+- **Unified MCP Server** (`mcp_checkmk_server.py`) - 47 tools including specialized parameter handlers
 - **MCP Client** (`checkmk_cli_mcp.py`) - CLI interface connecting to MCP server
 - **Direct CLI** (`checkmk_agent.cli`) - Legacy interface with direct API access
 
@@ -376,18 +376,18 @@ The unified Checkmk MCP Server includes all monitoring capabilities and advanced
 
 ## 📊 Performance Characteristics
 
-### Benchmarks
-- **Cache Performance**: 10,000+ read ops/second, 5,000+ write ops/second
-- **Streaming Throughput**: 1,000+ items/second with constant memory usage
-- **Batch Processing**: 500+ items/second with 10x concurrency
-- **Metrics Overhead**: <50% performance impact
-- **Memory Efficiency**: <100MB growth for 10,000 item processing
+### Performance Features
+- **Caching**: LRU cache with configurable TTL reduces API calls for repeated queries
+- **Streaming**: Processes large datasets in batches to maintain constant memory usage
+- **Batch Processing**: Concurrent operations for bulk tasks
+- **Metrics Collection**: Optional performance monitoring with configurable retention
+- **Memory Management**: Streaming and caching reduce memory footprint for large datasets
 
-### Scalability
-- **Large Environments**: Tested with 50,000+ hosts/services
-- **Concurrent Operations**: Up to 20 concurrent batch operations
-- **Cache Efficiency**: 5-50x speedup for repeated queries
-- **Streaming**: Constant memory usage regardless of dataset size
+### Scalability Considerations
+- **Dataset Size**: Streaming support allows processing of large host/service inventories
+- **Concurrent Operations**: Configurable concurrency limits for batch operations
+- **Resource Usage**: Memory usage scales with configured cache size and batch size rather than total dataset
+- **API Rate Limiting**: Built-in retry logic and rate limiting to respect Checkmk server limits
 
 ## 🧪 Development
 
@@ -404,7 +404,7 @@ checkmk_llm_agent/
 │   │   ├── metrics.py        # Performance monitoring
 │   │   └── recovery.py       # Error recovery patterns
 │   ├── mcp_server/           # MCP server implementation
-│   │   └── server.py         # Unified MCP server (28 tools)
+│   │   └── server.py         # Unified MCP server (47 tools)
 │   ├── api_client.py         # Checkmk REST API client
 │   ├── async_api_client.py   # Async wrapper for API client
 │   ├── mcp_client.py         # MCP client implementation
@@ -439,6 +439,25 @@ Run the validation script to ensure everything is working:
 ```bash
 python validate_implementation.py
 ```
+
+## ⚠️ Known Limitations
+
+### System Requirements
+- **Memory Usage**: Cache and batch processing require additional memory proportional to dataset size
+- **API Dependencies**: All functionality requires active Checkmk REST API access
+- **Network Latency**: Performance depends on network latency to Checkmk server
+
+### Feature Limitations  
+- **Checkmk Version Support**: Requires Checkmk 2.4.0+ due to API changes
+- **MCP SDK Issues**: Known initialization issues with MCP SDK 1.12.0 on macOS/Python 3.12
+- **API Rate Limits**: Performance limited by Checkmk server's API rate limiting
+- **Authentication**: Uses basic authentication; advanced auth methods not implemented
+
+### Development Status
+- **Testing**: Core functionality tested, extensive production testing not completed
+- **Error Handling**: Basic error handling implemented, may not cover all edge cases  
+- **Documentation**: Some advanced features may have incomplete documentation
+- **Compatibility**: Primarily tested with specific Checkmk versions and Python environments
 
 ## 🔧 Troubleshooting
 
@@ -621,6 +640,6 @@ For questions or issues:
 
 ---
 
-**Status**: ✅ **Production Ready with Checkmk 2.4** - All phases implemented and validated
+**Status**: ✅ **Functional Implementation with Checkmk 2.4** - Core features implemented and tested
 
-The Checkmk LLM Agent provides a modern, scalable integration between Large Language Models and Checkmk monitoring, featuring advanced capabilities for enterprise deployments. Now with full support for Checkmk 2.4's Event Console, Metrics API, and Business Intelligence features.
+The Checkmk LLM Agent provides integration between Large Language Models and Checkmk monitoring through the MCP protocol. Includes support for Checkmk 2.4's Event Console, Metrics API, and Business Intelligence features via API exposure.
