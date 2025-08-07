@@ -5,6 +5,24 @@ import difflib
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
+# Import request tracking utilities
+try:
+    from ..utils.request_context import (
+        generate_request_id,
+        set_request_id,
+        get_request_id,
+    )
+except ImportError:
+    # Fallback for cases where request tracking is not available
+    def generate_request_id() -> str:
+        return "req_unknown"
+
+    def set_request_id(request_id: str) -> None:
+        pass
+
+    def get_request_id() -> Optional[str]:
+        return None
+
 
 @dataclass
 class CommandIntent:
@@ -109,6 +127,10 @@ class CommandParser:
         Returns:
             CommandIntent object with parsed information
         """
+        # Generate request ID for this command parsing session
+        request_id = generate_request_id()
+        set_request_id(request_id)
+
         user_input = user_input.strip()
 
         if not user_input:

@@ -79,6 +79,7 @@ class BaseParameterHandler(ABC):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         # Import here to avoid circular imports
         from .parameter_policies import ParameterPolicyManager
+
         self.parameter_policies = ParameterPolicyManager()
 
     @property
@@ -207,17 +208,15 @@ class BaseParameterHandler(ABC):
         return []
 
     def apply_parameter_policies(
-        self,
-        parameters: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
+        self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]] = None
     ) -> tuple[Dict[str, Any], list[str]]:
         """
         Apply parameter policies to filter parameters based on business rules.
-        
+
         Args:
             parameters: Original parameters to filter
             context: Optional context including user intent, existing parameters, etc.
-            
+
         Returns:
             Tuple of (filtered_parameters, filter_messages)
         """

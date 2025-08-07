@@ -39,7 +39,7 @@ class TestCLIParameterRuleIntegration:
 
         # Mock the configuration loading
         with patch("checkmk_agent.cli.load_config") as mock_load_config, patch(
-            "checkmk_agent.services.parameter_service.CheckmkClient"
+            "checkmk_agent.services.parameter_service.AsyncCheckmkClient"
         ) as mock_client_class, patch(
             "checkmk_agent.cli.CheckmkClient"
         ) as mock_cli_client_class:
@@ -104,7 +104,8 @@ class TestCLIParameterRuleIntegration:
                     result = runner.invoke(
                         cli,
                         [
-                            "service-params",
+                            "services",
+                            "params",
                             "set",
                             "--host",
                             "piaware",
@@ -153,7 +154,7 @@ class TestCLIParameterRuleIntegration:
         This reproduces the exact CLI scenario from the error logs.
         """
         with patch("checkmk_agent.cli.load_config") as mock_load_config, patch(
-            "checkmk_agent.services.parameter_service.CheckmkClient"
+            "checkmk_agent.services.parameter_service.AsyncCheckmkClient"
         ) as mock_client_class, patch(
             "checkmk_agent.cli.CheckmkClient"
         ) as mock_cli_client_class:
@@ -249,7 +250,7 @@ class TestCLIParameterRuleIntegration:
         This ensures that the conditions fix doesn't break other error handling.
         """
         with patch("checkmk_agent.cli.load_config") as mock_load_config, patch(
-            "checkmk_agent.services.parameter_service.CheckmkClient"
+            "checkmk_agent.services.parameter_service.AsyncCheckmkClient"
         ) as mock_client_class, patch(
             "checkmk_agent.cli.CheckmkClient"
         ) as mock_cli_client_class:
@@ -321,12 +322,12 @@ class TestCLIParameterRuleIntegration:
         Test that the service-params set command is available and documented.
         """
         # Test that the command group exists
-        result = runner.invoke(cli, ["service-params", "--help"])
+        result = runner.invoke(cli, ["services", "params", "--help"])
         assert result.exit_code == 0
         assert "set" in result.output
 
         # Test that the set command help works
-        result = runner.invoke(cli, ["service-params", "set", "--help"])
+        result = runner.invoke(cli, ["services", "params", "set", "--help"])
         assert result.exit_code == 0
         assert "--host" in result.output
         assert "--service" in result.output

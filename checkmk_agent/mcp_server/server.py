@@ -34,6 +34,41 @@ from ..services.metrics import MetricsMixin, get_metrics_collector
 from ..services.recovery import RecoveryMixin
 from ..services.batch import BatchProcessor, BatchOperationsMixin
 
+# Import request tracking utilities
+try:
+    from ..utils.request_context import (
+        generate_request_id,
+        set_request_id,
+        get_request_id,
+        ensure_request_id,
+    )
+    from ..middleware.request_tracking import track_request, with_request_tracking
+except ImportError:
+    # Fallback for cases where request tracking is not available
+    def generate_request_id() -> str:
+        return "req_unknown"
+
+    def set_request_id(request_id: str) -> None:
+        pass
+
+    def get_request_id() -> Optional[str]:
+        return None
+
+    def ensure_request_id() -> str:
+        return "req_unknown"
+
+    def track_request(**kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    def with_request_tracking(**kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +300,15 @@ class CheckmkMCPServer:
 
         @self.server.call_tool()
         async def call_tool(name: str, arguments: dict):
-            """Handle MCP tool calls."""
+            """Handle MCP tool calls with request ID tracking."""
+            # Generate unique request ID for this tool call
+            request_id = generate_request_id()
+            set_request_id(request_id)
+
+            logger.info(
+                f"[{request_id}] MCP tool call: {name} with arguments: {arguments}"
+            )
+
             if not self._ensure_services():
                 raise RuntimeError("Services not initialized")
 
@@ -275,6 +318,13 @@ class CheckmkMCPServer:
 
             try:
                 result = await handler(**arguments)
+
+                # Add request ID to result if possible
+                if isinstance(result, dict):
+                    result["request_id"] = request_id
+
+                logger.info(f"[{request_id}] MCP tool '{name}' completed successfully")
+
                 # Return raw dict to avoid MCP framework tuple construction bug
                 return {
                     "content": [
@@ -282,15 +332,16 @@ class CheckmkMCPServer:
                             "type": "text",
                             "text": safe_json_dumps(result),
                             "annotations": None,
-                            "meta": None,
+                            "meta": {"request_id": request_id},
                         }
                     ],
                     "isError": False,
-                    "meta": None,
+                    "meta": {"request_id": request_id},
                     "structuredContent": None,
                 }
             except Exception as e:
-                logger.exception(f"Error calling tool {name}")
+                logger.exception(f"[{request_id}] Error calling tool {name}")
+
                 # Return raw dict for error case too
                 return {
                     "content": [
@@ -298,11 +349,11 @@ class CheckmkMCPServer:
                             "type": "text",
                             "text": str(e),
                             "annotations": None,
-                            "meta": None,
+                            "meta": {"request_id": request_id},
                         }
                     ],
                     "isError": True,
-                    "meta": None,
+                    "meta": {"request_id": request_id},
                     "structuredContent": None,
                 }
 

@@ -9,7 +9,32 @@ from .config import load_config
 from .api_client import CheckmkClient
 from .llm_client import create_llm_client, LLMProvider
 from .host_operations import HostOperationsManager
-from .utils import setup_logging
+
+# Logging will be imported later when needed
+
+# Import request tracking utilities
+try:
+    from .utils.request_context import generate_request_id, set_request_id
+    from .middleware.request_tracking import track_request, with_request_tracking
+except ImportError:
+    # Fallback for cases where request tracking is not available
+    def generate_request_id() -> str:
+        return "req_unknown"
+
+    def set_request_id(request_id: str) -> None:
+        pass
+
+    def track_request(**kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    def with_request_tracking(**kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
 
 
 @click.group()
@@ -19,10 +44,22 @@ from .utils import setup_logging
 @click.option(
     "--config", "--config-file", help="Path to configuration file (YAML, TOML, or JSON)"
 )
+@click.option("--request-id", help="Specific request ID to use for tracing (optional)")
 @click.pass_context
-def cli(ctx, log_level: str, config: Optional[str]):
+@with_request_tracking("CLI Command")
+def cli(ctx, log_level: str, config: Optional[str], request_id: Optional[str]):
     """Checkmk LLM Agent - Natural language interface for Checkmk."""
     ctx.ensure_object(dict)
+
+    # Set request ID if provided, otherwise generate one
+    if request_id:
+        set_request_id(request_id)
+    else:
+        request_id = generate_request_id()
+        set_request_id(request_id)
+
+    # Store request ID in context for subcommands
+    ctx.obj["request_id"] = request_id
 
     # Load configuration first (to get config log_level if CLI flag not set)
     from .config import load_config
@@ -33,10 +70,10 @@ def cli(ctx, log_level: str, config: Optional[str]):
     # Determine log level: CLI flag overrides config
     effective_log_level = log_level or app_config.log_level
 
-    # Setup logging
+    # Setup logging with request ID support
     from .logging_utils import setup_logging
 
-    setup_logging(effective_log_level)
+    setup_logging(effective_log_level, include_request_id=True)
     logger = logging.getLogger(__name__)
 
     try:
@@ -85,8 +122,12 @@ def cli(ctx, log_level: str, config: Optional[str]):
 
 @cli.command()
 @click.pass_context
+@track_request(operation_name="CLI Test Command")
 def test(ctx):
     """Test connection to Checkmk API."""
+    request_id = ctx.obj.get("request_id", generate_request_id())
+    set_request_id(request_id)
+
     checkmk_client = ctx.obj["checkmk_client"]
 
     try:
@@ -114,8 +155,12 @@ def test(ctx):
 
 @cli.command()
 @click.pass_context
+@track_request(operation_name="CLI Interactive Mode")
 def interactive(ctx):
     """Start enhanced interactive mode for natural language commands."""
+    request_id = ctx.obj.get("request_id", generate_request_id())
+    set_request_id(request_id)
+
     host_manager = ctx.obj.get("host_manager")
     service_manager = ctx.obj.get("service_manager")
     checkmk_client = ctx.obj.get("checkmk_client")
@@ -1482,8 +1527,12 @@ def discover_ruleset(ctx, host_name: str, service_description: str):
 
 @cli.command()
 @click.pass_context
+@track_request(operation_name="CLI Stats Command")
 def stats(ctx):
     """Show host statistics."""
+    request_id = ctx.obj.get("request_id", generate_request_id())
+    set_request_id(request_id)
+
     host_manager = ctx.obj.get("host_manager")
 
     if not host_manager:

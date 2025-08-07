@@ -32,7 +32,11 @@ class AsyncCheckmkClient:
 
     def __init__(self, sync_client: CheckmkClient):
         self.sync_client = sync_client
-        self.logger = logging.getLogger(__name__)
+
+        # Use request ID-aware logger
+        from .logging_utils import get_logger_with_request_id
+
+        self.logger = get_logger_with_request_id(__name__)
 
     # Host operations
     @async_wrapper("list_hosts")

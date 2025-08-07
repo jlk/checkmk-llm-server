@@ -466,7 +466,9 @@ class ParameterService(BaseService):
             # Build full context with existing parameters for policy decisions
             existing_parameters = None
             if existing_rule:
-                existing_parameters = existing_rule.get("extensions", {}).get("value_raw", {})
+                existing_parameters = existing_rule.get("extensions", {}).get(
+                    "value_raw", {}
+                )
 
             full_context = {
                 **(context or {}),
@@ -481,12 +483,15 @@ class ParameterService(BaseService):
                 filtered_parameters, filter_messages = handler.apply_parameter_policies(
                     parameters, full_context
                 )
-                self.logger.info(f"Applied {handler.name} handler policies for parameter filtering")
+                self.logger.info(
+                    f"Applied {handler.name} handler policies for parameter filtering"
+                )
             else:
                 # Fallback: use the old filtering logic for now (can be replaced with global policies later)
                 from .handlers.parameter_policies import default_policy_manager
-                filtered_parameters, filter_messages = default_policy_manager.filter_parameters(
-                    parameters, full_context
+
+                filtered_parameters, filter_messages = (
+                    default_policy_manager.filter_parameters(parameters, full_context)
                 )
                 self.logger.info("Applied default parameter policies for filtering")
 
@@ -496,7 +501,9 @@ class ParameterService(BaseService):
                     self.logger.info(f"Parameter filtering: {msg}")
 
             # Validate filtered parameters before creating/updating rule
-            validation_result = await self.validate_parameters(ruleset, filtered_parameters)
+            validation_result = await self.validate_parameters(
+                ruleset, filtered_parameters
+            )
             if validation_result.success:
                 validation = validation_result.data
                 if not validation.is_valid:
@@ -505,7 +512,9 @@ class ParameterService(BaseService):
                     )
 
                 # Use normalized parameters if available
-                validated_params = validation.normalized_parameters or filtered_parameters
+                validated_params = (
+                    validation.normalized_parameters or filtered_parameters
+                )
 
                 # Log warnings if any
                 if validation.warnings:
@@ -676,7 +685,9 @@ class ParameterService(BaseService):
                 parameters=validated_params,  # Return the validated/filtered parameters
                 rule_id=rule_id,
                 ruleset=ruleset,
-                effective_parameters=effective_params.get("parameters", validated_params),
+                effective_parameters=effective_params.get(
+                    "parameters", validated_params
+                ),
                 was_updated=was_updated,
                 changes_made=changes_made,
                 warnings=warnings,
@@ -1456,14 +1467,14 @@ class ParameterService(BaseService):
     # DEPRECATED: This method is no longer used. Parameter filtering is now handled
     # by the policy-based system in handlers/parameter_policies.py
     def _filter_trending_parameters(
-        self, 
-        parameters: Dict[str, Any], 
+        self,
+        parameters: Dict[str, Any],
         existing_parameters: Optional[Dict[str, Any]] = None,
-        include_trending: bool = False
+        include_trending: bool = False,
     ) -> Dict[str, Any]:
         """
         DEPRECATED: Use policy-based filtering instead.
-        
+
         This method is kept for compatibility but should not be used in new code.
         Parameter filtering is now handled by the ParameterPolicyManager.
         """

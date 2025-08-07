@@ -15,6 +15,30 @@ from .utils import (
     validate_service_data,
 )
 
+# Import request context utilities with fallback
+try:
+    from .utils.request_context import (
+        get_request_id,
+        ensure_request_id,
+        format_request_id,
+    )
+    from .middleware.request_tracking import propagate_request_context
+except ImportError:
+    # Fallback for cases where request tracking is not available
+    def get_request_id() -> Optional[str]:
+        return None
+
+    def ensure_request_id() -> str:
+        return "req_unknown"
+
+    def format_request_id(request_id: Optional[str]) -> str:
+        return request_id or "req_unknown"
+
+    def propagate_request_context(
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, str]:
+        return headers.copy() if headers else {}
+
 
 class CheckmkAPIError(Exception):
     """Exception raised for Checkmk API errors."""
@@ -237,7 +261,11 @@ class CheckmkClient:
         self.config = config
         self.base_url = f"{config.server_url}/{config.site}/check_mk/api/1.0"
         self.session = requests.Session()
-        self.logger = logging.getLogger(__name__)
+
+        # Use request ID-aware logger
+        from .logging_utils import get_logger_with_request_id
+
+        self.logger = get_logger_with_request_id(__name__)
 
         # Set up authentication
         self.logger.debug(f"Setting up authentication for user: {self.config.username}")
@@ -257,22 +285,39 @@ class CheckmkClient:
 
     @retry_on_failure(max_retries=3)
     def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
-        """Make HTTP request with error handling."""
+        """Make HTTP request with error handling and request ID propagation."""
         # Ensure endpoint doesn't start with / to avoid urljoin path replacement
         if endpoint.startswith("/"):
             endpoint = endpoint[1:]
         url = urljoin(self.base_url + "/", endpoint)
-        self.logger.debug(f"Preparing {method} request to {url} with kwargs: {kwargs}")
+
+        # Get or generate request ID for this request
+        request_id = get_request_id() or ensure_request_id()
+
+        # Add request ID to headers
+        headers = kwargs.get("headers", {})
+        headers = propagate_request_context(headers)
+
+        # Ensure X-Request-ID header is set
+        if "X-Request-ID" not in headers and request_id:
+            headers["X-Request-ID"] = request_id
+
+        kwargs["headers"] = headers
+
+        self.logger.debug(f"[{request_id}] Preparing {method} request to {url}")
+        self.logger.debug(f"[{request_id}] Request headers: {headers}")
 
         try:
             response = self.session.request(
                 method=method, url=url, timeout=self.config.request_timeout, **kwargs
             )
-            self.logger.debug(f"Response status: {response.status_code}")
-            self.logger.debug(f"Response headers: {response.headers}")
-            self.logger.debug(f"Response text: {response.text}")
+            self.logger.debug(f"[{request_id}] Response status: {response.status_code}")
+            self.logger.debug(f"[{request_id}] Response headers: {response.headers}")
+            self.logger.debug(f"[{request_id}] Response text: {response.text}")
 
-            self.logger.debug(f"{method} {url} -> {response.status_code}")
+            self.logger.debug(
+                f"[{request_id}] {method} {url} -> {response.status_code}"
+            )
 
             # Handle different response codes
             if response.status_code == 204:  # No Content
@@ -289,7 +334,7 @@ class CheckmkClient:
 
                 error_msg = extract_error_message(error_data)
                 self.logger.error(
-                    f"API error {response.status_code} on {method} {endpoint}: {error_msg}"
+                    f"[{request_id}] API error {response.status_code} on {method} {endpoint}: {error_msg}"
                 )
 
                 raise CheckmkAPIError(
@@ -313,19 +358,19 @@ class CheckmkClient:
             return response_data
 
         except requests.exceptions.ConnectionError as e:
-            self.logger.error(f"Connection failed to {url}: {e}")
+            self.logger.error(f"[{request_id}] Connection failed to {url}: {e}")
             raise CheckmkAPIError(
                 f"Cannot connect to Checkmk server. Check server URL and network connectivity.",
                 endpoint=endpoint,
             )
         except requests.exceptions.Timeout as e:
-            self.logger.error(f"Request timeout to {url}: {e}")
+            self.logger.error(f"[{request_id}] Request timeout to {url}: {e}")
             raise CheckmkAPIError(
                 f"Request timeout after {self.config.request_timeout}s. Server may be overloaded.",
                 endpoint=endpoint,
             )
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Request failed to {url}: {e}")
+            self.logger.error(f"[{request_id}] Request failed to {url}: {e}")
             raise CheckmkAPIError(f"Request failed: {str(e)}", endpoint=endpoint)
 
     def list_hosts(self, effective_attributes: bool = False) -> List[Dict[str, Any]]:
@@ -2763,23 +2808,27 @@ class CheckmkClient:
     def get_activation_state(self) -> Optional[str]:
         """
         Get the current activation state to retrieve ETag for If-Match header.
-        
+
         This method tries multiple strategies to find the correct ETag:
         1. Try known working ETags from previous successful activations
         2. Check various API endpoints for current ETags
         3. Use fallback ETags that have worked in the past
-        
+
         Returns:
             ETag string if available, None otherwise
         """
         self.logger.debug("Getting ETag for activation using multiple strategies")
-        
+
         # Strategy 1: Use the known working ETag that was discovered through real API testing
         # This ETag was verified to work on 2025-08-04 during real API testing
-        known_working_etag = '"fca4adbe86ae7d1ea230e3d77e41af019230d175eda4cc9fc5faee7f69815580"'
-        self.logger.debug(f"Strategy 1: Trying known working ETag: {known_working_etag}")
+        known_working_etag = (
+            '"fca4adbe86ae7d1ea230e3d77e41af019230d175eda4cc9fc5faee7f69815580"'
+        )
+        self.logger.debug(
+            f"Strategy 1: Trying known working ETag: {known_working_etag}"
+        )
         return known_working_etag
-        
+
         # Future strategies could be added here:
         # Strategy 2: Try to get ETag from endpoint discovery
         # Strategy 3: Compute ETag from configuration state
@@ -2816,10 +2865,7 @@ class CheckmkClient:
         )
 
         # Prepare request body according to ActivateChanges schema from OpenAPI spec
-        body = {
-            "redirect": redirect, 
-            "force_foreign_changes": force_foreign_changes
-        }
+        body = {"redirect": redirect, "force_foreign_changes": force_foreign_changes}
 
         # Only include sites if specified (empty list means all sites with pending changes)
         if sites is not None:
@@ -2828,7 +2874,7 @@ class CheckmkClient:
         def attempt_activation_with_etag(etag: Optional[str] = None) -> Dict[str, Any]:
             """Helper function to attempt activation with a specific ETag."""
             headers = {"Content-Type": "application/json"}
-            
+
             if etag:
                 headers["If-Match"] = etag
                 self.logger.debug(f"Using ETag for activation: {etag}")
@@ -2845,8 +2891,9 @@ class CheckmkClient:
         def extract_expected_etag_from_error(error_message: str) -> Optional[str]:
             """Extract the expected ETag from a 412 error message."""
             import re
+
             # Look for pattern: "Expected <etag>"
-            match = re.search(r'Expected\s+([a-fA-F0-9]+)', error_message)
+            match = re.search(r"Expected\s+([a-fA-F0-9]+)", error_message)
             if match:
                 expected_etag = match.group(1)
                 # Ensure it's properly quoted for If-Match header
@@ -2859,56 +2906,76 @@ class CheckmkClient:
             # Strategy 1: Try without ETag first (per OpenAPI spec)
             self.logger.debug("Strategy 1: Attempting activation without ETag")
             response = attempt_activation_with_etag(None)
-            self.logger.info(f"Successfully activated changes on sites: {sites or 'all sites'}")
+            self.logger.info(
+                f"Successfully activated changes on sites: {sites or 'all sites'}"
+            )
             return response
 
         except CheckmkAPIError as e:
             if e.status_code == 428:
                 # Server requires If-Match header - try to get ETag from our method
-                self.logger.debug("Strategy 2: Server requires ETag, trying to get from activation state")
+                self.logger.debug(
+                    "Strategy 2: Server requires ETag, trying to get from activation state"
+                )
                 try:
                     etag = self.get_activation_state()
                     if etag:
                         response = attempt_activation_with_etag(etag)
-                        self.logger.info("Successfully activated changes with retrieved ETag")
+                        self.logger.info(
+                            "Successfully activated changes with retrieved ETag"
+                        )
                         return response
                     else:
                         raise CheckmkAPIError(
-                            "Server requires If-Match header but no ETag could be obtained", 
-                            e.status_code
+                            "Server requires If-Match header but no ETag could be obtained",
+                            e.status_code,
                         )
                 except CheckmkAPIError as retry_error:
                     if retry_error.status_code == 412:
                         # Use the dynamic ETag discovery strategy
-                        expected_etag = extract_expected_etag_from_error(str(retry_error))
+                        expected_etag = extract_expected_etag_from_error(
+                            str(retry_error)
+                        )
                         if expected_etag:
-                            self.logger.debug(f"Strategy 3: Using ETag extracted from error: {expected_etag}")
+                            self.logger.debug(
+                                f"Strategy 3: Using ETag extracted from error: {expected_etag}"
+                            )
                             response = attempt_activation_with_etag(expected_etag)
-                            self.logger.info("Successfully activated changes with error-extracted ETag")
+                            self.logger.info(
+                                "Successfully activated changes with error-extracted ETag"
+                            )
                             return response
                     raise
-                        
+
             elif e.status_code == 412:
                 # ETag mismatch - extract the expected ETag from error message
-                self.logger.debug("Strategy 4: ETag mismatch, extracting expected ETag from error")
+                self.logger.debug(
+                    "Strategy 4: ETag mismatch, extracting expected ETag from error"
+                )
                 expected_etag = extract_expected_etag_from_error(str(e))
                 if expected_etag:
                     try:
                         response = attempt_activation_with_etag(expected_etag)
-                        self.logger.info("Successfully activated changes with error-extracted ETag")
+                        self.logger.info(
+                            "Successfully activated changes with error-extracted ETag"
+                        )
                         return response
                     except CheckmkAPIError as retry_error:
                         if retry_error.status_code == 412:
-                            self.logger.error("ETag mismatch persists even with server-provided ETag")
+                            self.logger.error(
+                                "ETag mismatch persists even with server-provided ETag"
+                            )
                         raise retry_error
                 else:
-                    self.logger.error("Could not extract expected ETag from 412 error message")
-                
+                    self.logger.error(
+                        "Could not extract expected ETag from 412 error message"
+                    )
+
                 raise CheckmkAPIError(
-                    "Activation failed due to ETag mismatch and could not determine correct ETag", 
-                    e.status_code
+                    "Activation failed due to ETag mismatch and could not determine correct ETag",
+                    e.status_code,
                 )
-                        
+
             elif e.status_code == 422:
                 self.logger.warning("No changes to activate")
                 return {
@@ -2938,10 +3005,12 @@ class CheckmkClient:
                 )
             elif e.status_code == 302:
                 # Handle redirect case (activation started but still running)
-                self.logger.info("Activation started and redirected to wait-for-completion endpoint")
+                self.logger.info(
+                    "Activation started and redirected to wait-for-completion endpoint"
+                )
                 return {
                     "status": "redirected",
-                    "message": "Activation has been started and is still running"
+                    "message": "Activation has been started and is still running",
                 }
             else:
                 self.logger.error(f"Failed to activate changes: {e}")

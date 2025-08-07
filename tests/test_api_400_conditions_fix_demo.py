@@ -42,13 +42,25 @@ class TestAPI400ConditionsFixDemo:
         using "one_of" operator instead of the invalid "match_regex".
         """
 
-        # Capture the actual API call made by create_service_parameter_rule
+        # Capture the actual API calls made by create_service_parameter_rule
         with patch.object(client, "_make_request") as mock_request:
-            mock_request.return_value = {
-                "id": "demo-rule-123",
-                "ruleset": "checkgroup_parameters:temperature",
-                "folder": "/",
-            }
+            # First call is GET host config (for folder determination), second is POST rule creation
+            mock_request.side_effect = [
+                # Host lookup response
+                {
+                    "id": "piaware",
+                    "extensions": {
+                        "folder": "/",  # Host is in root folder
+                        "attributes": {},
+                    },
+                },
+                # Rule creation response
+                {
+                    "id": "demo-rule-123",
+                    "ruleset": "checkgroup_parameters:temperature",
+                    "folder": "/",
+                },
+            ]
 
             # Act - Create the exact rule that was failing
             client.create_service_parameter_rule(
@@ -70,16 +82,22 @@ class TestAPI400ConditionsFixDemo:
                 description="Temperature parameters for piaware Temperature Zone 0",
             )
 
-            # Assert - Verify the API call was made correctly
-            mock_request.assert_called_once()
-            call_args = mock_request.call_args
+            # Assert - Verify both API calls were made correctly
+            assert mock_request.call_count == 2
+            call_args_list = mock_request.call_args_list
 
-            # Check HTTP method and endpoint
-            assert call_args[0][0] == "POST"
-            assert call_args[0][1] == "/domain-types/rule/collections/all"
+            # First call: GET host config for folder determination
+            first_call = call_args_list[0]
+            assert first_call[0][0] == "GET"
+            assert first_call[0][1] == "/objects/host_config/piaware"
 
-            # Check the request payload
-            payload = call_args[1]["json"]
+            # Second call: POST rule creation
+            second_call = call_args_list[1]
+            assert second_call[0][0] == "POST"
+            assert second_call[0][1] == "/domain-types/rule/collections/all"
+
+            # Check the request payload from the rule creation call
+            payload = second_call[1]["json"]
 
             print("\n=== API Request Payload (AFTER FIX) ===")
             print(json.dumps(payload, indent=2))

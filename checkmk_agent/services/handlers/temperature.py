@@ -185,7 +185,10 @@ class TemperatureParameterHandler(BaseParameterHandler):
         elif sensor_type == "ambient":
             # Ambient temperature changes slowly
             raw_parameters["trend_compute"]["period"] = 60
-            raw_parameters["trend_compute"]["trend_levels"] = (3.0, 5.0)  # Slower changes
+            raw_parameters["trend_compute"]["trend_levels"] = (
+                3.0,
+                5.0,
+            )  # Slower changes
         elif sensor_type == "disk":
             # Disk temperature monitoring is less critical for trends
             raw_parameters["trend_compute"]["period"] = 60
@@ -490,11 +493,11 @@ class TemperatureParameterHandler(BaseParameterHandler):
             "reason": "Enable temperature trend monitoring",
             "impact": "Detect gradual temperature increases that might indicate hardware issues",
         }
-        
+
         # Apply policies to see if trending should be suggested
         test_parameters = {"trend_compute": raw_trend_suggestion["suggested_value"]}
         filtered_test, _ = self.apply_parameter_policies(test_parameters, context or {})
-        
+
         # Only suggest if policies allow it
         if "trend_compute" in filtered_test and "trend_compute" not in current:
             suggestions.append(raw_trend_suggestion)

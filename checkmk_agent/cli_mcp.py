@@ -13,6 +13,30 @@ from .mcp_client import create_mcp_client, CheckmkMCPClient
 from .formatters import CLIFormatter
 from .logging_utils import setup_logging
 
+# Import request tracking utilities
+try:
+    from .utils.request_context import generate_request_id, set_request_id
+    from .middleware.request_tracking import track_request, with_request_tracking
+except ImportError:
+    # Fallback for cases where request tracking is not available
+    def generate_request_id() -> str:
+        return "req_unknown"
+
+    def set_request_id(request_id: str) -> None:
+        pass
+
+    def track_request(**kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    def with_request_tracking(**kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +74,22 @@ def async_command(f):
     default="INFO",
     help="Set the logging level",
 )
+@click.option("--request-id", help="Specific request ID to use for tracing (optional)")
 @click.option("--no-color", is_flag=True, help="Disable colored output")
 @click.pass_context
 @async_command
-async def cli(ctx, config, log_level, no_color):
+@with_request_tracking("MCP CLI Command")
+async def cli(ctx, config, log_level, request_id, no_color):
     """Checkmk LLM Agent CLI - MCP Edition"""
-    # Setup logging
-    setup_logging(log_level)
+    # Setup logging with request ID support
+    setup_logging(log_level, include_request_id=True)
+
+    # Set request ID if provided, otherwise generate one
+    if request_id:
+        set_request_id(request_id)
+    else:
+        request_id = generate_request_id()
+        set_request_id(request_id)
 
     # Load configuration using the proper load_config function
     from .config import load_config

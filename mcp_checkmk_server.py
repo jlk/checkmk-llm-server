@@ -30,18 +30,18 @@ from checkmk_agent.mcp_server import CheckmkMCPServer
 
 
 def setup_logging(log_level: str = "INFO"):
-    """Setup logging configuration."""
-    numeric_level = getattr(logging, log_level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {log_level}')
+    """Setup logging configuration with request ID support."""
+    # Import the proper logging setup function
+    from checkmk_agent.logging_utils import setup_logging as proper_setup_logging
     
-    logging.basicConfig(
-        level=numeric_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stderr)  # Use stderr to avoid interfering with stdio MCP transport
-        ]
-    )
+    # Use the proper setup with request ID support but output to stderr for MCP
+    proper_setup_logging(log_level, include_request_id=True)
+    
+    # Ensure all handlers output to stderr to avoid interfering with stdio MCP transport
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        if hasattr(handler, 'stream') and handler.stream != sys.stderr:
+            handler.stream = sys.stderr
 
 
 async def main():

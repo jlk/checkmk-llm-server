@@ -186,7 +186,7 @@ class ServiceService(BaseService):
 
         async def _acknowledge_operation():
             nonlocal author
-            
+
             # Validate parameters
             validation_errors = self._validate_required_params(
                 {
@@ -260,7 +260,7 @@ class ServiceService(BaseService):
 
         async def _create_downtime_operation():
             nonlocal start_time, author
-            
+
             # Validate parameters
             validation_errors = self._validate_required_params(
                 {
