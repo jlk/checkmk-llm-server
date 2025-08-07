@@ -73,3 +73,6 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Serena mcp
+.serena/cache
