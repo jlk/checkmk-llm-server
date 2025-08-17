@@ -1,7 +1,7 @@
 """Metrics service - provides access to Checkmk metrics and performance data."""
 
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime, timedelta
 
 from .base import BaseService, ServiceResult
@@ -9,6 +9,41 @@ from .models.services import ServiceInfo
 from ..async_api_client import AsyncCheckmkClient
 from ..api_client import CheckmkAPIError
 from ..config import AppConfig
+
+
+def _ensure_integer_timestamps(start_time: datetime, end_time: datetime) -> List[int]:
+    """
+    Convert datetime objects to integer Unix timestamps for Checkmk API.
+    
+    The Checkmk REST API expects integer Unix timestamps, not float or string values.
+    This function ensures proper conversion and validation.
+    
+    Args:
+        start_time: Start datetime
+        end_time: End datetime
+        
+    Returns:
+        List of two integers: [start_timestamp, end_timestamp]
+        
+    Raises:
+        ValueError: If timestamps are invalid or in wrong order
+    """
+    if start_time >= end_time:
+        raise ValueError("Start time must be before end time")
+    
+    start_timestamp = int(start_time.timestamp())
+    end_timestamp = int(end_time.timestamp())
+    
+    # Validate reasonable timestamp range (not too far in past/future)
+    current_time = int(datetime.now().timestamp())
+    if start_timestamp < 0 or end_timestamp < 0:
+        raise ValueError("Timestamps cannot be negative")
+    if start_timestamp > current_time + 86400:  # More than 1 day in future
+        raise ValueError("Start time cannot be more than 1 day in the future")
+    if end_timestamp > current_time + 86400:  # More than 1 day in future
+        raise ValueError("End time cannot be more than 1 day in the future")
+    
+    return [start_timestamp, end_timestamp]
 
 
 class MetricInfo:
@@ -74,15 +109,13 @@ class MetricsService(BaseService):
             start_time = end_time - timedelta(hours=time_range_hours)
 
             # Build request data
+            # Note: Checkmk REST API requires integer Unix timestamps in time_range field
             data = {
                 "type": "single_metric",
                 "host_name": host_name,
                 "service_description": service_description,
                 "metric_id": metric_id,
-                "time_range": {
-                    "start": start_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
-                    "end": end_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
-                },
+                "time_range": _ensure_integer_timestamps(start_time, end_time),
                 "reduce": reduce,
             }
 
@@ -130,15 +163,13 @@ class MetricsService(BaseService):
             start_time = end_time - timedelta(hours=time_range_hours)
 
             # Build request data
+            # Note: Checkmk REST API requires integer Unix timestamps in time_range field
             data = {
                 "type": "predefined_graph",
                 "host_name": host_name,
                 "service_description": service_description,
                 "graph_id": graph_id,
-                "time_range": {
-                    "start": start_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
-                    "end": end_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
-                },
+                "time_range": _ensure_integer_timestamps(start_time, end_time),
                 "reduce": reduce,
             }
 

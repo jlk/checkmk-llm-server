@@ -28,6 +28,7 @@ from ..services import HostService, StatusService, ServiceService, ParameterServ
 from ..services.event_service import EventService
 from ..services.metrics_service import MetricsService
 from ..services.bi_service import BIService
+from ..services.historical_service import HistoricalDataService, CachedHistoricalDataService
 from ..services.streaming import StreamingHostService, StreamingServiceService
 from ..services.cache import CachedHostService
 from ..services.metrics import MetricsMixin, get_metrics_collector
@@ -137,6 +138,7 @@ class CheckmkMCPServer:
         self.event_service: Optional[EventService] = None
         self.metrics_service: Optional[MetricsService] = None
         self.bi_service: Optional[BIService] = None
+        self.historical_service: Optional[HistoricalDataService] = None
 
         # Enhanced services
         self.streaming_host_service: Optional[StreamingHostService] = None
@@ -3194,7 +3196,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
         # List service events tool
         self._tools["list_service_events"] = Tool(
             name="list_service_events",
-            description="Show event history for a specific service",
+            description="Show event history for a specific service. Supports both Event Console (REST API) and historical data scraping to generate synthetic events from metric changes.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -3209,54 +3211,176 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                         "type": "string",
                         "description": "Filter by state: ok, warning, critical, unknown",
                     },
+                    "data_source": {
+                        "type": "string",
+                        "description": "Data source: 'rest_api' (uses Event Console) or 'scraper' (analyzes historical metrics to infer events from value changes). If not specified, uses configured default. Scraper mode generates synthetic events when metric values change.",
+                        "enum": ["rest_api", "scraper"]
+                    },
                 },
                 "required": ["host_name", "service_name"],
             },
         )
 
         async def list_service_events(
-            host_name, service_name, limit=50, state_filter=None
+            host_name, service_name, limit=50, state_filter=None, data_source=None
         ):
 
-            event_service = self._get_service("event")
-            result = await event_service.list_service_events(
-                host_name, service_name, limit, state_filter
-            )
-
-            if result.success:
-                events_data = []
-                if (
-                    result.data
-                ):  # result.data could be an empty list, which is still success
-                    for event in result.data:
-                        events_data.append(
-                            {
-                                "event_id": event.event_id,
-                                "host_name": event.host_name,
-                                "service_description": event.service_description,
-                                "text": event.text,
-                                "state": event.state,
-                                "phase": event.phase,
-                                "first_time": event.first_time,
-                                "last_time": event.last_time,
-                                "count": event.count,
-                                "comment": event.comment,
-                            }
-                        )
-                message = f"Found {len(events_data)} events for service {service_name} on host {host_name}"
-                if len(events_data) == 0:
-                    message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active service monitoring."
-                return {
-                    "success": True,
-                    "events": events_data,
-                    "count": len(events_data),
-                    "message": message,
-                }
-            else:
+            # Parameter validation for data_source
+            if data_source and data_source not in ["rest_api", "scraper"]:
                 return {
                     "success": False,
-                    "error": result.error or "Event Console operation failed",
+                    "error": f"Invalid data_source '{data_source}'. Must be 'rest_api' or 'scraper'",
                 }
+
+            # Data source selection logic
+            effective_source = data_source if data_source else self.config.historical_data.source
+            
+            if effective_source == "scraper":
+                # Use historical service for scraper data source
+                from ..services.models.historical import HistoricalDataRequest
+                
+                historical_service = self._get_service("historical")
+                request = HistoricalDataRequest(
+                    host_name=host_name,
+                    service_name=service_name,
+                    period="24h"  # Default period for events
+                )
+                
+                result = await historical_service.get_historical_data(request)
+                
+                if result.success:
+                    # Convert historical data to event format
+                    historical_data = result.data
+                    events_data = []
+                    
+                    # Group data points by metric name for processing
+                    metrics_by_name = {}
+                    if historical_data.data_points:
+                        for dp in historical_data.data_points:
+                            metric_name = dp.metric_name
+                            if metric_name not in metrics_by_name:
+                                metrics_by_name[metric_name] = []
+                            metrics_by_name[metric_name].append(dp)
+                    
+                    # Create events from historical metric changes that might indicate state changes
+                    for metric_name, data_points in metrics_by_name.items():
+                        # Sort by timestamp
+                        sorted_points = sorted(data_points, key=lambda x: x.timestamp)
+                        
+                        # Sample logic to infer events from metric data points
+                        # In a real implementation, this would be more sophisticated
+                        prev_value = None
+                        for dp in sorted_points:
+                            if prev_value is not None and dp.value != prev_value:
+                                # State change detected - create synthetic event
+                                events_data.append({
+                                    "event_id": f"scraper_{dp.timestamp}_{metric_name}",
+                                    "host_name": host_name,
+                                    "service_description": service_name,
+                                    "text": f"Metric {metric_name} changed from {prev_value} to {dp.value}",
+                                    "state": "INFO",
+                                    "phase": "open",
+                                    "first_time": dp.timestamp.isoformat() if hasattr(dp.timestamp, 'isoformat') else str(dp.timestamp),
+                                    "last_time": dp.timestamp.isoformat() if hasattr(dp.timestamp, 'isoformat') else str(dp.timestamp),
+                                    "count": 1,
+                                    "comment": f"Inferred from scraper data for {metric_name}",
+                                })
+                            prev_value = dp.value
+                    
+                    # Apply state filter if provided
+                    if state_filter:
+                        events_data = [e for e in events_data if e.get("state", "").lower() == state_filter.lower()]
+                    
+                    # Apply limit
+                    events_data = events_data[:limit]
+                    
+                    message = f"Found {len(events_data)} events for service {service_name} on host {host_name} (from scraper data)"
+                    if len(events_data) == 0:
+                        message += ". Note: Scraper-based events are inferred from metric changes and may not represent actual service events."
+                    
+                    response = {
+                        "success": True,
+                        "data_source": "scraper",
+                        "events": events_data,
+                        "count": len(events_data),
+                        "message": message,
+                    }
+                    
+                    # Include unified data model
+                    if historical_data:
+                        response["unified_data"] = {
+                            "host": historical_data.metadata.get("host", host_name),
+                            "service": historical_data.metadata.get("service", service_name),
+                            "period": historical_data.metadata.get("period", "24h"),
+                            "timestamp": historical_data.metadata.get("timestamp"),
+                            "summary_stats": historical_data.summary_stats,
+                            "metrics": [
+                                {
+                                    "name": metric_name,
+                                    "unit": data_points[0].unit if data_points else "",
+                                    "data_points": [
+                                        {
+                                            "timestamp": dp.timestamp.isoformat() if hasattr(dp.timestamp, 'isoformat') else str(dp.timestamp),
+                                            "value": dp.value
+                                        }
+                                        for dp in data_points
+                                    ]
+                                }
+                                for metric_name, data_points in metrics_by_name.items()
+                            ]
+                        }
+                    
+                    return response
+                else:
+                    return {
+                        "success": False,
+                        "error": result.error or "Historical data retrieval failed",
+                        "data_source": "scraper"
+                    }
+                    
+            else:  # effective_source == "rest_api" or fallback
+                # Use existing REST API logic
+                event_service = self._get_service("event")
+                result = await event_service.list_service_events(
+                    host_name, service_name, limit, state_filter
+                )
+
+                if result.success:
+                    events_data = []
+                    if (
+                        result.data
+                    ):  # result.data could be an empty list, which is still success
+                        for event in result.data:
+                            events_data.append(
+                                {
+                                    "event_id": event.event_id,
+                                    "host_name": event.host_name,
+                                    "service_description": event.service_description,
+                                    "text": event.text,
+                                    "state": event.state,
+                                    "phase": event.phase,
+                                    "first_time": event.first_time,
+                                    "last_time": event.last_time,
+                                    "count": event.count,
+                                    "comment": event.comment,
+                                }
+                            )
+                    message = f"Found {len(events_data)} events for service {service_name} on host {host_name}"
+                    if len(events_data) == 0:
+                        message += ". Note: Event Console processes external events (syslog, SNMP traps, etc.) and is often empty in installations that only use active service monitoring."
+                    return {
+                        "success": True,
+                        "data_source": "rest_api",
+                        "events": events_data,
+                        "count": len(events_data),
+                        "message": message,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": result.error or "Event Console operation failed",
+                        "data_source": "rest_api"
+                    }
 
         self._tool_handlers["list_service_events"] = list_service_events
 
@@ -3581,7 +3705,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
         # Get metric history tool
         self._tools["get_metric_history"] = Tool(
             name="get_metric_history",
-            description="Get historical data for a specific metric",
+            description="Get historical data for a specific metric. Supports both REST API and web scraping data sources for comprehensive historical data retrieval.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -3609,6 +3733,11 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                         "type": "string",
                         "description": "Site name for performance optimization",
                     },
+                    "data_source": {
+                        "type": "string",
+                        "description": "Data source: 'rest_api' (uses Checkmk REST API) or 'scraper' (uses web scraping with caching). If not specified, uses configured default. Scraper provides additional parsing capabilities and summary statistics.",
+                        "enum": ["rest_api", "scraper"]
+                    },
                 },
                 "required": ["host_name", "service_description", "metric_id"],
             },
@@ -3621,43 +3750,145 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             time_range_hours=168,
             reduce="average",
             site=None,
+            data_source=None,
         ):
 
-            metrics_service = self._get_service("metrics")
-            result = await metrics_service.get_metric_history(
-                host_name,
-                service_description,
-                metric_id,
-                time_range_hours,
-                reduce,
-                site,
-            )
-
-            if result.success:
-                graph = result.data
-                metrics_data = []
-                for metric in graph.metrics:
-                    metric_info = {
-                        "title": metric.title,
-                        "color": metric.color,
-                        "line_type": metric.line_type,
-                        "data_points": metric.data_points,
-                        "data_points_count": len(metric.data_points),
-                    }
-                    metrics_data.append(metric_info)
-
-                return {
-                    "success": True,
-                    "time_range": graph.time_range,
-                    "step": graph.step,
-                    "metrics": metrics_data,
-                    "metric_id": metric_id,
-                }
-            else:
+            # Parameter validation for data_source
+            if data_source and data_source not in ["rest_api", "scraper"]:
                 return {
                     "success": False,
-                    "error": result.error or "Event Console operation failed",
+                    "error": f"Invalid data_source '{data_source}'. Must be 'rest_api' or 'scraper'",
                 }
+
+            # Data source selection logic
+            effective_source = data_source if data_source else self.config.historical_data.source
+            
+            if effective_source == "scraper":
+                # Use historical service for scraper data source
+                from ..services.models.historical import HistoricalDataRequest
+                
+                historical_service = self._get_service("historical")
+                request = HistoricalDataRequest(
+                    host_name=host_name,
+                    service_name=service_description,
+                    period=f"{time_range_hours}h",
+                    metric_name=metric_id
+                )
+                
+                result = await historical_service.get_historical_data(request)
+                
+                if result.success:
+                    # Convert historical data to unified format
+                    historical_data = result.data
+                    metrics_data = []
+                    
+                    # Group data points by metric name
+                    metrics_by_name = {}
+                    if historical_data.data_points:
+                        for dp in historical_data.data_points:
+                            metric_name = dp.metric_name
+                            if metric_name not in metrics_by_name:
+                                metrics_by_name[metric_name] = {
+                                    "name": metric_name,
+                                    "unit": dp.unit or "",
+                                    "data_points": []
+                                }
+                            metrics_by_name[metric_name]["data_points"].append((dp.timestamp, dp.value))
+                    
+                    # Create metric info from grouped data
+                    for metric_name, metric_data in metrics_by_name.items():
+                        if metric_id and metric_name != metric_id:
+                            continue  # Skip if specific metric requested and this isn't it
+                        
+                        metric_info = {
+                            "title": metric_name,
+                            "color": "#1f77b4",  # Default color
+                            "line_type": "area",  # Default line type
+                            "data_points": metric_data["data_points"],
+                            "data_points_count": len(metric_data["data_points"]),
+                        }
+                        metrics_data.append(metric_info)
+                    
+                    response = {
+                        "success": True,
+                        "data_source": "scraper",
+                        "time_range": f"{time_range_hours}h",
+                        "step": 60,  # Default step for scraper data
+                        "metrics": metrics_data,
+                        "metric_id": metric_id,
+                    }
+                    
+                    # Include unified data model
+                    if historical_data:
+                        response["unified_data"] = {
+                            "host": historical_data.metadata.get("host", "unknown"),
+                            "service": historical_data.metadata.get("service", "unknown"),
+                            "period": historical_data.metadata.get("period", f"{time_range_hours}h"),
+                            "timestamp": historical_data.metadata.get("timestamp"),
+                            "summary_stats": historical_data.summary_stats,
+                            "metrics": [
+                                {
+                                    "name": metric_name,
+                                    "unit": metric_data["unit"],
+                                    "data_points": [
+                                        {
+                                            "timestamp": dp[0].isoformat() if hasattr(dp[0], 'isoformat') else str(dp[0]),
+                                            "value": dp[1]
+                                        }
+                                        for dp in metric_data["data_points"]
+                                    ]
+                                }
+                                for metric_name, metric_data in metrics_by_name.items()
+                            ]
+                        }
+                    
+                    return response
+                else:
+                    return {
+                        "success": False,
+                        "error": result.error or "Historical data retrieval failed",
+                        "data_source": "scraper"
+                    }
+                    
+            else:  # effective_source == "rest_api" or fallback
+                # Use existing REST API logic
+                metrics_service = self._get_service("metrics")
+                result = await metrics_service.get_metric_history(
+                    host_name,
+                    service_description,
+                    metric_id,
+                    time_range_hours,
+                    reduce,
+                    site,
+                )
+
+                if result.success:
+                    graph = result.data
+                    metrics_data = []
+                    for metric in graph.metrics:
+                        metric_info = {
+                            "title": metric.title,
+                            "color": metric.color,
+                            "line_type": metric.line_type,
+                            "data_points": metric.data_points,
+                            "data_points_count": len(metric.data_points),
+                        }
+                        metrics_data.append(metric_info)
+
+                    return {
+                        "success": True,
+                        "data_source": "rest_api",
+                        "time_range": graph.time_range,
+                        "step": graph.step,
+                        "metrics": metrics_data,
+                        "metric_id": metric_id,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": result.error or "Metrics operation failed",
+                        "data_source": "rest_api"
+                    }
 
         self._tool_handlers["get_metric_history"] = get_metric_history
 
@@ -4041,6 +4272,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             self.event_service = EventService(self.checkmk_client, self.config)
             self.metrics_service = MetricsService(self.checkmk_client, self.config)
             self.bi_service = BIService(self.checkmk_client, self.config)
+            self.historical_service = CachedHistoricalDataService(self.checkmk_client, self.config)
 
             # Initialize enhanced services
             self.streaming_host_service = StreamingHostService(
@@ -4077,6 +4309,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 self.event_service,
                 self.metrics_service,
                 self.bi_service,
+                self.historical_service,
             ]
         )
 
@@ -4090,6 +4323,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             "event": self.event_service,
             "metrics": self.metrics_service,
             "bi": self.bi_service,
+            "historical": self.historical_service,
         }
 
         service = service_map.get(service_name)

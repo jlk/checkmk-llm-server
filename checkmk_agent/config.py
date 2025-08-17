@@ -92,6 +92,40 @@ class LLMConfig(BaseModel):
     default_model: str = Field(default="gpt-3.5-turbo", description="Default LLM model")
 
 
+class HistoricalDataConfig(BaseModel):
+    """Configuration for historical data retrieval."""
+
+    source: str = Field(
+        default="scraper", 
+        description="Data source (rest_api, scraper, event_console)"
+    )
+    cache_ttl: int = Field(
+        default=60, 
+        description="Cache TTL in seconds"
+    )
+    scraper_timeout: int = Field(
+        default=30, 
+        description="Scraper timeout in seconds"
+    )
+
+    @field_validator("source")
+    @classmethod
+    def validate_source(cls, v: str) -> str:
+        """Validate data source."""
+        valid_sources = ["rest_api", "scraper", "event_console"]
+        if v not in valid_sources:
+            raise ValueError(f"source must be one of {valid_sources}")
+        return v
+
+    @field_validator("cache_ttl", "scraper_timeout")
+    @classmethod
+    def validate_positive_int(cls, v: int) -> int:
+        """Validate positive integer fields."""
+        if v <= 0:
+            raise ValueError("Value must be positive")
+        return v
+
+
 class UIConfig(BaseModel):
     """Configuration for UI appearance."""
 
@@ -111,6 +145,9 @@ class AppConfig(BaseModel):
     checkmk: CheckmkConfig
     llm: LLMConfig
     ui: UIConfig = Field(default_factory=UIConfig, description="UI configuration")
+    historical_data: HistoricalDataConfig = Field(
+        default_factory=HistoricalDataConfig, description="Historical data configuration"
+    )
     default_folder: str = Field(
         default="/", description="Default folder for host creation"
     )
@@ -243,6 +280,11 @@ def load_config(config_file: Optional[Union[str, Path]] = None) -> AppConfig:
             "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
             "default_model": os.getenv("DEFAULT_MODEL"),
         },
+        "historical_data": {
+            "source": os.getenv("HISTORICAL_DATA_SOURCE"),
+            "cache_ttl": os.getenv("HISTORICAL_DATA_CACHE_TTL"),
+            "scraper_timeout": os.getenv("HISTORICAL_DATA_SCRAPER_TIMEOUT"),
+        },
         "ui": {
             "theme": os.getenv("CHECKMK_UI_THEME"),
             "use_colors": os.getenv("CHECKMK_UI_USE_COLORS"),
@@ -318,10 +360,34 @@ def load_config(config_file: Optional[Union[str, Path]] = None) -> AppConfig:
         custom_colors=custom_colors if custom_colors else None,
     )
 
+    historical_data_config_data = final_config.get("historical_data", {})
+    
+    # Handle integer environment variables for historical data
+    cache_ttl = historical_data_config_data.get("cache_ttl", 60)
+    if isinstance(cache_ttl, str):
+        try:
+            cache_ttl = int(cache_ttl)
+        except ValueError:
+            cache_ttl = 60
+    
+    scraper_timeout = historical_data_config_data.get("scraper_timeout", 30)
+    if isinstance(scraper_timeout, str):
+        try:
+            scraper_timeout = int(scraper_timeout)
+        except ValueError:
+            scraper_timeout = 30
+
+    historical_data_config = HistoricalDataConfig(
+        source=historical_data_config_data.get("source", "scraper"),
+        cache_ttl=cache_ttl,
+        scraper_timeout=scraper_timeout,
+    )
+
     return AppConfig(
         checkmk=checkmk_config,
         llm=llm_config,
         ui=ui_config,
+        historical_data=historical_data_config,
         default_folder=final_config.get("default_folder", "/"),
         log_level=final_config.get("log_level", "INFO"),
     )

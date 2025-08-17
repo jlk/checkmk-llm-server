@@ -15,6 +15,12 @@ from .services import (
     ServiceDowntimeResult,
 )
 from .status import HealthDashboard, ProblemSummary, ServiceState, HostStatus
+from .historical import (
+    HistoricalDataPoint,
+    HistoricalDataResult,
+    HistoricalDataRequest,
+    HistoricalDataServiceResult,
+)
 
 __all__ = [
     # Host models
@@ -34,4 +40,9 @@ __all__ = [
     "ProblemSummary",
     "ServiceState",
     "HostStatus",
+    # Historical data models
+    "HistoricalDataPoint",
+    "HistoricalDataResult",
+    "HistoricalDataRequest",
+    "HistoricalDataServiceResult",
 ]
