@@ -2621,7 +2621,7 @@ class CheckmkClient:
         host_name: str,
         service_description: str,
         metric_or_graph_id: str,
-        time_range: Dict[str, str],
+        time_range: List[int],
         reduce: str = "average",
         site: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -2633,7 +2633,7 @@ class CheckmkClient:
             host_name: Host name
             service_description: Service description
             metric_or_graph_id: Metric ID or Graph ID
-            time_range: Time range dict with 'start' and 'end' keys
+            time_range: Time range as array of two integer Unix timestamps [start, end]
             reduce: Data reduction method - "min", "max", or "average"
             site: Optional site name for performance optimization
 
@@ -2656,6 +2656,10 @@ class CheckmkClient:
         if site:
             data["site"] = site
 
+        # Debug logging to identify the exact payload being sent
+        self.logger.debug(f"Sending metrics API request with payload: {data}")
+        self.logger.debug(f"time_range type: {type(time_range)}, value: {time_range}")
+
         response = self._make_request(
             "POST", "/domain-types/metric/actions/get/invoke", json=data
         )
@@ -2670,7 +2674,7 @@ class CheckmkClient:
         host_name: str,
         service_description: str,
         metric_id: str,
-        time_range: Dict[str, str],
+        time_range: List[int],
         reduce: str = "average",
         site: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -2681,7 +2685,7 @@ class CheckmkClient:
             host_name: Host name
             service_description: Service description
             metric_id: Metric ID
-            time_range: Time range dict with 'start' and 'end' keys
+            time_range: Time range as array of two integer Unix timestamps [start, end]
             reduce: Data reduction method
             site: Optional site name
 
@@ -2703,7 +2707,7 @@ class CheckmkClient:
         host_name: str,
         service_description: str,
         graph_id: str,
-        time_range: Dict[str, str],
+        time_range: List[int],
         reduce: str = "average",
         site: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -2714,7 +2718,7 @@ class CheckmkClient:
             host_name: Host name
             service_description: Service description
             graph_id: Graph ID
-            time_range: Time range dict with 'start' and 'end' keys
+            time_range: Time range as array of two integer Unix timestamps [start, end]
             reduce: Data reduction method
             site: Optional site name
 

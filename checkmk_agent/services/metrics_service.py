@@ -1,51 +1,47 @@
 """Metrics service - provides access to Checkmk metrics and performance data."""
 
 import logging
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 
 from .base import BaseService, ServiceResult
-from .models.services import ServiceInfo
 from ..async_api_client import AsyncCheckmkClient
 from ..api_client import CheckmkAPIError
 from ..config import AppConfig
 
 
-def _create_time_range_object(start_time: datetime, end_time: datetime) -> Dict[str, str]:
+def _create_time_range_object(start_time: datetime, end_time: datetime) -> List[int]:
     """
-    Convert datetime objects to a time_range object for Checkmk metrics API.
-    
-    The Checkmk REST API expects a time_range object with start/end string timestamps
-    in the format: {"start": "YYYY-MM-DD HH:MM:SS.ffffff", "end": "YYYY-MM-DD HH:MM:SS.ffffff"}
-    
+    Convert datetime objects to a time_range array for Checkmk metrics API.
+
+    Based on the API validation errors, the Checkmk REST API expects a time_range
+    as an array of two integer Unix timestamps: [start_timestamp, end_timestamp]
+
     Args:
         start_time: Start datetime
         end_time: End datetime
-        
+
     Returns:
-        Dict with start and end datetime strings
-        
+        List with start and end Unix timestamps as integers
+
     Raises:
         ValueError: If timestamps are invalid or in wrong order
     """
     if start_time >= end_time:
         raise ValueError("Start time must be before end time")
-    
+
     # Validate reasonable timestamp range (not too far in past/future)
     current_time = datetime.now()
     if start_time > current_time + timedelta(days=1):  # More than 1 day in future
         raise ValueError("Start time cannot be more than 1 day in the future")
     if end_time > current_time + timedelta(days=1):  # More than 1 day in future
         raise ValueError("End time cannot be more than 1 day in the future")
-    
-    # Format as required by Checkmk API: "YYYY-MM-DD HH:MM:SS.ffffff"
-    start_str = start_time.strftime("%Y-%m-%d %H:%M:%S.%f")
-    end_str = end_time.strftime("%Y-%m-%d %H:%M:%S.%f")
-    
-    return {
-        "start": start_str,
-        "end": end_str
-    }
+
+    # Convert to Unix timestamps as integers (no fractional seconds)
+    start_timestamp = int(start_time.timestamp())
+    end_timestamp = int(end_time.timestamp())
+
+    return [start_timestamp, end_timestamp]
 
 
 class MetricInfo:
