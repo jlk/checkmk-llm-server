@@ -22,6 +22,11 @@ requests-mock>=1.11.0
 # MCP integration
 mcp>=1.0.0  # Official Model Context Protocol Python SDK
 
+# HTML parsing for web scraping
+beautifulsoup4>=4.12.0  # HTML/XML parser for scraping
+lxml>=4.9.0  # Fast XML and HTML parser
+html5lib>=1.1  # Pure-python HTML5 parser (fallback)
+
 # Optional dependencies for enhanced functionality
 rich>=13.0.0  # Better CLI output formatting
 typer>=0.9.0  # Alternative to click for CLI
