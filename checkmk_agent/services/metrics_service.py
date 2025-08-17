@@ -11,19 +11,19 @@ from ..api_client import CheckmkAPIError
 from ..config import AppConfig
 
 
-def _ensure_integer_timestamps(start_time: datetime, end_time: datetime) -> List[int]:
+def _create_time_range_object(start_time: datetime, end_time: datetime) -> Dict[str, str]:
     """
-    Convert datetime objects to integer Unix timestamps for Checkmk API.
+    Convert datetime objects to a time_range object for Checkmk metrics API.
     
-    The Checkmk REST API expects integer Unix timestamps, not float or string values.
-    This function ensures proper conversion and validation.
+    The Checkmk REST API expects a time_range object with start/end string timestamps
+    in the format: {"start": "YYYY-MM-DD HH:MM:SS.ffffff", "end": "YYYY-MM-DD HH:MM:SS.ffffff"}
     
     Args:
         start_time: Start datetime
         end_time: End datetime
         
     Returns:
-        List of two integers: [start_timestamp, end_timestamp]
+        Dict with start and end datetime strings
         
     Raises:
         ValueError: If timestamps are invalid or in wrong order
@@ -31,19 +31,21 @@ def _ensure_integer_timestamps(start_time: datetime, end_time: datetime) -> List
     if start_time >= end_time:
         raise ValueError("Start time must be before end time")
     
-    start_timestamp = int(start_time.timestamp())
-    end_timestamp = int(end_time.timestamp())
-    
     # Validate reasonable timestamp range (not too far in past/future)
-    current_time = int(datetime.now().timestamp())
-    if start_timestamp < 0 or end_timestamp < 0:
-        raise ValueError("Timestamps cannot be negative")
-    if start_timestamp > current_time + 86400:  # More than 1 day in future
+    current_time = datetime.now()
+    if start_time > current_time + timedelta(days=1):  # More than 1 day in future
         raise ValueError("Start time cannot be more than 1 day in the future")
-    if end_timestamp > current_time + 86400:  # More than 1 day in future
+    if end_time > current_time + timedelta(days=1):  # More than 1 day in future
         raise ValueError("End time cannot be more than 1 day in the future")
     
-    return [start_timestamp, end_timestamp]
+    # Format as required by Checkmk API: "YYYY-MM-DD HH:MM:SS.ffffff"
+    start_str = start_time.strftime("%Y-%m-%d %H:%M:%S.%f")
+    end_str = end_time.strftime("%Y-%m-%d %H:%M:%S.%f")
+    
+    return {
+        "start": start_str,
+        "end": end_str
+    }
 
 
 class MetricInfo:
@@ -109,13 +111,13 @@ class MetricsService(BaseService):
             start_time = end_time - timedelta(hours=time_range_hours)
 
             # Build request data
-            # Note: Checkmk REST API requires integer Unix timestamps in time_range field
+            # Note: Checkmk REST API requires time_range object with datetime strings
             data = {
                 "type": "single_metric",
                 "host_name": host_name,
                 "service_description": service_description,
                 "metric_id": metric_id,
-                "time_range": _ensure_integer_timestamps(start_time, end_time),
+                "time_range": _create_time_range_object(start_time, end_time),
                 "reduce": reduce,
             }
 
@@ -163,13 +165,13 @@ class MetricsService(BaseService):
             start_time = end_time - timedelta(hours=time_range_hours)
 
             # Build request data
-            # Note: Checkmk REST API requires integer Unix timestamps in time_range field
+            # Note: Checkmk REST API requires time_range object with datetime strings
             data = {
                 "type": "predefined_graph",
                 "host_name": host_name,
                 "service_description": service_description,
                 "graph_id": graph_id,
-                "time_range": _ensure_integer_timestamps(start_time, end_time),
+                "time_range": _create_time_range_object(start_time, end_time),
                 "reduce": reduce,
             }
 
