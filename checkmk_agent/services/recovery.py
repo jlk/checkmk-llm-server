@@ -4,12 +4,13 @@ import asyncio
 import logging
 import random
 import time
-from typing import Optional, Dict, Any, Callable, TypeVar, Union, List, Type
+import threading
+from typing import Optional, Dict, Any, Callable, TypeVar, Union, List, Type, Awaitable
 from datetime import datetime, timedelta
 from functools import wraps
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from .metrics import get_metrics_collector, timed_context
 
@@ -57,16 +58,18 @@ class RecoveryAction(str, Enum):
 
 class ErrorPattern(BaseModel):
     """Configuration for handling specific error patterns."""
+    
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     exception_types: List[Type[Exception]] = Field(default_factory=list)
     error_codes: List[int] = Field(default_factory=list)
     error_messages: List[str] = Field(default_factory=list)
     failure_type: FailureType
     recovery_action: RecoveryAction
-    max_retries: int = 3
+    max_retries: int = Field(default=3, ge=1, le=10)
     retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL_BACKOFF
-    circuit_break_threshold: int = 5
-    circuit_break_timeout: int = 60
+    circuit_break_threshold: int = Field(default=5, ge=1, le=100)
+    circuit_break_timeout: int = Field(default=60, ge=1, le=3600)
 
 
 class CircuitBreaker:
@@ -85,7 +88,15 @@ class CircuitBreaker:
             failure_threshold: Number of failures before opening circuit
             recovery_timeout: Seconds to wait before trying half-open
             expected_exception: Exception type that triggers circuit breaker
+            
+        Raises:
+            ValueError: If parameters are invalid
         """
+        if failure_threshold <= 0:
+            raise ValueError("failure_threshold must be positive")
+        if recovery_timeout <= 0:
+            raise ValueError("recovery_timeout must be positive")
+            
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.expected_exception = expected_exception
@@ -94,6 +105,7 @@ class CircuitBreaker:
         self._failure_count = 0
         self._last_failure_time: Optional[float] = None
         self._successful_calls = 0
+        self._lock = threading.RLock()  # Thread-safe state access
         self.logger = logging.getLogger(__name__)
 
     @property
@@ -111,12 +123,12 @@ class CircuitBreaker:
 
         return time.time() - self._last_failure_time >= self.recovery_timeout
 
-    async def call(self, func: Callable[[], T]) -> T:
+    async def call(self, func: Callable[[], Awaitable[T]]) -> T:
         """
-        Execute function with circuit breaker protection.
+        Execute async function with circuit breaker protection.
 
         Args:
-            func: Async function to execute
+            func: Async function that returns an awaitable
 
         Returns:
             Function result
@@ -124,15 +136,16 @@ class CircuitBreaker:
         Raises:
             Exception: If circuit is open or function fails
         """
-        # Check if we should attempt reset
-        if self._should_attempt_reset():
-            self._state = CircuitState.HALF_OPEN
-            self.logger.info("Circuit breaker moving to HALF_OPEN state")
+        with self._lock:
+            # Check if we should attempt reset
+            if self._should_attempt_reset():
+                self._state = CircuitState.HALF_OPEN
+                self.logger.info("Circuit breaker moving to HALF_OPEN state")
 
-        # Reject if circuit is open
-        if self._state == CircuitState.OPEN:
-            await get_metrics_collector().increment_counter("circuit_breaker.rejected")
-            raise Exception("Circuit breaker is OPEN")
+            # Reject if circuit is open
+            if self._state == CircuitState.OPEN:
+                await get_metrics_collector().increment_counter("circuit_breaker.rejected")
+                raise Exception("Circuit breaker is OPEN")
 
         try:
             # Execute function
@@ -154,27 +167,29 @@ class CircuitBreaker:
 
     async def _on_success(self):
         """Handle successful call."""
-        self._successful_calls += 1
+        with self._lock:
+            self._successful_calls += 1
 
-        if self._state == CircuitState.HALF_OPEN:
-            self._state = CircuitState.CLOSED
-            self._failure_count = 0
-            self.logger.info("Circuit breaker reset to CLOSED state")
-            await get_metrics_collector().increment_counter("circuit_breaker.reset")
+            if self._state == CircuitState.HALF_OPEN:
+                self._state = CircuitState.CLOSED
+                self._failure_count = 0
+                self.logger.info("Circuit breaker reset to CLOSED state")
+                await get_metrics_collector().increment_counter("circuit_breaker.reset")
 
         await get_metrics_collector().increment_counter("circuit_breaker.success")
 
     async def _on_failure(self):
         """Handle failed call."""
-        self._failure_count += 1
-        self._last_failure_time = time.time()
+        with self._lock:
+            self._failure_count += 1
+            self._last_failure_time = time.time()
 
-        if self._failure_count >= self.failure_threshold:
-            self._state = CircuitState.OPEN
-            self.logger.warning(
-                f"Circuit breaker opened after {self._failure_count} failures"
-            )
-            await get_metrics_collector().increment_counter("circuit_breaker.opened")
+            if self._failure_count >= self.failure_threshold:
+                self._state = CircuitState.OPEN
+                self.logger.warning(
+                    f"Circuit breaker opened after {self._failure_count} failures"
+                )
+                await get_metrics_collector().increment_counter("circuit_breaker.opened")
 
         await get_metrics_collector().increment_counter("circuit_breaker.failure")
 
@@ -199,7 +214,19 @@ class RetryPolicy:
             max_delay: Maximum delay between retries (seconds)
             strategy: Retry strategy to use
             jitter: Whether to add jitter to delays
+            
+        Raises:
+            ValueError: If parameters are invalid
         """
+        if max_retries < 0:
+            raise ValueError("max_retries must be non-negative")
+        if base_delay <= 0:
+            raise ValueError("base_delay must be positive")
+        if max_delay <= 0:
+            raise ValueError("max_delay must be positive")
+        if base_delay > max_delay:
+            raise ValueError("base_delay cannot exceed max_delay")
+            
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -231,15 +258,15 @@ class RetryPolicy:
 
     async def execute(
         self,
-        func: Callable[[], T],
+        func: Callable[[], Awaitable[T]],
         retryable_exceptions: tuple = (Exception,),
         operation_name: str = "operation",
     ) -> T:
         """
-        Execute function with retry policy.
+        Execute async function with retry policy.
 
         Args:
-            func: Async function to execute
+            func: Async function that returns an awaitable
             retryable_exceptions: Tuple of exception types to retry on
             operation_name: Name for logging and metrics
 
@@ -250,8 +277,11 @@ class RetryPolicy:
             Exception: If all retries exhausted
         """
         last_exception = None
+        
+        # Total attempts = 1 initial + max_retries
+        total_attempts = 1 + self.max_retries
 
-        for attempt in range(1, self.max_retries + 2):  # +1 for initial attempt
+        for attempt in range(1, total_attempts + 1):
             try:
                 async with timed_context(f"retry.{operation_name}.attempt_{attempt}"):
                     result = await func()
@@ -270,10 +300,11 @@ class RetryPolicy:
             except retryable_exceptions as e:
                 last_exception = e
 
-                if attempt <= self.max_retries:
+                # Check if we should retry (not on the last attempt)
+                if attempt < total_attempts:
                     delay = self.calculate_delay(attempt)
                     self.logger.warning(
-                        f"Attempt {attempt} failed for {operation_name}: {e}. "
+                        f"Attempt {attempt}/{total_attempts} failed for {operation_name}: {e}. "
                         f"Retrying in {delay:.2f}s"
                     )
 
@@ -284,7 +315,7 @@ class RetryPolicy:
                     await asyncio.sleep(delay)
                 else:
                     self.logger.error(
-                        f"All {self.max_retries} retries exhausted for {operation_name}"
+                        f"All {total_attempts} attempts exhausted for {operation_name}"
                     )
                     await get_metrics_collector().increment_counter(
                         f"retry.{operation_name}.exhausted"
@@ -300,32 +331,46 @@ class RetryPolicy:
                 raise
 
         # If we get here, all retries were exhausted
-        raise last_exception
+        if last_exception is not None:
+            raise last_exception
+        else:
+            raise RuntimeError(f"Retry logic error for {operation_name}")
 
 
 class FallbackHandler:
     """Handler for fallback operations when primary operation fails."""
 
     def __init__(self):
-        self.fallback_functions: Dict[str, Callable] = {}
+        self.fallback_functions: Dict[str, Callable[..., Awaitable[Any]]] = {}
         self.logger = logging.getLogger(__name__)
 
-    def register_fallback(self, operation_name: str, fallback_func: Callable):
-        """Register a fallback function for an operation."""
+    def register_fallback(
+        self, 
+        operation_name: str, 
+        fallback_func: Callable[..., Awaitable[Any]]
+    ) -> None:
+        """Register an async fallback function for an operation.
+        
+        Args:
+            operation_name: Name of the operation
+            fallback_func: Async function to use as fallback
+        """
+        if not asyncio.iscoroutinefunction(fallback_func):
+            raise ValueError(f"Fallback function for {operation_name} must be async")
         self.fallback_functions[operation_name] = fallback_func
 
     async def execute_with_fallback(
         self,
-        primary_func: Callable[[], T],
+        primary_func: Callable[[], Awaitable[T]],
         operation_name: str,
         fallback_args: tuple = (),
         fallback_kwargs: Optional[Dict[str, Any]] = None,
     ) -> T:
         """
-        Execute primary function with fallback on failure.
+        Execute primary async function with fallback on failure.
 
         Args:
-            primary_func: Primary function to execute
+            primary_func: Primary async function to execute
             operation_name: Operation name for fallback lookup
             fallback_args: Arguments for fallback function
             fallback_kwargs: Keyword arguments for fallback function
@@ -400,7 +445,7 @@ class RecoveryMixin:
         **kwargs,
     ):
         """
-        Decorator to add resilience patterns to methods.
+        Decorator to add resilience patterns to async methods.
 
         Args:
             operation_name: Name for the operation (defaults to method name)
@@ -410,7 +455,10 @@ class RecoveryMixin:
             **kwargs: Additional configuration for patterns
         """
 
-        def decorator(func: Callable) -> Callable:
+        def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+            if not asyncio.iscoroutinefunction(func):
+                raise ValueError(f"Function {func.__name__} must be async for resilient decorator")
+                
             @wraps(func)
             async def wrapper(*args, **func_kwargs):
                 name = operation_name or func.__name__
@@ -440,7 +488,7 @@ class RecoveryMixin:
 
     async def execute_with_recovery(
         self,
-        func: Callable[[], T],
+        func: Callable[[], Awaitable[T]],
         operation_name: str,
         enable_circuit_breaker: bool = True,
         enable_retry: bool = True,
@@ -449,10 +497,10 @@ class RecoveryMixin:
         fallback_kwargs: Optional[Dict[str, Any]] = None,
     ) -> T:
         """
-        Execute function with full recovery capabilities.
+        Execute async function with full recovery capabilities.
 
         Args:
-            func: Function to execute
+            func: Async function to execute
             operation_name: Name for tracking and configuration
             enable_circuit_breaker: Use circuit breaker
             enable_retry: Use retry policy

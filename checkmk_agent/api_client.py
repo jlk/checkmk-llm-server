@@ -1,7 +1,6 @@
 """Checkmk REST API client based on OpenAPI specification."""
 
 import requests
-import logging
 from datetime import date
 from typing import Dict, List, Optional, Any, Tuple
 from urllib.parse import urljoin
@@ -12,7 +11,6 @@ from .utils import (
     retry_on_failure,
     extract_error_message,
     validate_api_response,
-    validate_service_data,
 )
 
 # Import request context utilities with fallback
@@ -20,7 +18,6 @@ try:
     from .utils.request_context import (
         get_request_id,
         ensure_request_id,
-        format_request_id,
     )
     from .middleware.request_tracking import propagate_request_context
 except ImportError:
@@ -30,9 +27,6 @@ except ImportError:
 
     def ensure_request_id() -> str:
         return "req_unknown"
-
-    def format_request_id(request_id: Optional[str]) -> str:
-        return request_id or "req_unknown"
 
     def propagate_request_context(
         headers: Optional[Dict[str, str]] = None,
@@ -831,7 +825,7 @@ class CheckmkClient:
             List of service monitoring objects with state information
         """
         # Build request body for POST (Checkmk 2.4+)
-        data = {"host_name": host_name}
+        data: Dict[str, Any] = {"host_name": host_name}
         if sites:
             data["sites"] = sites
         if query:
@@ -907,7 +901,7 @@ class CheckmkClient:
             List of service monitoring objects with state information
         """
         # Build request body for POST (Checkmk 2.4+)
-        data = {}
+        data: Dict[str, Any] = {}
         if host_filter:
             data["host_name"] = host_filter
         if sites:
@@ -1025,7 +1019,7 @@ class CheckmkClient:
             List of service objects
         """
         # Build request body for POST (Checkmk 2.4+)
-        data = {}
+        data: Dict[str, Any] = {}
         if host_name:
             data["host_name"] = host_name
         if sites:
@@ -1319,14 +1313,12 @@ class CheckmkClient:
 
             # Find the target service in check_table
             service_info = None
-            service_key = None
-            for key, service_data in check_table.items():
+            for _, service_data in check_table.items():
                 if (
                     service_data.get("extensions", {}).get("service_name")
                     == service_name
                 ):
                     service_info = service_data.get("extensions", {})
-                    service_key = key
                     break
 
             if not service_info:
@@ -1414,7 +1406,15 @@ class CheckmkClient:
         Legacy method for backward compatibility.
 
         This method now delegates to the correct service discovery approach.
+        
+        Args:
+            host_name: Host name
+            service_name: Service name
+            ruleset: Legacy parameter (unused but kept for compatibility)
         """
+        # ruleset parameter is kept for backward compatibility but not used
+        _ = ruleset  # Explicitly mark as intentionally unused
+        
         self.logger.warning(
             "get_effective_parameters is deprecated, use get_service_effective_parameters instead"
         )
@@ -2213,7 +2213,7 @@ class CheckmkClient:
             self.logger.debug("Using fallback approach for service filtering")
 
             # Get all services with status columns for filtering
-            basic_data = {
+            basic_data: Dict[str, Any] = {
                 "columns": [
                     "host_name",
                     "description",
@@ -2352,7 +2352,7 @@ class CheckmkClient:
         """
         try:
             # Use simple approach - get all services and filter locally
-            basic_data = {
+            basic_data: Dict[str, Any] = {
                 "columns": [
                     "host_name",
                     "description",
@@ -2406,7 +2406,7 @@ class CheckmkClient:
         """
         try:
             # Use simple approach - get all services and filter locally
-            basic_data = {
+            basic_data: Dict[str, Any] = {
                 "columns": [
                     "host_name",
                     "description",
@@ -2445,7 +2445,7 @@ class CheckmkClient:
         """
         try:
             # Use simple approach - get all services and filter locally
-            basic_data = {
+            basic_data: Dict[str, Any] = {
                 "columns": [
                     "host_name",
                     "description",
@@ -2603,7 +2603,7 @@ class CheckmkClient:
         Returns:
             State change response
         """
-        data = {"new_state": new_state}
+        data: Dict[str, Any] = {"new_state": new_state}
         if comment:
             data["comment"] = comment
         if site_id:
@@ -2909,7 +2909,7 @@ class CheckmkClient:
         )
 
         # Prepare request body according to ActivateChanges schema from OpenAPI spec
-        body = {"redirect": redirect, "force_foreign_changes": force_foreign_changes}
+        body: Dict[str, Any] = {"redirect": redirect, "force_foreign_changes": force_foreign_changes}
 
         # Only include sites if specified (empty list means all sites with pending changes)
         if sites is not None:
@@ -3275,7 +3275,7 @@ class CheckmkClient:
             return timestamp_suffix
 
     def _recursive_list_to_tuple_conversion(
-        self, obj: Any, target_param_names: set, float_parameter_names: set = None
+        self, obj: Any, target_param_names: set, float_parameter_names: Optional[set] = None
     ) -> Any:
         """
         Recursively convert lists to tuples for specified parameter names.
@@ -3409,13 +3409,13 @@ class CheckmkClient:
             )
 
             # Build update data
-            update_data = {"value_raw": value_raw}
+            update_data: Dict[str, Any] = {"value_raw": value_raw}
 
             # Always add timestamped description
             timestamped_description = self._add_timestamp_to_description(description)
-            update_data.setdefault("properties", {})[
-                "description"
-            ] = timestamped_description
+            if "properties" not in update_data:
+                update_data["properties"] = {}
+            update_data["properties"]["description"] = timestamped_description
 
             response = self._make_request(
                 "PUT",
