@@ -3,7 +3,7 @@
 import requests
 import logging
 from datetime import date
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from urllib.parse import urljoin
 from pydantic import BaseModel, Field
 
@@ -1337,6 +1337,7 @@ class CheckmkClient:
                     "host_name": host_name,
                     "service_name": service_name,
                     "parameters": {},
+                    "rule_count": 0,
                     "status": "not_found",
                     "message": f"Service '{service_name}' not found in service discovery",
                     "source": "service_discovery_search",
@@ -1364,6 +1365,7 @@ class CheckmkClient:
                     "check_plugin": check_plugin,
                     "service_item": service_item,
                     "parameters": {},
+                    "rule_count": 0,
                     "status": "no_ruleset",
                     "message": f"No parameter ruleset available for check plugin '{check_plugin}'",
                     "source": "ruleset_determination",
@@ -1372,7 +1374,7 @@ class CheckmkClient:
             self.logger.debug(f"Using parameter ruleset: {parameter_ruleset}")
 
             # Step 3 & 4: Find matching rules and compute effective parameters
-            effective_parameters = self._compute_effective_parameters_from_rules(
+            effective_parameters, rule_count = self._compute_effective_parameters_from_rules(
                 host_name, service_name, parameter_ruleset
             )
 
@@ -1383,6 +1385,7 @@ class CheckmkClient:
                 "service_item": service_item,
                 "parameter_ruleset": parameter_ruleset,
                 "parameters": effective_parameters,
+                "rule_count": rule_count,
                 "status": "success",
                 "source": "rule_engine_computation",
             }
@@ -1398,6 +1401,7 @@ class CheckmkClient:
                 "host_name": host_name,
                 "service_name": service_name,
                 "parameters": {"error": str(e)},
+                "rule_count": 0,
                 "status": "error",
                 "error_type": type(e).__name__,
                 "source": "exception_handler",
@@ -1506,7 +1510,7 @@ class CheckmkClient:
 
     def _compute_effective_parameters_from_rules(
         self, host_name: str, service_name: str, ruleset_name: str
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Dict[str, Any], int]:
         """
         Compute effective parameters by finding and applying matching rules in precedence order.
 
@@ -1522,7 +1526,7 @@ class CheckmkClient:
             ruleset_name: Parameter ruleset to search
 
         Returns:
-            Dictionary of effective parameters
+            Tuple of (effective parameters dictionary, rule count)
         """
         try:
             # Get all rules in the parameter ruleset
@@ -1531,7 +1535,7 @@ class CheckmkClient:
 
             if not rules:
                 self.logger.debug(f"No rules found in ruleset {ruleset_name}")
-                return {}
+                return {}, 0
 
             # Find rules that match this host/service combination
             matching_rules = []
@@ -1549,7 +1553,7 @@ class CheckmkClient:
                 self.logger.debug(
                     f"No matching rules found for {host_name}/{service_name} in {ruleset_name}"
                 )
-                return {}
+                return {}, 0
 
             # Sort rules by precedence (Checkmk evaluates rules in folder order, then rule order)
             # FOLDER HIERARCHY FIX: Implement proper folder precedence
@@ -1576,18 +1580,18 @@ class CheckmkClient:
                 f"Extracted parameters from rule {first_matching_rule.get('id', 'unknown')}: {effective_params}"
             )
 
-            return effective_params
+            return effective_params, len(matching_rules)
 
         except CheckmkAPIError as e:
             if e.status_code == 404:
                 self.logger.debug(f"Parameter ruleset {ruleset_name} does not exist")
-                return {}
+                return {}, 0
             else:
                 self.logger.warning(f"Error accessing ruleset {ruleset_name}: {e}")
-                return {}
+                return {}, 0
         except Exception as e:
             self.logger.error(f"Error computing effective parameters from rules: {e}")
-            return {}
+            return {}, 0
 
     def _sort_rules_by_folder_precedence(
         self, rules: List[Dict[str, Any]], host_folder: str
@@ -1754,19 +1758,32 @@ class CheckmkClient:
         Improved rule matching with better pattern support.
 
         Args:
-            rule: Rule object from API
+            rule: Rule object from API (may be normalized or raw)
             host_name: Target hostname
             service_name: Target service name
 
         Returns:
             True if rule matches the host/service combination
         """
-        # Extract conditions from rule
-        conditions = rule.get("extensions", {}).get("conditions", {})
+        # Extract conditions from rule - handle both normalized and raw structures
+        conditions = rule.get("conditions")
+        
+        # If not found in normalized structure, try extensions (raw structure)
+        if conditions is None:
+            conditions = rule.get("extensions", {}).get("conditions", {})
+        
+        # Also check raw data if available
+        if not conditions:
+            raw_data = rule.get("_raw", {})
+            if raw_data:
+                conditions = raw_data.get("extensions", {}).get("conditions", {})
 
-        # Check if rule is disabled
-        properties = rule.get("extensions", {}).get("properties", {})
-        if properties.get("disabled", False):
+        # Check if rule is disabled (try both structures)
+        properties = rule.get("properties")
+        if properties is None:
+            properties = rule.get("extensions", {}).get("properties", {})
+        
+        if properties and properties.get("disabled", False):
             return False
 
         # Check host conditions
@@ -1909,33 +1926,56 @@ class CheckmkClient:
         Extract parameters from a rule object.
 
         Args:
-            rule: Rule object from API
+            rule: Rule object from API (may be normalized or raw)
 
         Returns:
             Dictionary of parameters from the rule
         """
         try:
-            # Try to get the value from rule extensions
-            extensions = rule.get("extensions", {})
-            value_raw = extensions.get("value_raw")
+            # First try normalized structure (top-level value_raw)
+            value_raw = rule.get("value_raw")
+            
+            # If not found, try extensions structure (raw API response)
+            if value_raw is None:
+                extensions = rule.get("extensions", {})
+                value_raw = extensions.get("value_raw")
+            
+            # Also check raw data if available
+            if value_raw is None:
+                raw_data = rule.get("_raw", {})
+                if raw_data:
+                    raw_extensions = raw_data.get("extensions", {})
+                    value_raw = raw_extensions.get("value_raw")
 
             if value_raw:
-                # Parse JSON value
-                import json
-
-                if isinstance(value_raw, str):
-                    return json.loads(value_raw)
-                elif isinstance(value_raw, dict):
+                # Handle different value_raw formats
+                if isinstance(value_raw, dict):
+                    # Already a dictionary, return as-is
                     return value_raw
+                elif isinstance(value_raw, str):
+                    # Try JSON parsing first
+                    import json
+                    try:
+                        return json.loads(value_raw)
+                    except json.JSONDecodeError:
+                        # If JSON parsing fails, try evaluating as Python literal
+                        # This handles cases like "{'levels': (74.991, 80.0)}"
+                        import ast
+                        try:
+                            return ast.literal_eval(value_raw)
+                        except (ValueError, SyntaxError):
+                            self.logger.warning(f"Could not parse value_raw: {value_raw}")
+                            return {}
 
-            # Fallback: try other possible parameter locations
+            # Fallback: try other possible parameter locations in extensions
+            extensions = rule.get("extensions", {})
             value = extensions.get("value", {})
             if isinstance(value, dict):
                 return value
 
             return {}
 
-        except (json.JSONDecodeError, TypeError, KeyError) as e:
+        except Exception as e:
             self.logger.warning(f"Could not extract parameters from rule: {e}")
             return {}
 
