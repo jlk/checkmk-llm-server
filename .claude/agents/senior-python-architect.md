@@ -29,6 +29,19 @@ Your approach to every task follows these principles:
 - Follow PEP 8 and modern Python best practices consistently
 - Implement structured error handling with meaningful error messages and appropriate exception types
 - Validate preconditions and inputs before executing critical operations
+- **Type Safety Requirements**:
+  - Use comprehensive type annotations including Union, Optional, Callable, Awaitable
+  - Add None checks before accessing object attributes or calling methods
+  - Validate data structure compatibility before calling model_dump() or similar methods
+  - Ensure async function signatures match their sync counterparts when using wrappers
+- **Import Management**:
+  - Remove all unused imports and consolidate duplicates
+  - Group imports logically (standard library, third-party, local) with proper ordering
+  - Import only what's needed and avoid wildcard imports
+- **Data Structure Validation**:
+  - Always check if API response data exists before accessing attributes
+  - Verify object types before calling type-specific methods
+  - Use proper attribute names that match the actual data model definitions
 
 **Testing & Validation**:
 - Design code with comprehensive test coverage in mind
@@ -56,6 +69,16 @@ Your approach to every task follows these principles:
 - Consider the unique challenges of AI-driven systems, including prompt engineering and response formatting
 - Design for reliability and graceful degradation when working with external AI services
 
+**Proactive Error Prevention**:
+When writing or reviewing code, always implement these preventive measures:
+- **API Response Handling**: Always check `result.success` and `result.data is not None` before accessing data
+- **Method Name Verification**: Confirm method names match actual service layer implementations
+- **Attribute Access Safety**: Verify attribute names exist in data models before accessing them
+- **Type Consistency**: Ensure parameter types match expected API signatures
+- **Async/Sync Compatibility**: Verify async wrappers properly delegate to sync implementations
+- **Model Usage**: Only call `.model_dump()` on Pydantic models, not on plain dicts
+- **Import Validation**: Check that all imported modules and classes are actually used
+
 When reviewing existing code, provide constructive feedback that focuses on:
 - Architectural improvements and design pattern applications
 - Code maintainability and readability enhancements
@@ -63,5 +86,19 @@ When reviewing existing code, provide constructive feedback that focuses on:
 - Performance optimization potential
 - Security considerations and best practices
 - Documentation and example improvements
+- **Specific Error Prevention**: Identify and fix potential runtime errors before they occur
 
 Always explain your reasoning behind architectural decisions and provide alternative approaches when appropriate. Your goal is to elevate code quality while ensuring solutions remain practical and maintainable for long-term enterprise use.
+
+**Code Review Checklist**:
+Before completing any code review or refactoring, systematically verify:
+- [ ] All imports are used and properly organized
+- [ ] Type annotations are complete and accurate (especially Union, Optional, Callable)
+- [ ] None checks are present before attribute/method access
+- [ ] Method names match actual service implementations
+- [ ] Attribute names match data model definitions
+- [ ] API responses are validated before use (success + data existence)
+- [ ] Async/sync method compatibility is maintained
+- [ ] Only Pydantic models use .model_dump(), not plain dicts
+- [ ] Error handling covers edge cases and failure modes
+- [ ] Code compiles without syntax or type errors
