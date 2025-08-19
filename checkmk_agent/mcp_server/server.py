@@ -1,29 +1,30 @@
 """Enhanced MCP Server implementation with advanced features."""
 
 import logging
-import asyncio
 import json
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable, Awaitable, Union
 
 from mcp.server import Server
 from mcp.types import (
     Resource,
     TextContent,
-    EmbeddedResource,
     Tool,
     Prompt,
     PromptMessage,
-    CallToolResult,
+    PromptArgument,
+    GetPromptResult,
 )
 from mcp.server.models import InitializationOptions
 from mcp.server.lowlevel.server import NotificationOptions
+from pydantic import AnyUrl
 
 from ..config import AppConfig
 from ..async_api_client import AsyncCheckmkClient
+from ..api_client import CheckmkClient
 from ..services import HostService, StatusService, ServiceService, ParameterService
 from ..services.event_service import EventService
 from ..services.metrics_service import MetricsService
@@ -31,19 +32,18 @@ from ..services.bi_service import BIService
 from ..services.historical_service import HistoricalDataService, CachedHistoricalDataService
 from ..services.streaming import StreamingHostService, StreamingServiceService
 from ..services.cache import CachedHostService
-from ..services.metrics import MetricsMixin, get_metrics_collector
-from ..services.recovery import RecoveryMixin
-from ..services.batch import BatchProcessor, BatchOperationsMixin
+from ..services.metrics import get_metrics_collector
+from ..services.batch import BatchProcessor
+from ..services.models.services import ServiceState
+from ..services.parameter_service import RuleSearchFilter
+from ..services.models.historical import HistoricalDataRequest
 
 # Import request tracking utilities
 try:
     from ..utils.request_context import (
         generate_request_id,
         set_request_id,
-        get_request_id,
-        ensure_request_id,
     )
-    from ..middleware.request_tracking import track_request, with_request_tracking
 except ImportError:
     # Fallback for cases where request tracking is not available
     def generate_request_id() -> str:
@@ -58,16 +58,21 @@ except ImportError:
     def ensure_request_id() -> str:
         return "req_unknown"
 
-    def track_request(**kwargs):
-        def decorator(func):
+    def track_request(
+        request_id: Optional[str] = None,
+        operation_name: Optional[str] = None,
+        include_timing: bool = True
+    ) -> Callable[[Callable], Callable]:
+        def decorator(func: Callable) -> Callable:
             return func
-
         return decorator
 
-    def with_request_tracking(**kwargs):
-        def decorator(func):
+    def with_request_tracking(
+        operation_name: Optional[str] = None,
+        include_timing: bool = True
+    ) -> Callable[[Callable], Callable]:
+        def decorator(func: Callable) -> Callable:
             return func
-
         return decorator
 
 
@@ -127,33 +132,34 @@ class CheckmkMCPServer:
 
     def __init__(self, config: AppConfig):
         self.config = config
-        self.server = Server("checkmk-agent")
-        self.checkmk_client: Optional[AsyncCheckmkClient] = None
+        self.server: Server = Server("checkmk-agent")
+        # These will be initialized in initialize() method
+        self.checkmk_client: AsyncCheckmkClient
+        
+        # Standard services - initialized in initialize() method
+        self.host_service: HostService
+        self.status_service: StatusService
+        self.service_service: ServiceService
+        self.parameter_service: ParameterService
+        self.event_service: EventService
+        self.metrics_service: MetricsService
+        self.bi_service: BIService
+        self.historical_service: HistoricalDataService
 
-        # Standard services
-        self.host_service: Optional[HostService] = None
-        self.status_service: Optional[StatusService] = None
-        self.service_service: Optional[ServiceService] = None
-        self.parameter_service: Optional[ParameterService] = None
-        self.event_service: Optional[EventService] = None
-        self.metrics_service: Optional[MetricsService] = None
-        self.bi_service: Optional[BIService] = None
-        self.historical_service: Optional[HistoricalDataService] = None
-
-        # Enhanced services
-        self.streaming_host_service: Optional[StreamingHostService] = None
-        self.streaming_service_service: Optional[StreamingServiceService] = None
-        self.cached_host_service: Optional[CachedHostService] = None
+        # Enhanced services - initialized in initialize() method
+        self.streaming_host_service: StreamingHostService
+        self.streaming_service_service: StreamingServiceService
+        self.cached_host_service: CachedHostService
 
         # Advanced features
         self.batch_processor = BatchProcessor()
 
         # Tool definitions
-        self._tools = {}
-        self._tool_handlers = {}
+        self._tools: Dict[str, Tool] = {}
+        self._tool_handlers: Dict[str, Callable[..., Awaitable[Any]]] = {}
 
         # Prompt definitions
-        self._prompts = {}
+        self._prompts: Dict[str, Prompt] = {}
 
         # Register handlers
         self._register_handlers()
@@ -169,31 +175,31 @@ class CheckmkMCPServer:
             """List available MCP resources including streaming and performance data."""
             basic_resources = [
                 Resource(
-                    uri="checkmk://dashboard/health",
+                    uri=AnyUrl("checkmk://dashboard/health"),
                     name="Health Dashboard",
                     description="Real-time infrastructure health dashboard",
                     mimeType="application/json",
                 ),
                 Resource(
-                    uri="checkmk://dashboard/problems",
+                    uri=AnyUrl("checkmk://dashboard/problems"),
                     name="Critical Problems",
                     description="Current critical problems across infrastructure",
                     mimeType="application/json",
                 ),
                 Resource(
-                    uri="checkmk://hosts/status",
+                    uri=AnyUrl("checkmk://hosts/status"),
                     name="Host Status Overview",
                     description="Current status of all monitored hosts",
                     mimeType="application/json",
                 ),
                 Resource(
-                    uri="checkmk://services/problems",
+                    uri=AnyUrl("checkmk://services/problems"),
                     name="Service Problems",
                     description="Current service problems requiring attention",
                     mimeType="application/json",
                 ),
                 Resource(
-                    uri="checkmk://metrics/performance",
+                    uri=AnyUrl("checkmk://metrics/performance"),
                     name="Performance Metrics",
                     description="Real-time performance metrics and trends",
                     mimeType="application/json",
@@ -203,25 +209,25 @@ class CheckmkMCPServer:
             # Add streaming resources
             streaming_resources = [
                 Resource(
-                    uri="checkmk://stream/hosts",
+                    uri=AnyUrl("checkmk://stream/hosts"),
                     name="Host Stream",
                     description="Streaming host data for large environments",
                     mimeType="application/x-ndjson",
                 ),
                 Resource(
-                    uri="checkmk://stream/services",
+                    uri=AnyUrl("checkmk://stream/services"),
                     name="Service Stream",
                     description="Streaming service data for large environments",
                     mimeType="application/x-ndjson",
                 ),
                 Resource(
-                    uri="checkmk://metrics/server",
+                    uri=AnyUrl("checkmk://metrics/server"),
                     name="Server Metrics",
                     description="MCP server performance metrics",
                     mimeType="application/json",
                 ),
                 Resource(
-                    uri="checkmk://cache/stats",
+                    uri=AnyUrl("checkmk://cache/stats"),
                     name="Cache Statistics",
                     description="Cache performance and statistics",
                     mimeType="application/json",
@@ -231,27 +237,27 @@ class CheckmkMCPServer:
             return basic_resources + streaming_resources
 
         @self.server.read_resource()
-        async def read_resource(uri: str) -> str:
+        async def read_resource(uri: AnyUrl) -> str:
             """Read MCP resource content including advanced features."""
             if not self._ensure_services():
                 raise RuntimeError("Services not initialized")
 
             try:
+                uri_str = str(uri)
                 # Standard resources
-                if uri == "checkmk://dashboard/health":
+                if uri_str == "checkmk://dashboard/health":
                     result = await self.status_service.get_health_dashboard()
                     return self._handle_service_result(result)
 
-                elif uri == "checkmk://dashboard/problems":
+                elif uri_str == "checkmk://dashboard/problems":
                     result = await self.status_service.get_critical_problems()
                     return self._handle_service_result(result)
 
-                elif uri == "checkmk://hosts/status":
+                elif uri_str == "checkmk://hosts/status":
                     result = await self.host_service.list_hosts(include_status=True)
                     return self._handle_service_result(result)
 
-                elif uri == "checkmk://services/problems":
-                    from ..services.models.services import ServiceState
+                elif uri_str == "checkmk://services/problems":
 
                     result = await self.service_service.list_all_services(
                         state_filter=[
@@ -262,23 +268,23 @@ class CheckmkMCPServer:
                     )
                     return self._handle_service_result(result)
 
-                elif uri == "checkmk://metrics/performance":
+                elif uri_str == "checkmk://metrics/performance":
                     result = await self.status_service.get_performance_metrics()
                     return self._handle_service_result(result)
 
                 # Streaming resources
-                elif uri == "checkmk://stream/hosts":
+                elif uri_str == "checkmk://stream/hosts":
                     return await self._stream_hosts_resource()
 
-                elif uri == "checkmk://stream/services":
+                elif uri_str == "checkmk://stream/services":
                     return await self._stream_services_resource()
 
                 # Advanced metrics
-                elif uri == "checkmk://metrics/server":
+                elif uri_str == "checkmk://metrics/server":
                     stats = await get_metrics_collector().get_stats()
                     return safe_json_dumps(stats)
 
-                elif uri == "checkmk://cache/stats":
+                elif uri_str == "checkmk://cache/stats":
                     if self.cached_host_service:
                         cache_stats = await self.cached_host_service.get_cache_stats()
                         return safe_json_dumps(cache_stats)
@@ -368,127 +374,127 @@ class CheckmkMCPServer:
                 name="analyze_host_health",
                 description="Analyze the health of a specific host with detailed recommendations",
                 arguments=[
-                    {
-                        "name": "host_name",
-                        "description": "Name of the host to analyze",
-                        "required": True,
-                    },
-                    {
-                        "name": "include_grade",
-                        "description": "Include health grade (A+ through F)",
-                        "required": False,
-                    },
+                    PromptArgument(
+                        name="host_name",
+                        description="Name of the host to analyze",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="include_grade",
+                        description="Include health grade (A+ through F)",
+                        required=False,
+                    ),
                 ],
             ),
             "troubleshoot_service": Prompt(
                 name="troubleshoot_service",
                 description="Comprehensive troubleshooting analysis for a service problem",
                 arguments=[
-                    {
-                        "name": "host_name",
-                        "description": "Host name where the service is running",
-                        "required": True,
-                    },
-                    {
-                        "name": "service_name",
-                        "description": "Name of the service to troubleshoot",
-                        "required": True,
-                    },
+                    PromptArgument(
+                        name="host_name",
+                        description="Host name where the service is running",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="service_name",
+                        description="Name of the service to troubleshoot",
+                        required=True,
+                    ),
                 ],
             ),
             "infrastructure_overview": Prompt(
                 name="infrastructure_overview",
                 description="Get a comprehensive overview of infrastructure health and trends",
                 arguments=[
-                    {
-                        "name": "time_range_hours",
-                        "description": "Time range in hours for the analysis",
-                        "required": False,
-                    }
+                    PromptArgument(
+                        name="time_range_hours",
+                        description="Time range in hours for the analysis",
+                        required=False,
+                    )
                 ],
             ),
             "optimize_parameters": Prompt(
                 name="optimize_parameters",
                 description="Get parameter optimization recommendations for a service",
                 arguments=[
-                    {
-                        "name": "host_name",
-                        "description": "Host name where the service is running",
-                        "required": True,
-                    },
-                    {
-                        "name": "service_name",
-                        "description": "Name of the service to optimize",
-                        "required": True,
-                    },
+                    PromptArgument(
+                        name="host_name",
+                        description="Host name where the service is running",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="service_name",
+                        description="Name of the service to optimize",
+                        required=True,
+                    ),
                 ],
             ),
             "adjust_host_check_attempts": Prompt(
                 name="adjust_host_check_attempts",
                 description="Configure host check sensitivity by adjusting maximum check attempts",
                 arguments=[
-                    {
-                        "name": "host_name",
-                        "description": "Name of the host to configure (or 'all' for global rule)",
-                        "required": True,
-                    },
-                    {
-                        "name": "max_attempts",
-                        "description": "Maximum number of check attempts before host is considered down (1-10)",
-                        "required": True,
-                    },
-                    {
-                        "name": "reason",
-                        "description": "Reason for adjustment (e.g., 'unreliable network', 'critical host')",
-                        "required": False,
-                    },
+                    PromptArgument(
+                        name="host_name",
+                        description="Name of the host to configure (or 'all' for global rule)",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="max_attempts",
+                        description="Maximum number of check attempts before host is considered down (1-10)",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="reason",
+                        description="Reason for adjustment (e.g., 'unreliable network', 'critical host')",
+                        required=False,
+                    ),
                 ],
             ),
             "adjust_host_retry_interval": Prompt(
                 name="adjust_host_retry_interval",
                 description="Configure retry interval for host checks when in soft problem state",
                 arguments=[
-                    {
-                        "name": "host_name",
-                        "description": "Name of the host to configure (or 'all' for global rule)",
-                        "required": True,
-                    },
-                    {
-                        "name": "retry_interval",
-                        "description": "Retry interval in minutes (0.1-60)",
-                        "required": True,
-                    },
-                    {
-                        "name": "reason",
-                        "description": "Reason for adjustment (e.g., 'reduce load', 'faster recovery detection')",
-                        "required": False,
-                    },
+                    PromptArgument(
+                        name="host_name",
+                        description="Name of the host to configure (or 'all' for global rule)",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="retry_interval",
+                        description="Retry interval in minutes (0.1-60)",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="reason",
+                        description="Reason for adjustment (e.g., 'reduce load', 'faster recovery detection')",
+                        required=False,
+                    ),
                 ],
             ),
             "adjust_host_check_timeout": Prompt(
                 name="adjust_host_check_timeout",
                 description="Configure timeout for host check commands",
                 arguments=[
-                    {
-                        "name": "host_name",
-                        "description": "Name of the host to configure (or 'all' for global rule)",
-                        "required": True,
-                    },
-                    {
-                        "name": "timeout_seconds",
-                        "description": "Timeout in seconds (1-60)",
-                        "required": True,
-                    },
-                    {
-                        "name": "check_type",
-                        "description": "Type of check: 'icmp', 'snmp', or 'all' (default: 'icmp')",
-                        "required": False,
-                    },
-                    {
-                        "name": "reason",
-                        "description": "Reason for adjustment (e.g., 'slow network', 'distant location')",
-                        "required": False,
-                    },
+                    PromptArgument(
+                        name="host_name",
+                        description="Name of the host to configure (or 'all' for global rule)",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="timeout_seconds",
+                        description="Timeout in seconds (1-60)",
+                        required=True,
+                    ),
+                    PromptArgument(
+                        name="check_type",
+                        description="Type of check: 'icmp', 'snmp', or 'all' (default: 'icmp')",
+                        required=False,
+                    ),
+                    PromptArgument(
+                        name="reason",
+                        description="Reason for adjustment (e.g., 'slow network', 'distant location')",
+                        required=False,
+                    ),
                 ],
             ),
         }
@@ -499,16 +505,17 @@ class CheckmkMCPServer:
             return list(self._prompts.values())
 
         @self.server.get_prompt()
-        async def get_prompt(name: str, arguments: dict):
+        async def get_prompt(name: str, arguments: Optional[Dict[str, str]]) -> GetPromptResult:
             """Handle MCP prompt requests."""
             if not self._ensure_services():
                 raise RuntimeError("Services not initialized")
 
             try:
+                args = arguments or {}
                 if name == "analyze_host_health":
-                    host_name = arguments.get("host_name", "")
+                    host_name = args.get("host_name", "")
                     include_grade = (
-                        arguments.get("include_grade", "true").lower() == "true"
+                        args.get("include_grade", "true").lower() == "true"
                     )
 
                     # Get current host data
@@ -516,7 +523,7 @@ class CheckmkMCPServer:
                         name=host_name, include_status=True
                     )
                     host_data = (
-                        host_result.data.model_dump() if host_result.success else {}
+                        host_result.data.model_dump() if host_result.success and host_result.data else {}
                     )
 
                     # Get host health analysis
@@ -544,17 +551,17 @@ Please provide:
 Focus on actionable insights for system administrators."""
 
                 elif name == "troubleshoot_service":
-                    host_name = arguments.get("host_name", "")
-                    service_name = arguments.get("service_name", "")
+                    host_name = args.get("host_name", "")
+                    service_name = args.get("service_name", "")
 
                     # Get service status and details
                     services_result = await self.service_service.list_host_services(
                         host_name=host_name
                     )
                     service_data = None
-                    if services_result.success:
+                    if services_result.success and services_result.data:
                         for service in services_result.data.services:
-                            if service.description == service_name:
+                            if hasattr(service, 'service_name') and service.service_name == service_name:
                                 service_data = service.model_dump()
                                 break
 
@@ -574,7 +581,7 @@ Please provide a comprehensive troubleshooting analysis including:
 Be specific to the service type and provide practical commands where applicable."""
 
                 elif name == "infrastructure_overview":
-                    time_range_hours = int(arguments.get("time_range_hours", "24"))
+                    time_range_hours = int(args.get("time_range_hours", "24"))
 
                     # Get comprehensive infrastructure data
                     dashboard_result = await self.status_service.get_health_dashboard()
@@ -606,8 +613,8 @@ Please analyze and provide:
 Present this as an executive summary suitable for both technical teams and management."""
 
                 elif name == "optimize_parameters":
-                    host_name = arguments.get("host_name", "")
-                    service_name = arguments.get("service_name", "")
+                    host_name = args.get("host_name", "")
+                    service_name = args.get("service_name", "")
 
                     # Get current parameters and service performance
                     params_result = (
@@ -616,7 +623,7 @@ Present this as an executive summary suitable for both technical teams and manag
                         )
                     )
                     params_data = (
-                        params_result.data.model_dump() if params_result.success else {}
+                        params_result.data.model_dump() if params_result.success and params_result.data else {}
                     )
 
                     # Get service status for context
@@ -624,9 +631,9 @@ Present this as an executive summary suitable for both technical teams and manag
                         host_name=host_name
                     )
                     service_status = None
-                    if services_result.success:
+                    if services_result.success and services_result.data:
                         for service in services_result.data.services:
-                            if service.description == service_name:
+                            if hasattr(service, 'service_name') and service.service_name == service_name:
                                 service_status = service.model_dump()
                                 break
 
@@ -649,16 +656,19 @@ Please provide parameter optimization recommendations:
 Focus on reducing false positives while maintaining effective monitoring coverage."""
 
                 elif name == "adjust_host_check_attempts":
-                    host_name = arguments.get("host_name", "")
-                    max_attempts = arguments.get("max_attempts")
-                    reason = arguments.get("reason", "Not specified")
+                    host_name = args.get("host_name", "")
+                    max_attempts_str = args.get("max_attempts")
+                    reason = args.get("reason", "Not specified")
 
                     # Validate parameters
                     if not host_name:
                         raise ValueError("host_name is required")
+                    
+                    if not max_attempts_str:
+                        raise ValueError("max_attempts is required")
 
                     try:
-                        max_attempts = int(max_attempts)
+                        max_attempts = int(max_attempts_str)
                         if max_attempts < 1 or max_attempts > 10:
                             raise ValueError("max_attempts must be between 1 and 10")
                     except (TypeError, ValueError):
@@ -724,14 +734,14 @@ Focus on reducing false positives while maintaining effective monitoring coverag
                     if check_interval != "Unknown" and isinstance(
                         check_interval, (int, float)
                     ):
-                        detection_time = max_attempts * check_interval
+                        detection_time: Union[float, str] = max_attempts * check_interval
                         current_attempts = current_config.get(
                             "current_attempts", "Unknown"
                         )
                         if current_attempts != "Unknown" and isinstance(
                             current_attempts, (int, float)
                         ):
-                            current_time = current_attempts * check_interval
+                            current_time: Union[float, str] = current_attempts * check_interval
                         else:
                             current_time = "Unknown"
                     else:
@@ -775,16 +785,19 @@ Folder: / (root)
 The rule has been configured to adjust host check sensitivity. Monitor the results and adjust as needed based on your network reliability."""
 
                 elif name == "adjust_host_retry_interval":
-                    host_name = arguments.get("host_name", "")
-                    retry_interval = arguments.get("retry_interval")
-                    reason = arguments.get("reason", "Not specified")
+                    host_name = args.get("host_name", "")
+                    retry_interval_str = args.get("retry_interval")
+                    reason = args.get("reason", "Not specified")
 
                     # Validate parameters
                     if not host_name:
                         raise ValueError("host_name is required")
+                    
+                    if not retry_interval_str:
+                        raise ValueError("retry_interval is required")
 
                     try:
-                        retry_interval = float(retry_interval)
+                        retry_interval = float(retry_interval_str)
                         if retry_interval < 0.1 or retry_interval > 60:
                             raise ValueError(
                                 "retry_interval must be between 0.1 and 60 minutes"
@@ -835,7 +848,7 @@ The rule has been configured to adjust host check sensitivity. Monitor the resul
                                 "comment": f"Host retry interval adjustment - {reason}"
                             },
                         )
-                        rule_created = rule_result.get("id", "created successfully")
+                        rule_created: Union[str, int] = rule_result.get("id", "created successfully")
                     except Exception as e:
                         rule_created = f"Error creating rule: {str(e)}"
 
@@ -844,12 +857,12 @@ The rule has been configured to adjust host check sensitivity. Monitor the resul
                     if max_attempts != "Unknown" and isinstance(
                         max_attempts, (int, float)
                     ):
-                        total_time = retry_interval * (max_attempts - 1)
+                        total_time: Union[float, str] = retry_interval * (max_attempts - 1)
                         current_retry = current_config.get("current_retry", "Unknown")
                         if current_retry != "Unknown" and isinstance(
                             current_retry, (int, float)
                         ):
-                            current_total = current_retry * (max_attempts - 1)
+                            current_total: Union[float, str] = current_retry * (max_attempts - 1)
                         else:
                             current_total = "Unknown"
                     else:
@@ -906,17 +919,20 @@ Folder: / (root)
 The rule has been configured to adjust host retry behavior. Monitor system load and alert timing after deployment."""
 
                 elif name == "adjust_host_check_timeout":
-                    host_name = arguments.get("host_name", "")
-                    timeout_seconds = arguments.get("timeout_seconds")
-                    check_type = arguments.get("check_type", "icmp").lower()
-                    reason = arguments.get("reason", "Not specified")
+                    host_name = args.get("host_name", "")
+                    timeout_seconds_str = args.get("timeout_seconds")
+                    check_type = args.get("check_type", "icmp").lower()
+                    reason = args.get("reason", "Not specified")
 
                     # Validate parameters
                     if not host_name:
                         raise ValueError("host_name is required")
+                    
+                    if not timeout_seconds_str:
+                        raise ValueError("timeout_seconds is required")
 
                     try:
-                        timeout_seconds = int(timeout_seconds)
+                        timeout_seconds = int(timeout_seconds_str)
                         if timeout_seconds < 1 or timeout_seconds > 60:
                             raise ValueError("timeout_seconds must be between 1 and 60")
                     except (TypeError, ValueError):
@@ -1051,18 +1067,28 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 else:
                     raise ValueError(f"Unknown prompt: {name}")
 
-                return PromptMessage(
-                    role="user", content=TextContent(type="text", text=prompt_text)
+                return GetPromptResult(
+                    description=f"Generated prompt for {name}",
+                    messages=[
+                        PromptMessage(
+                            role="user", content=TextContent(type="text", text=prompt_text)
+                        )
+                    ]
                 )
 
             except Exception as e:
                 logger.exception(f"Error generating prompt {name}")
-                return PromptMessage(
-                    role="user",
-                    content=TextContent(
-                        type="text",
-                        text=f"Error generating prompt: {sanitize_error(e)}",
-                    ),
+                return GetPromptResult(
+                    description=f"Error generating prompt for {name}",
+                    messages=[
+                        PromptMessage(
+                            role="user",
+                            content=TextContent(
+                                type="text",
+                                text=f"Error generating prompt: {sanitize_error(e)}",
+                            ),
+                        )
+                    ]
                 )
 
     def _register_advanced_resources(self):
@@ -1143,8 +1169,8 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
-                        "message": f"Retrieved {result.data.total_count} hosts",
+                        "data": result.data.model_dump() if result.data else {},
+                        "message": f"Retrieved {result.data.total_count if result.data else 0} hosts",
                     }
                 else:
                     return {
@@ -1201,7 +1227,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
+                        "data": result.data.model_dump() if result.data else {},
                         "message": f"Successfully created host {name}",
                     }
                 else:
@@ -1249,7 +1275,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
+                        "data": result.data.model_dump() if result.data else {},
                         "message": f"Retrieved details for host {name}",
                     }
                 else:
@@ -1303,7 +1329,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
+                        "data": result.data.model_dump() if result.data else {},
                         "message": f"Successfully updated host {name}",
                     }
                 else:
@@ -1337,7 +1363,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
+                        "data": result.data.model_dump() if result.data else {},
                         "message": f"Successfully deleted host {name}",
                     }
                 else:
@@ -1387,10 +1413,11 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     host_name=host_name
                 )
                 if result.success:
+                    total_count = result.data.total_count if result.data else 0
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
-                        "message": f"Retrieved {result.data.total_count} services for host {host_name}",
+                        "data": result.data.model_dump() if result.data else {},
+                        "message": f"Retrieved {total_count} services for host {host_name}",
                     }
                 else:
                     return {
@@ -1437,7 +1464,6 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             search=None, state_filter=None, limit=None, offset=0
         ):
             try:
-                from ..services.models.services import ServiceState
 
                 # Convert string states to enum values
                 if state_filter:
@@ -1456,10 +1482,11 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     host_filter=search, state_filter=state_enum_filter, limit=limit
                 )
                 if result.success:
+                    total_count = result.data.total_count if result.data else 0
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
-                        "message": f"Retrieved {result.data.total_count} services",
+                        "data": result.data.model_dump() if result.data else {},
+                        "message": f"Retrieved {total_count} services",
                     }
                 else:
                     return {
@@ -1520,19 +1547,18 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             expire_on=None,
         ):
             try:
-                result = await self.service_service.acknowledge_service_problems(
+                result = await self.service_service.acknowledge_problem(
                     host_name=host_name,
                     service_name=service_name,
                     comment=comment,
                     sticky=sticky,
                     notify=notify,
                     persistent=persistent,
-                    expire_on=expire_on,
                 )
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
+                        "data": result.data.model_dump() if result.data else {},
                         "message": f"Acknowledged problem for {service_name} on {host_name}",
                     }
                 else:
@@ -1587,19 +1613,23 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             recur=None,
         ):
             try:
-                result = await self.service_service.create_service_downtime(
+                # Default duration to 1 hour if not provided
+                if duration_hours is None:
+                    duration_hours = 1.0
+                elif not isinstance(duration_hours, (int, float)):
+                    duration_hours = float(duration_hours)
+                
+                result = await self.service_service.create_downtime(
                     host_name=host_name,
                     service_name=service_name,
                     comment=comment,
                     start_time=start_time,
-                    end_time=end_time,
-                    duration_hours=duration_hours,
-                    recur=recur,
+                    duration_hours=float(duration_hours),
                 )
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
+                        "data": result.data.model_dump() if result.data else {},
                         "message": f"Created downtime for {service_name} on {host_name}",
                     }
                 else:
@@ -1646,7 +1676,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     # Handle both dict and Pydantic model data
                     data = (
-                        result.data.model_dump()
+                        result.data.model_dump() if result.data else {}
                         if hasattr(result.data, "model_dump")
                         else result.data
                     )
@@ -1699,11 +1729,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 )
                 if result.success:
                     # Handle both dict and Pydantic model data
-                    data = (
-                        result.data.model_dump()
-                        if hasattr(result.data, "model_dump")
-                        else result.data
-                    )
+                    data = result.data if result.data else {}
                     return {"success": True, "data": data}
                 else:
                     return {
@@ -1791,7 +1817,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     host_name=host_name, service_name=service_name
                 )
                 if result.success:
-                    return {"success": True, "data": result.data.model_dump()}
+                    return {"success": True, "data": result.data.model_dump() if result.data else {}}
                 else:
                     return {
                         "success": False,
@@ -1845,7 +1871,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "data": result.data.model_dump(),
+                        "data": result.data.model_dump() if result.data else {},
                         "message": f"Updated parameters for {service_name} on {host_name}",
                     }
                 else:
@@ -1883,7 +1909,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     service_name
                 )
                 if result.success:
-                    data = result.data
+                    data = result.data or {} or {}
                     return {
                         "success": True,
                         "service_name": service_name,
@@ -1968,7 +1994,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 result = await self.parameter_service.validate_parameters(
                     ruleset, parameters
                 )
-                if result.success:
+                if result.success and result.data:
                     validation = result.data
                     return {
                         "success": True,
@@ -2078,10 +2104,11 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             try:
                 result = await self.parameter_service.get_handler_info(service_name)
                 if result.success:
+                    handler_count = result.data.get('handler_count', 0) if result.data else 0
                     return {
                         "success": True,
                         "data": result.data,
-                        "message": f"Found {result.data.get('handler_count', 0)} handlers for {service_name}",
+                        "message": f"Found {handler_count} handlers for {service_name}",
                     }
                 else:
                     return {
@@ -2122,13 +2149,14 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     service_name, context
                 )
                 if result.success:
+                    message = (
+                        result.data.get("message", f"Generated specialized defaults for {service_name}")
+                        if result.data else f"Generated specialized defaults for {service_name}"
+                    )
                     return {
                         "success": True,
                         "data": result.data,
-                        "message": result.data.get(
-                            "message",
-                            f"Generated specialized defaults for {service_name}",
-                        ),
+                        "message": message,
                     }
                 else:
                     return {
@@ -2173,7 +2201,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     service_name, parameters, context
                 )
                 if result.success:
-                    data = result.data
+                    data = result.data or {}
                     return {
                         "success": True,
                         "service_name": service_name,
@@ -2235,10 +2263,10 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                         "success": True,
                         "data": {
                             "service_name": service_name,
-                            "suggestions": result.data,
-                            "suggestion_count": len(result.data),
+                            "suggestions": result.data or [],
+                            "suggestion_count": len(result.data) if result.data else 0,
                         },
-                        "message": f"Generated {len(result.data)} suggestions for {service_name}",
+                        "message": f"Generated {len(result.data) if result.data else 0} suggestions for {service_name}",
                     }
                 else:
                     return {
@@ -2264,10 +2292,11 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             try:
                 result = await self.parameter_service.list_available_handlers()
                 if result.success:
+                    total_handlers = result.data.get('total_handlers', 0) if result.data else 0
                     return {
                         "success": True,
                         "data": result.data,
-                        "message": f"Found {result.data.get('total_handlers', 0)} available handlers",
+                        "message": f"Found {total_handlers} available handlers",
                     }
                 else:
                     return {
@@ -2329,7 +2358,6 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             enabled_only=True,
         ):
             try:
-                from ..services.parameter_service import RuleSearchFilter
 
                 search_filter = RuleSearchFilter(
                     host_patterns=host_patterns,
@@ -2346,9 +2374,9 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "rules": result.data,
-                        "count": len(result.data),
-                        "message": f"Found {len(result.data)} matching parameter rules",
+                        "rules": result.data or [],
+                        "count": len(result.data) if result.data else 0,
+                        "message": f"Found {len(result.data) if result.data else 0} matching parameter rules",
                     }
                 else:
                     return {
@@ -2418,7 +2446,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     validate_all=validate_all,
                     stop_on_error=stop_on_error,
                 )
-                if result.success:
+                if result.success and result.data:
                     bulk_result = result.data
                     return {
                         "success": True,
@@ -2491,7 +2519,6 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             enabled_only=True,
         ):
             try:
-                from ..services.parameter_service import RuleSearchFilter
 
                 # Build search filter from search criteria
                 host_patterns = []
@@ -2530,8 +2557,8 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                 if result.success:
                     return {
                         "success": True,
-                        "rules": result.data,
-                        "count": len(result.data),
+                        "rules": result.data or [],
+                        "count": len(result.data) if result.data else 0,
                         "search_criteria": {
                             "search_term": search_term,
                             "ruleset": ruleset,
@@ -2540,7 +2567,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                             "parameter_key": parameter_key,
                             "parameter_value": parameter_value,
                         },
-                        "message": f"Found {len(result.data)} rules matching search criteria",
+                        "message": f"Found {len(result.data) if result.data else 0} rules matching search criteria",
                     }
                 else:
                     return {
@@ -2585,7 +2612,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     service_name, parameters, context
                 )
                 if result.success:
-                    data = result.data
+                    data = result.data or {}
                     return {
                         "success": True,
                         "data": {
@@ -2670,13 +2697,9 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                         service_name
                     )
                     handler_used = "unknown"
-                    if handler_info_result.success:
+                    if handler_info_result.success and handler_info_result.data:
                         # Handle both dict and Pydantic model responses
-                        info_data = (
-                            handler_info_result.data.model_dump()
-                            if hasattr(handler_info_result.data, "model_dump")
-                            else handler_info_result.data
-                        )
+                        info_data = handler_info_result.data
                         handlers = (
                             info_data.get("handlers", [])
                             if isinstance(info_data, dict)
@@ -2691,7 +2714,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
 
                     # Handle both dict and Pydantic model responses
                     data_dict = (
-                        result.data.model_dump()
+                        result.data.model_dump() if result.data else {}
                         if hasattr(result.data, "model_dump")
                         else result.data
                     )
@@ -2744,11 +2767,11 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             },
         )
 
-        async def discover_parameter_handlers(service_name, ruleset=None):
+        async def discover_parameter_handlers(service_name):
             try:
                 result = await self.parameter_service.get_handler_info(service_name)
                 if result.success:
-                    handlers_data = result.data.get("handlers", [])
+                    handlers_data = result.data.get("handlers", []) if result.data else []
 
                     # Format handlers for discovery response
                     handlers = []
@@ -2956,7 +2979,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     # Get info for specific handler
                     result = await self.parameter_service.list_available_handlers()
                     if result.success:
-                        handlers = result.data.get("handlers", [])
+                        handlers = result.data.get("handlers", []) if result.data else []
                         handler_info = next(
                             (h for h in handlers if h.get("name") == handler_name), None
                         )
@@ -2980,10 +3003,12 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     # Get all handlers
                     result = await self.parameter_service.list_available_handlers()
                     if result.success:
+                        handlers = result.data.get("handlers", []) if result.data else []
+                        total_handlers = result.data.get('total_handlers', 0) if result.data else 0
                         return {
                             "success": True,
-                            "data": {"handlers": result.data.get("handlers", [])},
-                            "message": f"Found {result.data.get('total_handlers', 0)} handlers",
+                            "data": {"handlers": handlers},
+                            "message": f"Found {total_handlers} handlers",
                         }
                     else:
                         return {
@@ -3020,14 +3045,14 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             try:
                 # Get all services first
                 all_services_result = await self.service_service.list_all_services()
-                if not all_services_result.success:
+                if not all_services_result.success or not all_services_result.data:
                     return {"success": False, "error": "Failed to list services"}
 
                 matching_services = []
 
                 # Check each service against the handler
                 for service in all_services_result.data.services:
-                    service_name = service.description
+                    service_name = service.service_name
 
                     # Apply pattern filter if provided
                     if service_pattern:
@@ -3041,7 +3066,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                         service_name
                     )
                     if handler_result.success:
-                        handlers = handler_result.data.get("handlers", [])
+                        handlers = handler_result.data.get("handlers", []) if handler_result.data else []
                         for handler in handlers:
                             if handler.get("name") == handler_name and handler.get(
                                 "matches"
@@ -3049,7 +3074,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                                 matching_services.append(
                                     {
                                         "service_name": service_name,
-                                        "host_name": service.host,
+                                        "host_name": service.host_name,
                                         "state": (
                                             service.state.value
                                             if hasattr(service.state, "value")
@@ -3125,7 +3150,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                                 service_name
                             )
                         )
-                        if defaults_result.success:
+                        if defaults_result.success and defaults_result.data:
                             service_config["parameters"] = defaults_result.data.get(
                                 "parameters", {}
                             )
@@ -3137,7 +3162,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                         handler_result = await self.parameter_service.get_handler_info(
                             service_name
                         )
-                        if handler_result.success:
+                        if handler_result.success and handler_result.data:
                             handlers = handler_result.data.get("handlers", [])
                             if handlers:
                                 service_config["metadata"] = {
@@ -3237,13 +3262,14 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             
             if effective_source == "scraper":
                 # Use historical service for scraper data source
-                from ..services.models.historical import HistoricalDataRequest
                 
                 historical_service = self._get_service("historical")
                 request = HistoricalDataRequest(
                     host_name=host_name,
                     service_name=service_name,
-                    period="24h"  # Default period for events
+                    period="24h",  # Default period for events
+                    metric_name=None,  # No specific metric
+                    source="scraper"  # Use scraper source as specified
                 )
                 
                 result = await historical_service.get_historical_data(request)
@@ -3255,7 +3281,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     
                     # Group data points by metric name for processing
                     metrics_by_name = {}
-                    if historical_data.data_points:
+                    if historical_data and historical_data.data_points:
                         for dp in historical_data.data_points:
                             metric_name = dp.metric_name
                             if metric_name not in metrics_by_name:
@@ -3765,14 +3791,14 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             
             if effective_source == "scraper":
                 # Use historical service for scraper data source
-                from ..services.models.historical import HistoricalDataRequest
                 
                 historical_service = self._get_service("historical")
                 request = HistoricalDataRequest(
                     host_name=host_name,
                     service_name=service_description,
                     period=f"{time_range_hours}h",
-                    metric_name=metric_id
+                    metric_name=metric_id,
+                    source="scraper"  # Use scraper source as specified
                 )
                 
                 result = await historical_service.get_historical_data(request)
@@ -3784,7 +3810,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
                     
                     # Group data points by metric name
                     metrics_by_name = {}
-                    if historical_data.data_points:
+                    if historical_data and historical_data.data_points:
                         for dp in historical_data.data_points:
                             metric_name = dp.metric_name
                             if metric_name not in metrics_by_name:
@@ -4113,14 +4139,15 @@ The timeout rules have been configured. Monitor for false positives or missed pr
 
                 # Add service-specific metrics if available
                 service_metrics = {}
-                if hasattr(self.host_service, "get_service_metrics"):
-                    service_metrics["host_service"] = (
-                        await self.host_service.get_service_metrics()
-                    )
-                if hasattr(self.service_service, "get_service_metrics"):
-                    service_metrics["service_service"] = (
-                        await self.service_service.get_service_metrics()
-                    )
+                # Note: get_service_metrics methods not currently implemented
+                # if hasattr(self.host_service, "get_service_metrics"):
+                #     service_metrics["host_service"] = (
+                #         await self.host_service.get_service_metrics()
+                #     )
+                # if hasattr(self.service_service, "get_service_metrics"):
+                #     service_metrics["service_service"] = (
+                #         await self.service_service.get_service_metrics()
+                #     )
 
                 # Add cache stats if available
                 cache_stats = {}
@@ -4129,8 +4156,9 @@ The timeout rules have been configured. Monitor for false positives or missed pr
 
                 # Add recovery stats if available
                 recovery_stats = {}
-                if hasattr(self.host_service, "get_recovery_stats"):
-                    recovery_stats = await self.host_service.get_recovery_stats()
+                # Note: get_recovery_stats method not currently implemented
+                # if hasattr(self.host_service, "get_recovery_stats"):
+                #     recovery_stats = await self.host_service.get_recovery_stats()
 
                 return {
                     "success": True,
@@ -4259,7 +4287,6 @@ The timeout rules have been configured. Monitor for false positives or missed pr
         """Initialize the enhanced MCP server and its dependencies."""
         try:
             # Initialize the async Checkmk client
-            from ..api_client import CheckmkClient
 
             sync_client = CheckmkClient(self.config.checkmk)
             self.checkmk_client = AsyncCheckmkClient(sync_client)
@@ -4331,7 +4358,7 @@ The timeout rules have been configured. Monitor for false positives or missed pr
             raise ValueError(f"Unknown service: {service_name}")
         return service
 
-    async def call_tool(self, name: str, arguments: dict = None):
+    async def call_tool(self, name: str, arguments: Optional[dict] = None):
         """Direct tool call method for testing and integration."""
         if arguments is None:
             arguments = {}
