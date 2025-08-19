@@ -1,0 +1,1477 @@
+{
+  "analysis_timestamp": "2025-08-18T21:48:11.310512",
+  "source_file": "checkmk_agent/mcp_server/server.py",
+  "source_stats": {
+    "total_lines": 4450,
+    "file_size_bytes": 189210
+  },
+  "tools": {
+    "list_hosts": {
+      "name": "list_hosts",
+      "function_name": "list_hosts",
+      "start_line": 1152,
+      "end_line": 1158,
+      "docstring": "",
+      "dependencies": [],
+      "category": "host_tools",
+      "line_count": 7
+    },
+    "create_host": {
+      "name": "create_host",
+      "function_name": "create_host",
+      "start_line": 1216,
+      "end_line": 1217,
+      "docstring": "",
+      "dependencies": [],
+      "category": "host_tools",
+      "line_count": 2
+    },
+    "get_host": {
+      "name": "get_host",
+      "function_name": "get_host",
+      "start_line": 1268,
+      "end_line": 1290,
+      "docstring": "",
+      "dependencies": [
+        "host_service"
+      ],
+      "category": "host_tools",
+      "line_count": 23
+    },
+    "update_host": {
+      "name": "update_host",
+      "function_name": "update_host",
+      "start_line": 1317,
+      "end_line": 1318,
+      "docstring": "",
+      "dependencies": [],
+      "category": "host_tools",
+      "line_count": 2
+    },
+    "delete_host": {
+      "name": "delete_host",
+      "function_name": "delete_host",
+      "start_line": 1360,
+      "end_line": 1378,
+      "docstring": "",
+      "dependencies": [
+        "host_service"
+      ],
+      "category": "host_tools",
+      "line_count": 19
+    },
+    "list_host_services": {
+      "name": "list_host_services",
+      "function_name": "list_host_services",
+      "start_line": 1406,
+      "end_line": 1407,
+      "docstring": "",
+      "dependencies": [],
+      "category": "host_tools",
+      "line_count": 2
+    },
+    "list_all_services": {
+      "name": "list_all_services",
+      "function_name": "list_all_services",
+      "start_line": 1463,
+      "end_line": 1464,
+      "docstring": "",
+      "dependencies": [],
+      "category": "service_tools",
+      "line_count": 2
+    },
+    "acknowledge_service_problem": {
+      "name": "acknowledge_service_problem",
+      "function_name": "acknowledge_service_problem",
+      "start_line": 1540,
+      "end_line": 1547,
+      "docstring": "",
+      "dependencies": [],
+      "category": "service_tools",
+      "line_count": 8
+    },
+    "create_service_downtime": {
+      "name": "create_service_downtime",
+      "function_name": "create_service_downtime",
+      "start_line": 1606,
+      "end_line": 1613,
+      "docstring": "",
+      "dependencies": [],
+      "category": "service_tools",
+      "line_count": 8
+    },
+    "get_health_dashboard": {
+      "name": "get_health_dashboard",
+      "function_name": "get_health_dashboard",
+      "start_line": 1672,
+      "end_line": 1692,
+      "docstring": "",
+      "dependencies": [
+        "status_service"
+      ],
+      "category": "status_tools",
+      "line_count": 21
+    },
+    "get_critical_problems": {
+      "name": "get_critical_problems",
+      "function_name": "get_critical_problems",
+      "start_line": 1721,
+      "end_line": 1722,
+      "docstring": "",
+      "dependencies": [],
+      "category": "status_tools",
+      "line_count": 2
+    },
+    "analyze_host_health": {
+      "name": "analyze_host_health",
+      "function_name": "analyze_host_health",
+      "start_line": 1776,
+      "end_line": 1780,
+      "docstring": "",
+      "dependencies": [],
+      "category": "host_tools",
+      "line_count": 5
+    },
+    "get_effective_parameters": {
+      "name": "get_effective_parameters",
+      "function_name": "get_effective_parameters",
+      "start_line": 1814,
+      "end_line": 1831,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 18
+    },
+    "set_service_parameters": {
+      "name": "set_service_parameters",
+      "function_name": "set_service_parameters",
+      "start_line": 1860,
+      "end_line": 1861,
+      "docstring": "",
+      "dependencies": [],
+      "category": "service_tools",
+      "line_count": 2
+    },
+    "discover_service_ruleset": {
+      "name": "discover_service_ruleset",
+      "function_name": "discover_service_ruleset",
+      "start_line": 1906,
+      "end_line": 1933,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "service_tools",
+      "line_count": 28
+    },
+    "get_parameter_schema": {
+      "name": "get_parameter_schema",
+      "function_name": "get_parameter_schema",
+      "start_line": 1952,
+      "end_line": 1969,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 18
+    },
+    "validate_service_parameters": {
+      "name": "validate_service_parameters",
+      "function_name": "validate_service_parameters",
+      "start_line": 1992,
+      "end_line": 2019,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "service_tools",
+      "line_count": 28
+    },
+    "update_parameter_rule": {
+      "name": "update_parameter_rule",
+      "function_name": "update_parameter_rule",
+      "start_line": 2055,
+      "end_line": 2060,
+      "docstring": "",
+      "dependencies": [],
+      "category": "parameter_tools",
+      "line_count": 6
+    },
+    "get_service_handler_info": {
+      "name": "get_service_handler_info",
+      "function_name": "get_service_handler_info",
+      "start_line": 2103,
+      "end_line": 2123,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "service_tools",
+      "line_count": 21
+    },
+    "get_specialized_defaults": {
+      "name": "get_specialized_defaults",
+      "function_name": "get_specialized_defaults",
+      "start_line": 2146,
+      "end_line": 2171,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 26
+    },
+    "validate_with_handler": {
+      "name": "validate_with_handler",
+      "function_name": "validate_with_handler",
+      "start_line": 2198,
+      "end_line": 2227,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 30
+    },
+    "get_parameter_suggestions": {
+      "name": "get_parameter_suggestions",
+      "function_name": "get_parameter_suggestions",
+      "start_line": 2254,
+      "end_line": 2255,
+      "docstring": "",
+      "dependencies": [],
+      "category": "parameter_tools",
+      "line_count": 2
+    },
+    "list_parameter_handlers": {
+      "name": "list_parameter_handlers",
+      "function_name": "list_parameter_handlers",
+      "start_line": 2291,
+      "end_line": 2309,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 19
+    },
+    "list_parameter_rules": {
+      "name": "list_parameter_rules",
+      "function_name": "list_parameter_rules",
+      "start_line": 2352,
+      "end_line": 2358,
+      "docstring": "",
+      "dependencies": [],
+      "category": "parameter_tools",
+      "line_count": 7
+    },
+    "bulk_set_parameters": {
+      "name": "bulk_set_parameters",
+      "function_name": "bulk_set_parameters",
+      "start_line": 2440,
+      "end_line": 2441,
+      "docstring": "",
+      "dependencies": [],
+      "category": "parameter_tools",
+      "line_count": 2
+    },
+    "search_parameter_rules": {
+      "name": "search_parameter_rules",
+      "function_name": "search_parameter_rules",
+      "start_line": 2512,
+      "end_line": 2519,
+      "docstring": "",
+      "dependencies": [],
+      "category": "parameter_tools",
+      "line_count": 8
+    },
+    "create_specialized_rule": {
+      "name": "create_specialized_rule",
+      "function_name": "create_specialized_rule",
+      "start_line": 2665,
+      "end_line": 2747,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 83
+    },
+    "discover_parameter_handlers": {
+      "name": "discover_parameter_handlers",
+      "function_name": "discover_parameter_handlers",
+      "start_line": 2770,
+      "end_line": 2813,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 44
+    },
+    "bulk_parameter_operations": {
+      "name": "bulk_parameter_operations",
+      "function_name": "bulk_parameter_operations",
+      "start_line": 2842,
+      "end_line": 2843,
+      "docstring": "",
+      "dependencies": [],
+      "category": "parameter_tools",
+      "line_count": 2
+    },
+    "get_handler_info": {
+      "name": "get_handler_info",
+      "function_name": "get_handler_info",
+      "start_line": 2976,
+      "end_line": 3021,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service"
+      ],
+      "category": "parameter_tools",
+      "line_count": 46
+    },
+    "search_services_by_handler": {
+      "name": "search_services_by_handler",
+      "function_name": "search_services_by_handler",
+      "start_line": 3044,
+      "end_line": 3101,
+      "docstring": "",
+      "dependencies": [
+        "parameter_service",
+        "service_service"
+      ],
+      "category": "service_tools",
+      "line_count": 58
+    },
+    "list_service_events": {
+      "name": "list_service_events",
+      "function_name": "list_service_events",
+      "start_line": 3249,
+      "end_line": 3250,
+      "docstring": "",
+      "dependencies": [],
+      "category": "service_tools",
+      "line_count": 2
+    },
+    "list_host_events": {
+      "name": "list_host_events",
+      "function_name": "list_host_events",
+      "start_line": 3435,
+      "end_line": 3475,
+      "docstring": "",
+      "dependencies": [],
+      "category": "host_tools",
+      "line_count": 41
+    },
+    "get_recent_critical_events": {
+      "name": "get_recent_critical_events",
+      "function_name": "get_recent_critical_events",
+      "start_line": 3494,
+      "end_line": 3532,
+      "docstring": "",
+      "dependencies": [],
+      "category": "event_tools",
+      "line_count": 39
+    },
+    "acknowledge_event": {
+      "name": "acknowledge_event",
+      "function_name": "acknowledge_event",
+      "start_line": 3554,
+      "end_line": 3571,
+      "docstring": "",
+      "dependencies": [],
+      "category": "event_tools",
+      "line_count": 18
+    },
+    "search_events": {
+      "name": "search_events",
+      "function_name": "search_events",
+      "start_line": 3603,
+      "end_line": 3604,
+      "docstring": "",
+      "dependencies": [],
+      "category": "event_tools",
+      "line_count": 2
+    },
+    "get_service_metrics": {
+      "name": "get_service_metrics",
+      "function_name": "get_service_metrics",
+      "start_line": 3684,
+      "end_line": 3689,
+      "docstring": "",
+      "dependencies": [],
+      "category": "service_tools",
+      "line_count": 6
+    },
+    "get_metric_history": {
+      "name": "get_metric_history",
+      "function_name": "get_metric_history",
+      "start_line": 3772,
+      "end_line": 3779,
+      "docstring": "",
+      "dependencies": [],
+      "category": "metrics_tools",
+      "line_count": 8
+    },
+    "get_business_status_summary": {
+      "name": "get_business_status_summary",
+      "function_name": "get_business_status_summary",
+      "start_line": 3940,
+      "end_line": 3952,
+      "docstring": "",
+      "dependencies": [],
+      "category": "status_tools",
+      "line_count": 13
+    },
+    "get_system_info": {
+      "name": "get_system_info",
+      "function_name": "get_system_info",
+      "start_line": 3989,
+      "end_line": 4006,
+      "docstring": "",
+      "dependencies": [
+        "checkmk_client"
+      ],
+      "category": "misc_tools",
+      "line_count": 18
+    },
+    "stream_hosts": {
+      "name": "stream_hosts",
+      "function_name": "stream_hosts",
+      "start_line": 4036,
+      "end_line": 4070,
+      "docstring": "",
+      "dependencies": [
+        "streaming_host_service"
+      ],
+      "category": "host_tools",
+      "line_count": 35
+    },
+    "batch_create_hosts": {
+      "name": "batch_create_hosts",
+      "function_name": "batch_create_hosts",
+      "start_line": 4095,
+      "end_line": 4125,
+      "docstring": "",
+      "dependencies": [
+        "batch_processor",
+        "host_service"
+      ],
+      "category": "host_tools",
+      "line_count": 31
+    },
+    "get_server_metrics": {
+      "name": "get_server_metrics",
+      "function_name": "get_server_metrics",
+      "start_line": 4135,
+      "end_line": 4176,
+      "docstring": "",
+      "dependencies": [
+        "cached_host_service",
+        "host_service",
+        "service_service"
+      ],
+      "category": "host_tools",
+      "line_count": 42
+    },
+    "clear_cache": {
+      "name": "clear_cache",
+      "function_name": "clear_cache",
+      "start_line": 4194,
+      "end_line": 4216,
+      "docstring": "",
+      "dependencies": [
+        "cached_host_service"
+      ],
+      "category": "advanced_tools",
+      "line_count": 23
+    }
+  },
+  "complexity_metrics": {
+    "total_tools": 44,
+    "lines_per_tool": {
+      "list_hosts": 7,
+      "create_host": 2,
+      "get_host": 23,
+      "update_host": 2,
+      "delete_host": 19,
+      "list_host_services": 2,
+      "list_all_services": 2,
+      "acknowledge_service_problem": 8,
+      "create_service_downtime": 8,
+      "get_health_dashboard": 21,
+      "get_critical_problems": 2,
+      "analyze_host_health": 5,
+      "get_effective_parameters": 18,
+      "set_service_parameters": 2,
+      "discover_service_ruleset": 28,
+      "get_parameter_schema": 18,
+      "validate_service_parameters": 28,
+      "update_parameter_rule": 6,
+      "get_service_handler_info": 21,
+      "get_specialized_defaults": 26,
+      "validate_with_handler": 30,
+      "get_parameter_suggestions": 2,
+      "list_parameter_handlers": 19,
+      "list_parameter_rules": 7,
+      "bulk_set_parameters": 2,
+      "search_parameter_rules": 8,
+      "create_specialized_rule": 83,
+      "discover_parameter_handlers": 44,
+      "bulk_parameter_operations": 2,
+      "get_handler_info": 46,
+      "search_services_by_handler": 58,
+      "list_service_events": 2,
+      "list_host_events": 41,
+      "get_recent_critical_events": 39,
+      "acknowledge_event": 18,
+      "search_events": 2,
+      "get_service_metrics": 6,
+      "get_metric_history": 8,
+      "get_business_status_summary": 13,
+      "get_system_info": 18,
+      "stream_hosts": 35,
+      "batch_create_hosts": 31,
+      "get_server_metrics": 42,
+      "clear_cache": 23
+    },
+    "dependencies_per_tool": {
+      "list_hosts": 0,
+      "create_host": 0,
+      "get_host": 1,
+      "update_host": 0,
+      "delete_host": 1,
+      "list_host_services": 0,
+      "list_all_services": 0,
+      "acknowledge_service_problem": 0,
+      "create_service_downtime": 0,
+      "get_health_dashboard": 1,
+      "get_critical_problems": 0,
+      "analyze_host_health": 0,
+      "get_effective_parameters": 1,
+      "set_service_parameters": 0,
+      "discover_service_ruleset": 1,
+      "get_parameter_schema": 1,
+      "validate_service_parameters": 1,
+      "update_parameter_rule": 0,
+      "get_service_handler_info": 1,
+      "get_specialized_defaults": 1,
+      "validate_with_handler": 1,
+      "get_parameter_suggestions": 0,
+      "list_parameter_handlers": 1,
+      "list_parameter_rules": 0,
+      "bulk_set_parameters": 0,
+      "search_parameter_rules": 0,
+      "create_specialized_rule": 1,
+      "discover_parameter_handlers": 1,
+      "bulk_parameter_operations": 0,
+      "get_handler_info": 1,
+      "search_services_by_handler": 2,
+      "list_service_events": 0,
+      "list_host_events": 0,
+      "get_recent_critical_events": 0,
+      "acknowledge_event": 0,
+      "search_events": 0,
+      "get_service_metrics": 0,
+      "get_metric_history": 0,
+      "get_business_status_summary": 0,
+      "get_system_info": 1,
+      "stream_hosts": 1,
+      "batch_create_hosts": 2,
+      "get_server_metrics": 3,
+      "clear_cache": 1
+    },
+    "category_distribution": {
+      "host_tools": 11,
+      "service_tools": 10,
+      "status_tools": 3,
+      "parameter_tools": 14,
+      "event_tools": 3,
+      "metrics_tools": 1,
+      "misc_tools": 1,
+      "advanced_tools": 1
+    },
+    "largest_tools": [
+      [
+        "create_specialized_rule",
+        83
+      ],
+      [
+        "search_services_by_handler",
+        58
+      ],
+      [
+        "get_handler_info",
+        46
+      ],
+      [
+        "discover_parameter_handlers",
+        44
+      ],
+      [
+        "get_server_metrics",
+        42
+      ],
+      [
+        "list_host_events",
+        41
+      ],
+      [
+        "get_recent_critical_events",
+        39
+      ],
+      [
+        "stream_hosts",
+        35
+      ],
+      [
+        "batch_create_hosts",
+        31
+      ],
+      [
+        "validate_with_handler",
+        30
+      ]
+    ],
+    "most_dependent_tools": [
+      [
+        "get_server_metrics",
+        3
+      ],
+      [
+        "search_services_by_handler",
+        2
+      ],
+      [
+        "batch_create_hosts",
+        2
+      ],
+      [
+        "get_host",
+        1
+      ],
+      [
+        "delete_host",
+        1
+      ],
+      [
+        "get_health_dashboard",
+        1
+      ],
+      [
+        "get_effective_parameters",
+        1
+      ],
+      [
+        "discover_service_ruleset",
+        1
+      ],
+      [
+        "get_parameter_schema",
+        1
+      ],
+      [
+        "validate_service_parameters",
+        1
+      ]
+    ],
+    "average_lines_per_tool": 18.795454545454547,
+    "total_tool_lines": 827
+  },
+  "categorization_plan": {
+    "categories": {
+      "host_tools": [
+        {
+          "name": "list_hosts",
+          "lines": 7,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "create_host",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "get_host",
+          "lines": 23,
+          "dependencies": [
+            "host_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "update_host",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "delete_host",
+          "lines": 19,
+          "dependencies": [
+            "host_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "list_host_services",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "analyze_host_health",
+          "lines": 5,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "list_host_events",
+          "lines": 41,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "stream_hosts",
+          "lines": 35,
+          "dependencies": [
+            "streaming_host_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "batch_create_hosts",
+          "lines": 31,
+          "dependencies": [
+            "batch_processor",
+            "host_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "get_server_metrics",
+          "lines": 42,
+          "dependencies": [
+            "cached_host_service",
+            "host_service",
+            "service_service"
+          ],
+          "docstring": ""
+        }
+      ],
+      "service_tools": [
+        {
+          "name": "list_all_services",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "acknowledge_service_problem",
+          "lines": 8,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "create_service_downtime",
+          "lines": 8,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "set_service_parameters",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "discover_service_ruleset",
+          "lines": 28,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "validate_service_parameters",
+          "lines": 28,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "get_service_handler_info",
+          "lines": 21,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "search_services_by_handler",
+          "lines": 58,
+          "dependencies": [
+            "parameter_service",
+            "service_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "list_service_events",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "get_service_metrics",
+          "lines": 6,
+          "dependencies": [],
+          "docstring": ""
+        }
+      ],
+      "status_tools": [
+        {
+          "name": "get_health_dashboard",
+          "lines": 21,
+          "dependencies": [
+            "status_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "get_critical_problems",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "get_business_status_summary",
+          "lines": 13,
+          "dependencies": [],
+          "docstring": ""
+        }
+      ],
+      "parameter_tools": [
+        {
+          "name": "get_effective_parameters",
+          "lines": 18,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "get_parameter_schema",
+          "lines": 18,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "update_parameter_rule",
+          "lines": 6,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "get_specialized_defaults",
+          "lines": 26,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "validate_with_handler",
+          "lines": 30,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "get_parameter_suggestions",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "list_parameter_handlers",
+          "lines": 19,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "list_parameter_rules",
+          "lines": 7,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "bulk_set_parameters",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "search_parameter_rules",
+          "lines": 8,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "create_specialized_rule",
+          "lines": 83,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "discover_parameter_handlers",
+          "lines": 44,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        },
+        {
+          "name": "bulk_parameter_operations",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "get_handler_info",
+          "lines": 46,
+          "dependencies": [
+            "parameter_service"
+          ],
+          "docstring": ""
+        }
+      ],
+      "event_tools": [
+        {
+          "name": "get_recent_critical_events",
+          "lines": 39,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "acknowledge_event",
+          "lines": 18,
+          "dependencies": [],
+          "docstring": ""
+        },
+        {
+          "name": "search_events",
+          "lines": 2,
+          "dependencies": [],
+          "docstring": ""
+        }
+      ],
+      "metrics_tools": [
+        {
+          "name": "get_metric_history",
+          "lines": 8,
+          "dependencies": [],
+          "docstring": ""
+        }
+      ],
+      "misc_tools": [
+        {
+          "name": "get_system_info",
+          "lines": 18,
+          "dependencies": [
+            "checkmk_client"
+          ],
+          "docstring": ""
+        }
+      ],
+      "advanced_tools": [
+        {
+          "name": "clear_cache",
+          "lines": 23,
+          "dependencies": [
+            "cached_host_service"
+          ],
+          "docstring": ""
+        }
+      ]
+    },
+    "estimated_modules": {
+      "host_tools": {
+        "tool_count": 11,
+        "estimated_lines": 259,
+        "tools": [
+          {
+            "name": "list_hosts",
+            "lines": 7,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "create_host",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "get_host",
+            "lines": 23,
+            "dependencies": [
+              "host_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "update_host",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "delete_host",
+            "lines": 19,
+            "dependencies": [
+              "host_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "list_host_services",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "analyze_host_health",
+            "lines": 5,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "list_host_events",
+            "lines": 41,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "stream_hosts",
+            "lines": 35,
+            "dependencies": [
+              "streaming_host_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "batch_create_hosts",
+            "lines": 31,
+            "dependencies": [
+              "batch_processor",
+              "host_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "get_server_metrics",
+            "lines": 42,
+            "dependencies": [
+              "cached_host_service",
+              "host_service",
+              "service_service"
+            ],
+            "docstring": ""
+          }
+        ]
+      },
+      "service_tools": {
+        "tool_count": 10,
+        "estimated_lines": 213,
+        "tools": [
+          {
+            "name": "list_all_services",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "acknowledge_service_problem",
+            "lines": 8,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "create_service_downtime",
+            "lines": 8,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "set_service_parameters",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "discover_service_ruleset",
+            "lines": 28,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "validate_service_parameters",
+            "lines": 28,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "get_service_handler_info",
+            "lines": 21,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "search_services_by_handler",
+            "lines": 58,
+            "dependencies": [
+              "parameter_service",
+              "service_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "list_service_events",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "get_service_metrics",
+            "lines": 6,
+            "dependencies": [],
+            "docstring": ""
+          }
+        ]
+      },
+      "status_tools": {
+        "tool_count": 3,
+        "estimated_lines": 86,
+        "tools": [
+          {
+            "name": "get_health_dashboard",
+            "lines": 21,
+            "dependencies": [
+              "status_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "get_critical_problems",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "get_business_status_summary",
+            "lines": 13,
+            "dependencies": [],
+            "docstring": ""
+          }
+        ]
+      },
+      "parameter_tools": {
+        "tool_count": 14,
+        "estimated_lines": 361,
+        "tools": [
+          {
+            "name": "get_effective_parameters",
+            "lines": 18,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "get_parameter_schema",
+            "lines": 18,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "update_parameter_rule",
+            "lines": 6,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "get_specialized_defaults",
+            "lines": 26,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "validate_with_handler",
+            "lines": 30,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "get_parameter_suggestions",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "list_parameter_handlers",
+            "lines": 19,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "list_parameter_rules",
+            "lines": 7,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "bulk_set_parameters",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "search_parameter_rules",
+            "lines": 8,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "create_specialized_rule",
+            "lines": 83,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "discover_parameter_handlers",
+            "lines": 44,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          },
+          {
+            "name": "bulk_parameter_operations",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "get_handler_info",
+            "lines": 46,
+            "dependencies": [
+              "parameter_service"
+            ],
+            "docstring": ""
+          }
+        ]
+      },
+      "event_tools": {
+        "tool_count": 3,
+        "estimated_lines": 109,
+        "tools": [
+          {
+            "name": "get_recent_critical_events",
+            "lines": 39,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "acknowledge_event",
+            "lines": 18,
+            "dependencies": [],
+            "docstring": ""
+          },
+          {
+            "name": "search_events",
+            "lines": 2,
+            "dependencies": [],
+            "docstring": ""
+          }
+        ]
+      },
+      "metrics_tools": {
+        "tool_count": 1,
+        "estimated_lines": 58,
+        "tools": [
+          {
+            "name": "get_metric_history",
+            "lines": 8,
+            "dependencies": [],
+            "docstring": ""
+          }
+        ]
+      },
+      "misc_tools": {
+        "tool_count": 1,
+        "estimated_lines": 68,
+        "tools": [
+          {
+            "name": "get_system_info",
+            "lines": 18,
+            "dependencies": [
+              "checkmk_client"
+            ],
+            "docstring": ""
+          }
+        ]
+      },
+      "advanced_tools": {
+        "tool_count": 1,
+        "estimated_lines": 73,
+        "tools": [
+          {
+            "name": "clear_cache",
+            "lines": 23,
+            "dependencies": [
+              "cached_host_service"
+            ],
+            "docstring": ""
+          }
+        ]
+      }
+    },
+    "refactoring_priority": [
+      {
+        "category": "parameter_tools",
+        "score": 501,
+        "tool_count": 14,
+        "estimated_lines": 361,
+        "rationale": "Configuration management - complex dependencies (14 tools, ~361 lines)"
+      },
+      {
+        "category": "host_tools",
+        "score": 369,
+        "tool_count": 11,
+        "estimated_lines": 259,
+        "rationale": "Core infrastructure management - high usage (11 tools, ~259 lines)"
+      },
+      {
+        "category": "service_tools",
+        "score": 313,
+        "tool_count": 10,
+        "estimated_lines": 213,
+        "rationale": "Essential monitoring operations - high complexity (10 tools, ~213 lines)"
+      },
+      {
+        "category": "event_tools",
+        "score": 139,
+        "tool_count": 3,
+        "estimated_lines": 109,
+        "rationale": "Event processing - moderate complexity (3 tools, ~109 lines)"
+      },
+      {
+        "category": "status_tools",
+        "score": 116,
+        "tool_count": 3,
+        "estimated_lines": 86,
+        "rationale": "Real-time monitoring - performance critical (3 tools, ~86 lines)"
+      },
+      {
+        "category": "advanced_tools",
+        "score": 83,
+        "tool_count": 1,
+        "estimated_lines": 73,
+        "rationale": "Complex features - architectural impact (1 tools, ~73 lines)"
+      },
+      {
+        "category": "misc_tools",
+        "score": 78,
+        "tool_count": 1,
+        "estimated_lines": 68,
+        "rationale": "Miscellaneous functionality - low priority (1 tools, ~68 lines)"
+      },
+      {
+        "category": "metrics_tools",
+        "score": 68,
+        "tool_count": 1,
+        "estimated_lines": 58,
+        "rationale": "Performance monitoring - specialized domain (1 tools, ~58 lines)"
+      }
+    ],
+    "dependency_graph": {
+      "host_service": [
+        "get_host",
+        "delete_host",
+        "batch_create_hosts",
+        "get_server_metrics"
+      ],
+      "status_service": [
+        "get_health_dashboard"
+      ],
+      "parameter_service": [
+        "get_effective_parameters",
+        "discover_service_ruleset",
+        "get_parameter_schema",
+        "validate_service_parameters",
+        "get_service_handler_info",
+        "get_specialized_defaults",
+        "validate_with_handler",
+        "list_parameter_handlers",
+        "create_specialized_rule",
+        "discover_parameter_handlers",
+        "get_handler_info",
+        "search_services_by_handler"
+      ],
+      "service_service": [
+        "search_services_by_handler",
+        "get_server_metrics"
+      ],
+      "checkmk_client": [
+        "get_system_info"
+      ],
+      "streaming_host_service": [
+        "stream_hosts"
+      ],
+      "batch_processor": [
+        "batch_create_hosts"
+      ],
+      "cached_host_service": [
+        "get_server_metrics",
+        "clear_cache"
+      ]
+    }
+  },
+  "summary": {
+    "total_tools_found": 44,
+    "categories_identified": 8,
+    "average_tool_size": 18.795454545454547,
+    "refactoring_feasibility": "HIGH"
+  }
+}

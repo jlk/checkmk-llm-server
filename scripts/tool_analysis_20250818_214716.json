@@ -1,0 +1,14 @@
+{
+  "analysis_timestamp": "2025-08-18T21:47:16.492153",
+  "source_file": "checkmk_agent/mcp_server/server.py",
+  "source_stats": {
+    "total_lines": 4450,
+    "file_size_bytes": 189210
+  },
+  "tools": {
+    "call_tool": {
+      "name": "call_tool",
+      "start_line": 310,
+      "end_line": 367,
+      "docstring": "Handle MCP tool calls with request ID tracking.",
+      "dependencies": 

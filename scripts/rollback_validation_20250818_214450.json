@@ -1,0 +1,55 @@
+{
+  "timestamp": "2025-08-18T21:44:50.929011",
+  "total_tests": 9,
+  "passed": 6,
+  "failed": 3,
+  "success_rate": 66.66666666666666,
+  "total_duration": 1.3105192184448242,
+  "results": [
+    {
+      "test": "Package Structure",
+      "success": true,
+      "details": "Package structure intact"
+    },
+    {
+      "test": "Import Compatibility",
+      "success": true,
+      "details": "All imports successful"
+    },
+    {
+      "test": "MCP Server Instantiation",
+      "success": true,
+      "details": "Server instantiated successfully"
+    },
+    {
+      "test": "Tool Registration",
+      "success": false,
+      "details": "Tool registration check failed: 'Server' object has no attribute '_call_tool_handlers'"
+    },
+    {
+      "test": "Resource Handlers",
+      "success": false,
+      "details": "Resource handlers failed: 'Server' object has no attribute '_list_resources_handler'"
+    },
+    {
+      "test": "Service Layer Integration",
+      "success": false,
+      "details": "Host service not initialized"
+    },
+    {
+      "test": "Error Handling",
+      "success": true,
+      "details": "Error handling utilities functional"
+    },
+    {
+      "test": "Entry Point",
+      "success": true,
+      "details": "Entry point script functional"
+    },
+    {
+      "test": "Critical Unit Tests",
+      "success": true,
+      "details": "All 2 critical tests passed"
+    }
+  ]
+}
