@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_agent.mcp_server import CheckmkMCPServer
 from checkmk_agent.config import AppConfig
 
 

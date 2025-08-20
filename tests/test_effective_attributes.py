@@ -19,7 +19,7 @@ from checkmk_agent.host_operations import HostOperationsManager
 from checkmk_agent.services.host_service import HostService
 from checkmk_agent.config import CheckmkConfig, LLMConfig, AppConfig
 from checkmk_agent.cli import cli
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_agent.mcp_server import CheckmkMCPServer
 
 
 @pytest.fixture

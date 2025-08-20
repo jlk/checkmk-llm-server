@@ -11,7 +11,7 @@ import json
 from typing import Dict, Any, List
 from unittest.mock import Mock, AsyncMock
 
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_agent.mcp_server import CheckmkMCPServer
 from checkmk_agent.services.parameter_service import ParameterService
 
 

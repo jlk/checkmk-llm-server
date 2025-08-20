@@ -203,13 +203,15 @@ class MetricsTools:
                     if not historical_service:
                         return {
                             "success": False,
-                            "error": "Historical service not available for scraper data source"
+                            "error": "Historical service not available for scraper data source",
+                            "data_source": "scraper"
                         }
                     
                     # Simplified scraper logic - full implementation would be more complex
                     return {
                         "success": False,
-                        "error": "Scraper data source implementation requires full historical service setup"
+                        "error": "Scraper data source implementation requires full historical service setup",
+                        "data_source": "scraper"
                     }
                         
                 else:  # effective_source == "rest_api" or fallback

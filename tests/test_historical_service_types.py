@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_agent.mcp_server import CheckmkMCPServer
 from checkmk_agent.config import AppConfig, CheckmkConfig
 
 

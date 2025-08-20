@@ -353,7 +353,7 @@ class TestHistoricalDataService:
         # Should have parse errors recorded
         assert len(result.metadata["parse_errors"]) >= 0  # Depends on implementation
 
-    @patch('checkmk_scraper.CheckmkHistoricalScraper')
+    @patch('checkmk_agent.services.web_scraping.scraper_service.ScraperService')
     @pytest.mark.asyncio
     async def test_get_historical_data_success(
         self, 
@@ -385,7 +385,7 @@ class TestHistoricalDataService:
             service="Temperature Zone 0"
         )
 
-    @patch('checkmk_scraper.CheckmkHistoricalScraper')
+    @patch('checkmk_agent.services.web_scraping.scraper_service.ScraperService')
     @pytest.mark.asyncio
     async def test_get_historical_data_import_error(
         self, 
@@ -406,7 +406,7 @@ class TestHistoricalDataService:
         assert "Scraper not available" in result.error
         assert result.metadata["error_type"] == "import_error"
 
-    @patch('checkmk_scraper.CheckmkHistoricalScraper')
+    @patch('checkmk_agent.services.web_scraping.scraper_service.ScraperService')
     @pytest.mark.asyncio
     async def test_get_historical_data_scraper_error(
         self, 

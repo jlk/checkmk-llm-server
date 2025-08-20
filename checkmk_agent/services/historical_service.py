@@ -84,20 +84,20 @@ class HistoricalDataService(BaseService):
             ValueError: If CheckmkConfig cannot be created
         """
         try:
-            # Import the scraper class dynamically to avoid circular imports
-            from checkmk_scraper import CheckmkHistoricalScraper
+            # Import the scraper service from the new modular system
+            from .web_scraping.scraper_service import ScraperService
             
             # Create CheckmkConfig from AppConfig
             checkmk_config = self.config.checkmk
             
-            # Create fresh scraper instance
-            scraper = CheckmkHistoricalScraper(checkmk_config)
+            # Create fresh scraper service instance
+            scraper = ScraperService(checkmk_config)
             
             self.logger.debug(f"Created fresh scraper instance for server: {checkmk_config.server_url}")
             return scraper
             
         except ImportError as e:
-            error_msg = f"Failed to import CheckmkHistoricalScraper: {e}"
+            error_msg = f"Failed to import ScraperService: {e}"
             self.logger.error(error_msg)
             raise ImportError(error_msg) from e
         except Exception as e:
@@ -404,7 +404,7 @@ class HistoricalDataService(BaseService):
         except Exception as e:
             # Check if this is a ScrapingError and pass it through with additional context
             try:
-                from checkmk_scraper import ScrapingError
+                from .web_scraping import ScrapingError
                 if isinstance(e, ScrapingError):
                     error_msg = f"Scraping failed: {e}"
                     self.logger.error(f"[{request_id}] {error_msg}")

@@ -549,11 +549,11 @@ python checkmk_agent_cli.py interactive
 
 #### Scraper Import Errors
 ```
-Error: "No module named 'checkmk_scraper'"
+Error: "No module named 'checkmk_agent.services.web_scraping'"
 
 Solution:
-1. Ensure checkmk_scraper package is installed
-2. Check Python path includes scraper module
+1. Ensure web scraping services are properly installed
+2. Check that the checkmk_agent package is complete
 3. Fall back to REST API: data_source="rest_api"
 ```
 

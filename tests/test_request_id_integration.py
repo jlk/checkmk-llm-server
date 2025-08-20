@@ -154,7 +154,7 @@ class TestMCPServerIntegration:
     @pytest.mark.asyncio
     async def test_mcp_tool_call_request_id_generation(self):
         """Test MCP tool call generates and tracks request IDs."""
-        from checkmk_agent.mcp_server.server import CheckmkMCPServer
+        from checkmk_agent.mcp_server import CheckmkMCPServer
 
         # Mock configuration
         config = Mock()

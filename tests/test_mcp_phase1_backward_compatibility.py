@@ -22,7 +22,7 @@ class TestBackwardCompatibility:
         
     def test_direct_server_import_still_works(self):
         """Test that direct server module import still works.""" 
-        from checkmk_agent.mcp_server.server import CheckmkMCPServer
+        from checkmk_agent.mcp_server import CheckmkMCPServer
         
         assert CheckmkMCPServer is not None
         

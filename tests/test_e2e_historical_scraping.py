@@ -8,7 +8,7 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
 from typing import List, Tuple, Union
 
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_agent.mcp_server import CheckmkMCPServer
 from checkmk_agent.config import AppConfig, CheckmkConfig
 from checkmk_agent.services.models.historical import (
     HistoricalDataPoint,

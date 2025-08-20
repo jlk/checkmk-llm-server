@@ -2867,6 +2867,8 @@ def format_status_summary_output(summary: dict) -> str:
     return result
 
 
+
+
 def show_help():
     """Show detailed help information."""
     click.echo(
@@ -2900,6 +2902,15 @@ Examples:
   🔧 checkmk> discover services on web01
 """
     )
+
+
+# Import and register historical commands
+try:
+    from .commands.historical_commands import historical
+    cli.add_command(historical)
+except ImportError as e:
+    # Historical commands not available, continue without them
+    logging.debug(f"Historical commands not available: {e}")
 
 
 if __name__ == "__main__":

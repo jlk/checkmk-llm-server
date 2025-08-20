@@ -84,7 +84,7 @@ class Phase5IntegrationTester:
         test_name = "import_and_instantiation"
         try:
             # Test import
-            from checkmk_agent.mcp_server.server import CheckmkMCPServer
+            from checkmk_agent.mcp_server import CheckmkMCPServer
             from checkmk_agent.mcp_server.container import ServiceContainer
             
             # Test basic instantiation with mock config

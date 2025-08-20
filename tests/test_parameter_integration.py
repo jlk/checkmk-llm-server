@@ -15,7 +15,7 @@ from unittest.mock import Mock, AsyncMock, patch
 
 from checkmk_agent.services.parameter_service import ParameterService
 from checkmk_agent.services.handlers import get_handler_registry
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_agent.mcp_server import CheckmkMCPServer
 
 
 class TestParameterWorkflowIntegration:
