@@ -361,11 +361,11 @@ service.fallback_handler.register_fallback(
 ## MCP Server Integration
 
 ### Enhanced Server
-The enhanced MCP server (`mcp_checkmk_enhanced_server.py`) includes all advanced features:
+The unified MCP server (`mcp_checkmk_server.py`) includes all advanced features with modular architecture:
 
 ```bash
-# Start enhanced server
-python mcp_checkmk_enhanced_server.py --config config.yaml
+# Start unified server with all advanced features
+python mcp_checkmk_server.py --config config.yaml
 
 # Advanced features available:
 # - Streaming resources

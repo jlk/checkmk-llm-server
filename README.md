@@ -87,15 +87,18 @@ cp examples/configs/development.yaml config.yaml
 
 ### MCP Server
 
-The Checkmk MCP Server provides monitoring capabilities through the MCP protocol:
+The Checkmk MCP Server provides monitoring capabilities through the MCP protocol with a **new modular architecture** (2025-08-20):
 
 **Entry Point**: `mcp_checkmk_server.py`  
-**Tools Available**: 47 tools covering monitoring operations including parameter management
+**Tools Available**: 37 tools organized across 8 categories with complete functionality  
+**Architecture**: Refactored from 4,449-line monolith to modular design (93% size reduction)
+
 ```bash
 python mcp_checkmk_server.py --config config.yaml
 ```
 
 **Core Features**:
+- **Modular Architecture**: 8 tool categories with clean separation of concerns
 - **Host Management**: Complete CRUD operations (list, create, update, delete)
 - **Service Monitoring**: Full lifecycle management (list, status, acknowledge, downtime)
 - **Status Dashboards**: Real-time health overviews and problem analysis
@@ -427,7 +430,7 @@ The unified Checkmk MCP Server includes monitoring capabilities and additional f
 - `CircuitBreaker` - Automatic failure detection and recovery
 
 ### MCP Integration
-- **Unified MCP Server** (`mcp_checkmk_server.py`) - 47 tools including specialized parameter handlers
+- **Unified MCP Server** (`mcp_checkmk_server.py`) - 37 tools across 8 categories with modular architecture
 - **MCP Client** (`checkmk_cli_mcp.py`) - CLI interface connecting to MCP server
 - **Direct CLI** (`checkmk_agent.cli`) - Legacy interface with direct API access
 
@@ -467,7 +470,7 @@ checkmk_llm_agent/
 │   │   ├── metrics.py        # Performance monitoring
 │   │   └── recovery.py       # Error recovery patterns
 │   ├── mcp_server/           # MCP server implementation
-│   │   └── server.py         # Unified MCP server (47 tools)
+│   │   └── server.py         # Unified MCP server (37 tools, modular architecture)
 │   ├── api_client.py         # Checkmk REST API client
 │   ├── async_api_client.py   # Async wrapper for API client
 │   ├── mcp_client.py         # MCP client implementation

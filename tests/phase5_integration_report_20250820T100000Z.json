@@ -1,0 +1,181 @@
+{
+  "timestamp": "2025-08-20T10:00:00Z",
+  "phase": "Phase 5 - Main Server Refactoring",
+  "summary": {
+    "total_tests": 7,
+    "successful": 7,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "tests": {
+    "successful": [
+      {
+        "name": "import_and_instantiation",
+        "message": "Server import and instantiation successful",
+        "details": {
+          "server_name": "checkmk-agent",
+          "container_type": "ServiceContainer",
+          "initialized": false
+        }
+      },
+      {
+        "name": "service_container",
+        "message": "Service container works correctly",
+        "details": {
+          "initialized": true,
+          "service_count": 14,
+          "available_services": [
+            "async_client",
+            "sync_client",
+            "host_service",
+            "status_service",
+            "service_service",
+            "parameter_service",
+            "event_service",
+            "metrics_service",
+            "bi_service",
+            "historical_service",
+            "streaming_host_service",
+            "streaming_service_service",
+            "cached_host_service",
+            "batch_processor"
+          ]
+        }
+      },
+      {
+        "name": "tool_category_initialization",
+        "message": "Tool categories initialized successfully",
+        "details": {
+          "category_count": 8,
+          "categories": [
+            "host",
+            "service",
+            "monitoring",
+            "parameters",
+            "events",
+            "metrics",
+            "business",
+            "advanced"
+          ]
+        }
+      },
+      {
+        "name": "tool_registration",
+        "message": "Tools registered successfully",
+        "details": {
+          "total_tools": 37,
+          "tool_stats": {
+            "total_tools": 37,
+            "categories": {
+              "host": 6,
+              "service": 3,
+              "monitoring": 3,
+              "parameters": 11,
+              "events": 5,
+              "metrics": 2,
+              "business": 2,
+              "advanced": 5
+            },
+            "tool_names": [
+              "list_hosts",
+              "create_host",
+              "get_host",
+              "update_host",
+              "delete_host",
+              "list_host_services",
+              "list_all_services",
+              "acknowledge_service_problem",
+              "create_service_downtime",
+              "get_health_dashboard",
+              "get_critical_problems",
+              "analyze_host_health",
+              "get_effective_parameters",
+              "set_service_parameters",
+              "discover_service_ruleset",
+              "get_parameter_schema",
+              "validate_service_parameters",
+              "update_parameter_rule",
+              "get_service_handler_info",
+              "get_specialized_defaults",
+              "validate_with_handler",
+              "get_parameter_suggestions",
+              "list_parameter_handlers",
+              "list_service_events",
+              "list_host_events",
+              "get_recent_critical_events",
+              "acknowledge_event",
+              "search_events",
+              "get_service_metrics",
+              "get_metric_history",
+              "get_business_status_summary",
+              "get_critical_business_services",
+              "get_system_info",
+              "stream_hosts",
+              "batch_create_hosts",
+              "get_server_metrics",
+              "clear_cache"
+            ]
+          },
+          "sample_tools": [
+            "list_hosts",
+            "create_host",
+            "get_host",
+            "update_host",
+            "delete_host"
+          ]
+        }
+      },
+      {
+        "name": "prompt_registration",
+        "message": "Prompts registered successfully",
+        "details": {
+          "total_prompts": 7,
+          "available_prompts": [
+            "analyze_host_health",
+            "troubleshoot_service",
+            "infrastructure_overview",
+            "optimize_parameters",
+            "adjust_host_check_attempts",
+            "adjust_host_retry_interval",
+            "adjust_host_check_timeout"
+          ],
+          "handler_services": 14
+        }
+      },
+      {
+        "name": "protocol_handlers",
+        "message": "Protocol handlers working correctly",
+        "details": {
+          "basic_resources": 5,
+          "streaming_resources": 4,
+          "resource_uris": [
+            "checkmk://dashboard/health",
+            "checkmk://dashboard/problems",
+            "checkmk://hosts/status"
+          ]
+        }
+      },
+      {
+        "name": "backward_compatibility",
+        "message": "Backward compatibility maintained",
+        "details": {
+          "server_info": {
+            "initialized": false,
+            "tool_count": 0,
+            "prompt_count": 0,
+            "service_count": 0,
+            "tool_categories": [],
+            "server_name": "checkmk-agent",
+            "server_version": "1.0.0"
+          },
+          "import_successful": true
+        }
+      }
+    ],
+    "failed": []
+  },
+  "recommendations": [
+    "All tests passed! The refactored server is working correctly.",
+    "Ready to proceed with Phase 6 (Integration and Testing)."
+  ]
+}
