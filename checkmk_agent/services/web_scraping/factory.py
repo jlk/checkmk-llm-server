@@ -72,8 +72,9 @@ class ScraperFactory:
         
         if extraction_method == "auto":
             # Auto mode includes all extractors in priority order
-            extractors["ajax"] = AjaxExtractor(session)
+            # Graph extractor has the most sophisticated implementation for time-series data
             extractors["graph"] = GraphExtractor(session, config)
+            extractors["ajax"] = AjaxExtractor(session)
             extractors["table"] = TableExtractor()
         elif extraction_method == "graph":
             extractors["graph"] = GraphExtractor(session, config)
@@ -82,9 +83,9 @@ class ScraperFactory:
         elif extraction_method == "ajax":
             extractors["ajax"] = AjaxExtractor(session)
         else:
-            # Unknown method, default to all
-            extractors["ajax"] = AjaxExtractor(session)
+            # Unknown method, default to all with proper priority order
             extractors["graph"] = GraphExtractor(session, config)
+            extractors["ajax"] = AjaxExtractor(session)
             extractors["table"] = TableExtractor()
         
         return extractors

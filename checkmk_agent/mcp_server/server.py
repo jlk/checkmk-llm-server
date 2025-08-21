@@ -138,7 +138,7 @@ class CheckmkMCPServer:
             self._tool_categories['monitoring'] = MonitoringTools(status_service)
             self._tool_categories['parameters'] = ParameterTools(parameter_service)
             self._tool_categories['events'] = EventTools(event_service)
-            self._tool_categories['metrics'] = MetricsTools(metrics_service, historical_service)
+            self._tool_categories['metrics'] = MetricsTools(metrics_service, historical_service, self)
             self._tool_categories['business'] = BusinessTools(bi_service, self)
             self._tool_categories['advanced'] = AdvancedTools(self)
             

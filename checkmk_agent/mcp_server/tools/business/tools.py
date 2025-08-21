@@ -64,7 +64,7 @@ class BusinessTools:
 
         async def get_business_status_summary(filter_groups=None):
             try:
-                bi_service = self._get_service("bi")
+                bi_service = self._get_service("bi_service")
                 if not bi_service:
                     return {
                         "success": False,
@@ -95,7 +95,7 @@ class BusinessTools:
 
         async def get_critical_business_services():
             try:
-                bi_service = self._get_service("bi")
+                bi_service = self._get_service("bi_service")
                 if not bi_service:
                     return {
                         "success": False,

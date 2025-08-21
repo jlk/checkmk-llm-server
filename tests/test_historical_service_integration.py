@@ -126,7 +126,7 @@ class TestHistoricalServiceIntegration:
         assert hasattr(historical_service, '_create_scraper_instance')
         
         # Test factory method with mock scraper
-        with patch('checkmk_scraper.CheckmkHistoricalScraper') as mock_scraper_class:
+        with patch('checkmk_agent.services.historical_service.ScraperService') as mock_scraper_class:
             mock_scraper = Mock()
             mock_scraper_class.return_value = mock_scraper
             
@@ -145,7 +145,7 @@ class TestHistoricalServiceIntegration:
         historical_service = server.historical_service
         
         # Test handling when scraper import fails
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', side_effect=ImportError("Scraper not available")):
+        with patch('checkmk_agent.services.historical_service.ScraperService', side_effect=ImportError("Scraper not available")):
             with pytest.raises(ImportError, match="Failed to import CheckmkHistoricalScraper"):
                 historical_service._create_scraper_instance()
 

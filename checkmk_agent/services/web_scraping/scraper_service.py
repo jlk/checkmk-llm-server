@@ -42,27 +42,24 @@ class ScraperService:
     
     def scrape_historical_data(
         self,
-        host: str,
-        service: str,
         period: str = "4h",
+        host: str = None,
+        service: str = None,
         extraction_method: str = "auto"
-    ) -> Dict[str, Any]:
+    ) -> List[Tuple[str, Union[float, str]]]:
         """Main entry point for scraping historical data.
         
         This method coordinates the entire scraping workflow including authentication,
         HTML parsing, data extraction, and result processing.
         
         Args:
+            period: Time period for data extraction (default: "4h")
             host: Host name to scrape data for
             service: Service name to scrape data for
-            period: Time period for data extraction (default: "4h")
             extraction_method: Extraction strategy ("auto", "graph", "table", "ajax")
             
         Returns:
-            Dict containing extracted historical data with keys:
-            - data: List of extracted data points
-            - metadata: Information about the extraction process
-            - method_used: The extraction method that was successful
+            List of tuples containing (timestamp, value) pairs for historical data points
             
         Raises:
             ScrapingError: If scraping operation fails
@@ -71,6 +68,8 @@ class ScraperService:
         
         try:
             # Step 1: Validate parameters
+            if host is None or service is None:
+                raise ScrapingError("Both host and service parameters are required")
             self._validate_parameters(host, service, period)
             
             # Step 2: Authenticate if needed
@@ -132,21 +131,9 @@ class ScraperService:
             
             processed_data = self._process_results(combined_data)
             
-            result = {
-                "data": processed_data,
-                "metadata": {
-                    "host": host,
-                    "service": service,
-                    "period": period,
-                    "extraction_method": extraction_method,
-                    "method_used": method_used,
-                    "data_points": len(processed_data),
-                    "page_metadata": self.html_parser._extract_page_metadata(soup)
-                }
-            }
-            
             self.logger.debug(f"Scraping completed successfully: {len(processed_data)} data points")
-            return result
+            # Return list of tuples as expected by historical service
+            return [(item["timestamp"], item["value"]) for item in processed_data]
             
         except Exception as e:
             if isinstance(e, ScrapingError):

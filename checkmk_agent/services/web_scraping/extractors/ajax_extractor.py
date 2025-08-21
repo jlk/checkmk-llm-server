@@ -12,7 +12,6 @@ import json
 import time
 import datetime
 import re
-import urllib.parse
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 
@@ -41,8 +40,8 @@ class AjaxExtractor:
         host: str,
         service: str,
         period: str = "4h",
-        server_url: str = None,
-        site: str = None
+        server_url: Optional[str] = None,
+        site: Optional[str] = None
     ) -> List[Tuple[str, Union[float, str]]]:
         """Main AJAX extraction method.
         
@@ -110,8 +109,8 @@ class AjaxExtractor:
         self, 
         parameters: Dict[str, Any], 
         period: str = "4h",
-        server_url: str = None,
-        site: str = None
+        server_url: Optional[str] = None,
+        site: Optional[str] = None
     ) -> Optional[str]:
         """Make AJAX POST request to ajax_render_graph_content.py endpoint.
         
@@ -469,7 +468,7 @@ class AjaxExtractor:
         host: str, 
         service: str, 
         period: str = "4h", 
-        site: str = None
+        site: Optional[str] = None
     ) -> Dict[str, Any]:
         """Prepare parameters for direct AJAX endpoint request.
         
@@ -566,26 +565,26 @@ class AjaxExtractor:
 
     def _make_direct_ajax_request(
         self, 
-        params: Dict[str, Any], 
-        server_url: str, 
-        site: str
+        _params: Dict[str, Any], 
+        _server_url: Optional[str], 
+        _site: Optional[str]
     ) -> Optional[str]:
         """Make direct AJAX request to ajax_graph.py or similar endpoint."""
         # Implementation for direct AJAX requests
         # This would be similar to make_ajax_request but for different endpoint
         return None  # Placeholder
     
-    def _parse_direct_ajax_response(self, response: str) -> List[Tuple[str, Union[float, str]]]:
+    def _parse_direct_ajax_response(self, _response: str) -> List[Tuple[str, Union[float, str]]]:
         """Parse direct AJAX response data."""
         # Implementation for parsing direct AJAX responses
         return []  # Placeholder
     
     def _extract_graph_parameters_from_page(
         self, 
-        host: str, 
-        service: str, 
-        server_url: str, 
-        site: str
+        _host: str, 
+        _service: str, 
+        _server_url: Optional[str], 
+        _site: Optional[str]
     ) -> Optional[Dict[str, Any]]:
         """Extract graph parameters from monitoring page for AJAX request."""
         # Implementation for extracting graph parameters from HTML page
@@ -594,12 +593,39 @@ class AjaxExtractor:
     def _extract_graph_data_from_javascript(self, html_content: str) -> Optional[dict]:
         """Extract graph data from cmk.graphs.create_graph() JavaScript calls."""
         self.logger.debug("Extracting graph data from JavaScript calls")
+        self.logger.debug(f"HTML content length: {len(html_content)}")
         
         # The data is embedded as the second parameter in cmk.graphs.create_graph calls
         # Format: cmk.graphs.create_graph("complex_html_string", {graph_data_object}, ...)
         
         create_graph_pos = html_content.find('cmk.graphs.create_graph')
         if create_graph_pos == -1:
+            self.logger.debug("No 'cmk.graphs.create_graph' found in HTML content")
+            # Look for alternative patterns that might contain the data
+            patterns_to_check = [
+                'cmk.graphs',
+                'create_graph', 
+                'graph_data',
+                'curves',
+                'points',
+                'temperature',
+                'data',
+                'time_axis'
+            ]
+            
+            found_patterns = {}
+            for pattern in patterns_to_check:
+                if pattern in html_content.lower():
+                    count = html_content.lower().count(pattern)
+                    found_patterns[pattern] = count
+            
+            self.logger.debug(f"Patterns found in AJAX response: {found_patterns}")
+            
+            # Log a sample of the beginning and end of content
+            if len(html_content) > 200:
+                self.logger.debug(f"AJAX response start: {html_content[:200]}...")
+                self.logger.debug(f"AJAX response end: ...{html_content[-200:]}")
+            
             return None
         
         try:
@@ -667,12 +693,18 @@ class AjaxExtractor:
                     if brace_count == 0:
                         # Found the end of the object
                         json_str = html_content[start_pos:pos+1]
+                        self.logger.debug(f"Extracted JSON object length: {len(json_str)} characters")
+                        self.logger.debug(f"JSON sample: {json_str[:200]}...")
                         try:
-                            return json.loads(json_str)
-                        except json.JSONDecodeError:
+                            parsed_data = json.loads(json_str)
+                            self.logger.debug(f"Successfully parsed JSON with keys: {list(parsed_data.keys()) if isinstance(parsed_data, dict) else 'not_dict'}")
+                            return parsed_data
+                        except json.JSONDecodeError as e:
+                            self.logger.debug(f"JSON parsing failed: {e}")
                             return None
                 pos += 1
             
+            self.logger.debug("Reached end of content without finding closing brace")
             return None
             
         except Exception as e:
@@ -680,32 +712,85 @@ class AjaxExtractor:
             return None
     
     def _process_graph_data(self, graph_data: dict) -> List[Tuple[str, float]]:
-        """Process extracted graph data into time-series format."""
+        """Process extracted graph data into time-series format.
+        
+        The Checkmk graph data structure contains:
+        - curves[0].points: Array of [timestamp, value] pairs for time-series data
+        - time_axis.labels: Array of time labels for timestamp conversion
+        - curves[0].scalars: Summary statistics (min, max, average, etc.)
+        """
         processed_data = []
         
         try:
-            # Look for time-series data in the graph data structure
-            # This depends on the specific format used by Checkmk
-            if 'data' in graph_data:
-                data_points = graph_data['data']
-                if isinstance(data_points, list):
-                    for point in data_points:
-                        if isinstance(point, (list, tuple)) and len(point) >= 2:
-                            timestamp = point[0]
-                            value = point[1]
-                            
-                            # Convert timestamp to ISO format if needed
-                            iso_timestamp = self._convert_timestamp_to_iso(str(timestamp))
-                            if iso_timestamp and isinstance(value, (int, float)):
-                                processed_data.append((iso_timestamp, float(value)))
+            self.logger.debug(f"Processing graph data with keys: {list(graph_data.keys())}")
             
-            # Look for other possible data structures
-            elif 'metrics' in graph_data:
-                # Handle metrics-based data structure
-                pass
+            # Extract time-series data from curves[0].points
+            if 'curves' in graph_data and isinstance(graph_data['curves'], list) and len(graph_data['curves']) > 0:
+                curve = graph_data['curves'][0]  # First curve contains the temperature data
+                self.logger.debug(f"First curve keys: {list(curve.keys()) if isinstance(curve, dict) else 'not_dict'}")
+                
+                if isinstance(curve, dict) and 'points' in curve:
+                    points = curve['points']
+                    self.logger.debug(f"Found {len(points)} data points in curve")
+                    
+                    # Get time axis information for proper timestamp calculation
+                    time_axis = graph_data.get('time_axis', {})
+                    start_time = graph_data.get('start_time')
+                    step = graph_data.get('step', 60)  # Default 1 minute intervals
+                    
+                    self.logger.debug(f"Time axis info - start_time: {start_time}, step: {step}")
+                    
+                    # Process each data point
+                    for i, point in enumerate(points):
+                        if isinstance(point, (list, tuple)) and len(point) >= 2:
+                            time_offset = point[0]  # Time offset from start
+                            value = point[1]       # Temperature value
+                            
+                            # Skip points with invalid time_offset or value
+                            if time_offset is None or value is None:
+                                continue
+                                
+                            # Calculate actual timestamp
+                            if start_time is not None and isinstance(time_offset, (int, float)):
+                                actual_timestamp = start_time + (time_offset * step)
+                                # Convert to ISO format
+                                iso_timestamp = datetime.datetime.fromtimestamp(actual_timestamp).isoformat()
+                            else:
+                                # Fallback to current time with offset
+                                current_time = time.time()
+                                actual_timestamp = current_time - (len(points) - i) * step
+                                iso_timestamp = datetime.datetime.fromtimestamp(actual_timestamp).isoformat()
+                            
+                            if isinstance(value, (int, float)):
+                                processed_data.append((iso_timestamp, float(value)))
+                    
+                    self.logger.debug(f"Successfully processed {len(processed_data)} time-series data points")
+                else:
+                    self.logger.debug("No 'points' found in first curve")
+            else:
+                self.logger.debug("No 'curves' found in graph data or curves array is empty")
+            
+            # ALSO extract summary statistics from curves[0].scalars for completeness
+            if 'curves' in graph_data and len(graph_data['curves']) > 0:
+                curve = graph_data['curves'][0]
+                if isinstance(curve, dict) and 'scalars' in curve:
+                    scalars = curve['scalars']
+                    self.logger.debug(f"Found scalars: {list(scalars.keys()) if isinstance(scalars, dict) else 'not_dict'}")
+                    
+                    # Add summary statistics as special entries
+                    for stat_name, stat_value in scalars.items():
+                        if isinstance(stat_value, (list, tuple)) and len(stat_value) >= 1:
+                            # Scalars format: [value, "formatted_string"]
+                            value = stat_value[0]
+                            if isinstance(value, (int, float)) and value is not None:
+                                # Use stat name as timestamp for summary stats
+                                processed_data.append((stat_name, float(value)))
+                                self.logger.debug(f"Added summary stat: {stat_name} = {value}")
             
         except Exception as e:
             self.logger.debug(f"Error processing graph data: {e}")
+            import traceback
+            self.logger.debug(f"Traceback: {traceback.format_exc()}")
         
         return processed_data
     

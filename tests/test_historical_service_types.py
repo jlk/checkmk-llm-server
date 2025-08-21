@@ -66,7 +66,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -110,7 +110,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -154,7 +154,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -194,7 +194,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -234,7 +234,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -279,7 +279,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -316,7 +316,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -357,7 +357,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             list_service_events = tool_handlers["list_service_events"]
             
@@ -399,7 +399,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -440,7 +440,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -490,7 +490,7 @@ class TestHistoricalServiceTypes:
         with patch("checkmk_agent.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_scraper.CheckmkHistoricalScraper', return_value=mock_scraper):
+        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             

@@ -4,7 +4,7 @@ This module contains all metrics-related MCP tools extracted from the main serve
 """
 
 import logging
-from typing import Any, Dict, Optional, List, TYPE_CHECKING
+from typing import Any, Dict, TYPE_CHECKING
 from mcp.types import Tool
 
 if TYPE_CHECKING:
@@ -38,11 +38,6 @@ class MetricsTools:
         """Get all metrics tool handlers."""
         return self._tool_handlers.copy()
         
-    def _get_service(self, service_name: str):
-        """Helper to get service from server."""
-        if self.server and hasattr(self.server, '_get_service'):
-            return self.server._get_service(service_name)
-        return None
         
     def register_tools(self) -> None:
         """Register all metrics tools and handlers."""
@@ -88,14 +83,13 @@ class MetricsTools:
             site=None,
         ):
             try:
-                metrics_service = self._get_service("metrics")
-                if not metrics_service:
+                if not self.metrics_service:
                     return {
                         "success": False,
                         "error": "Metrics service not available"
                     }
                     
-                result = await metrics_service.get_service_metrics(
+                result = await self.metrics_service.get_service_metrics(
                     host_name, service_description, time_range_hours, reduce, site
                 )
 
@@ -199,31 +193,145 @@ class MetricsTools:
                 
                 if effective_source == "scraper":
                     # Use historical service for scraper data source
-                    historical_service = self._get_service("historical")
-                    if not historical_service:
+                    if not self.historical_service:
                         return {
                             "success": False,
                             "error": "Historical service not available for scraper data source",
                             "data_source": "scraper"
                         }
                     
-                    # Simplified scraper logic - full implementation would be more complex
-                    return {
-                        "success": False,
-                        "error": "Scraper data source implementation requires full historical service setup",
-                        "data_source": "scraper"
-                    }
+                    # Use historical service to get metric history via scraper
+                    try:
+                        from ....services.models.historical import HistoricalDataRequest
+                        
+                        # Map time_range_hours to period format expected by scraper
+                        if time_range_hours <= 1:
+                            period = "1h"
+                        elif time_range_hours <= 4:
+                            period = "4h"
+                        elif time_range_hours <= 6:
+                            period = "6h"
+                        elif time_range_hours <= 12:
+                            period = "12h"
+                        elif time_range_hours <= 24:
+                            period = "24h"
+                        elif time_range_hours <= 25:
+                            period = "25h"
+                        elif time_range_hours <= 48:
+                            period = "48h"
+                        elif time_range_hours <= 168:  # 7 days
+                            period = "8d"
+                        elif time_range_hours <= 744:  # 30 days
+                            period = "35d"
+                        else:
+                            period = "400d"
+                        
+                        request = HistoricalDataRequest(
+                            host_name=host_name,
+                            service_name=service_description,
+                            period=period,
+                            metric_name=metric_id,
+                            source="scraper"
+                        )
+                        
+                        result = await self.historical_service.get_historical_data(request)
+                        
+                        if result.success:
+                            historical_data = result.data
+                            metrics_data = []
+                            
+                            # Process data points from scraper
+                            if historical_data and historical_data.data_points:
+                                # Group data points by metric name
+                                metrics_by_name = {}
+                                for dp in historical_data.data_points:
+                                    metric_name = dp.metric_name
+                                    if metric_name not in metrics_by_name:
+                                        metrics_by_name[metric_name] = {
+                                            "name": metric_name,
+                                            "unit": dp.unit or "",
+                                            "data_points": []
+                                        }
+                                    # Store as timestamp, value tuples
+                                    timestamp = dp.timestamp.isoformat() if hasattr(dp.timestamp, 'isoformat') else str(dp.timestamp)
+                                    metrics_by_name[metric_name]["data_points"].append([timestamp, dp.value])
+                                
+                                # Convert to response format
+                                for metric_name, metric_data in metrics_by_name.items():
+                                    # More flexible metric matching - check if metric_id is contained in metric_name or vice versa
+                                    if metric_id:
+                                        metric_id_lower = metric_id.lower()
+                                        metric_name_lower = metric_name.lower()
+                                        
+                                        # Skip if specific metric requested and there's no match
+                                        if (metric_id_lower not in metric_name_lower and 
+                                            metric_name_lower not in metric_id_lower and
+                                            metric_id_lower != metric_name_lower):
+                                            continue
+                                    
+                                    metric_info = {
+                                        "title": metric_name,
+                                        "color": "#1f77b4",  # Default color
+                                        "line_type": "area",  # Default line type
+                                        "data_points": metric_data["data_points"],
+                                        "data_points_count": len(metric_data["data_points"]),
+                                    }
+                                    metrics_data.append(metric_info)
+                            
+                            response = {
+                                "success": True,
+                                "data_source": "scraper",
+                                "time_range": period,
+                                "step": 60,  # Default step for scraper data
+                                "metrics": metrics_data,
+                                "metric_id": metric_id,
+                            }
+                            
+                            # Include summary stats if available
+                            if historical_data and historical_data.summary_stats:
+                                response["summary_stats"] = historical_data.summary_stats
+                            
+                            # Include metadata
+                            if historical_data and historical_data.metadata:
+                                response["metadata"] = {
+                                    "host": historical_data.metadata.get("host_name", host_name),
+                                    "service": historical_data.metadata.get("service_name", service_description),
+                                    "period": historical_data.metadata.get("time_range", period),
+                                    "data_points_parsed": historical_data.metadata.get("parsed_data_points", 0),
+                                    "execution_time_ms": historical_data.metadata.get("execution_time_ms", 0),
+                                }
+                            
+                            return response
+                        else:
+                            return {
+                                "success": False,
+                                "error": result.error or "Historical data retrieval failed",
+                                "data_source": "scraper"
+                            }
+                            
+                    except ImportError as e:
+                        return {
+                            "success": False,
+                            "error": f"Historical service model import failed: {e}",
+                            "data_source": "scraper"
+                        }
+                    except Exception as e:
+                        logger.exception(f"Error using scraper data source for {host_name}/{service_description}/{metric_id}")
+                        return {
+                            "success": False,
+                            "error": f"Scraper data source error: {sanitize_error(e)}",
+                            "data_source": "scraper"
+                        }
                         
                 else:  # effective_source == "rest_api" or fallback
                     # Use existing REST API logic
-                    metrics_service = self._get_service("metrics")
-                    if not metrics_service:
+                    if not self.metrics_service:
                         return {
                             "success": False,
                             "error": "Metrics service not available"
                         }
                         
-                    result = await metrics_service.get_metric_history(
+                    result = await self.metrics_service.get_metric_history(
                         host_name,
                         service_description,
                         metric_id,

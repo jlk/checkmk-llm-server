@@ -169,7 +169,7 @@ class TestHistoricalErrorScenarios:
             await server.initialize()
 
         # Mock import failure
-        with patch('checkmk_agent.services.web_scraping.ScraperService', side_effect=ImportError("No module named 'checkmk_scraper'")):
+        with patch('checkmk_agent.services.web_scraping.ScraperService', side_effect=ImportError("No module named 'web_scraping'")):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             

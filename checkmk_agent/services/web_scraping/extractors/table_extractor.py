@@ -7,7 +7,7 @@ for historical monitoring information.
 
 import re
 import logging
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from collections import Counter
 
 try:
@@ -56,6 +56,13 @@ class TableExtractor:
         Raises:
             ScrapingError: If parsing fails
         """
+        # Input validation
+        if html_content is None:
+            raise ScrapingError("HTML content cannot be None")
+        
+        if not isinstance(html_content, str):
+            raise ScrapingError(f"HTML content must be a string, got {type(html_content)}")
+        
         self.logger.debug("Starting table data extraction")
         self.logger.debug(f"HTML content length: {len(html_content)} characters")
         
@@ -138,9 +145,9 @@ class TableExtractor:
             
             # Look for numeric values that could be temperatures (reasonable range)
             # Fixed regex to match complete decimal numbers, not fragments
-            temp_pattern = r'\b(\d+(?:\.\d+)?)\s*°?[cf]?\b'
+            temp_pattern = r'\b(-?\d+(?:\.\d+)?)\s*°?[cf]?\b'
             temp_matches = re.findall(temp_pattern, table_text)
-            has_temp_values = any(20 <= float(match) <= 100 for match in temp_matches if match.replace('.', '').isdigit())
+            has_temp_values = any(-50 <= float(match) <= 150 for match in temp_matches if match.replace('.', '').replace('-', '').isdigit())
             
             if has_temp_keywords:
                 self.logger.debug(f"Table {i+1} has temp keywords: {[kw for kw in temp_keywords if kw in table_text]}")
@@ -228,6 +235,8 @@ class TableExtractor:
             
             # Check for horizontal layout (statistics as column headers)
             for row in rows:
+                if not isinstance(row, Tag):
+                    continue
                 cells = row.find_all(['td', 'th'])
                 if len(cells) >= 2:
                     # Try to match header-value pairs
@@ -244,6 +253,8 @@ class TableExtractor:
             
             # Check for vertical layout (statistics as row headers)
             for row in rows:
+                if not isinstance(row, Tag):
+                    continue
                 cells = row.find_all(['td', 'th'])
                 if len(cells) >= 2:
                     header_text = cells[0].get_text().strip().lower()
@@ -280,19 +291,29 @@ class TableExtractor:
             for cell in all_cells:
                 cell_text = cell.get_text().strip()
                 
-                # Look for patterns like "Min: 66.8°C", "Maximum: 70.1", "Avg 68.4"
+                # Look for patterns like "Min: 66.8°C", "Maximum: 70.1", "Avg 68.4", "Temperature: 60.37 °C"
                 patterns = [
-                    r'(min|minimum)\s*:?\s*(\d+\.?\d*)\s*°?[cf]?',
-                    r'(max|maximum)\s*:?\s*(\d+\.?\d*)\s*°?[cf]?',
-                    r'(avg|average|mean)\s*:?\s*(\d+\.?\d*)\s*°?[cf]?',
-                    r'(last|current|latest)\s*:?\s*(\d+\.?\d*)\s*°?[cf]?',
+                    r'(min|minimum)\s*:?\s*(-?\d+(?:\.\d+)?)\s*°?[cf]?',
+                    r'(max|maximum)\s*:?\s*(-?\d+(?:\.\d+)?)\s*°?[cf]?',
+                    r'(avg|average|mean)\s*:?\s*(-?\d+(?:\.\d+)?)\s*°?[cf]?',
+                    r'(last|current|latest)\s*:?\s*(-?\d+(?:\.\d+)?)\s*°?[cf]?',
+                    r'(temperature)\s*:?\s*(-?\d+(?:\.\d+)?)\s*°?[cf]?',  # Handle "Temperature: 60.37 °C" or "temperature:59.89 °c"
+                    r'temperature:\s*(-?\d+(?:\.\d+)?)\s*°?[cf]?',  # Specific pattern for "temperature:59.89 °c"
                 ]
                 
                 for pattern in patterns:
                     matches = re.finditer(pattern, cell_text.lower(), re.IGNORECASE)
                     for match in matches:
-                        stat_type = match.group(1).lower()
-                        value_str = match.group(2)
+                        # Handle different pattern structures
+                        if len(match.groups()) == 2:
+                            stat_type = match.group(1).lower()
+                            value_str = match.group(2)
+                        elif len(match.groups()) == 1:
+                            # For patterns like r'temperature:\s*(\d+\.?\d*)', assume it's temperature
+                            stat_type = "temperature"
+                            value_str = match.group(1)
+                        else:
+                            continue
                         
                         stat_name = self._normalize_statistic_name(stat_type)
                         value = self._extract_numeric_value(value_str)
@@ -328,6 +349,8 @@ class TableExtractor:
             
             # Common layout: 4-column table with Min, Max, Avg, Last
             for row in rows:
+                if not isinstance(row, Tag):
+                    continue
                 cells = row.find_all(['td', 'th'])
                 if len(cells) == 4:
                     # Check if this looks like a statistics row
@@ -365,6 +388,8 @@ class TableExtractor:
             rows = table.find_all('tr')
             
             for row in rows:
+                if not isinstance(row, Tag):
+                    continue
                 row_text = row.get_text().lower()
                 cells = row.find_all(['td', 'th'])
                 
@@ -459,6 +484,8 @@ class TableExtractor:
             return 'average'
         elif any(word in header_lower for word in ['last', 'current', 'latest']):
             return 'last'
+        elif any(word in header_lower for word in ['temperature', 'temp']):
+            return 'last'  # Treat temperature readings as current/last value
         
         return None
 
@@ -481,6 +508,8 @@ class TableExtractor:
             return 'average'
         elif stat_lower in ['last', 'current', 'latest']:
             return 'last'
+        elif stat_lower in ['temperature', 'temp']:
+            return 'last'  # Treat temperature readings as current/last value
         
         return None
 
@@ -493,17 +522,20 @@ class TableExtractor:
         Returns:
             Extracted float value or None if not found/invalid
         """
+        if not text:
+            return None
+            
         try:
             # Remove common non-numeric characters
             cleaned_text = re.sub(r'[°CFcf\s]', '', text.strip())
             
-            # Extract first number found
-            number_match = re.search(r'\d+\.?\d*', cleaned_text)
+            # Extract first number found (including negative numbers)
+            number_match = re.search(r'-?\d+(?:\.\d+)?', cleaned_text)
             if number_match:
                 value = float(number_match.group())
                 return value
                 
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, TypeError):
             pass
         
         return None

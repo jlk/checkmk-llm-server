@@ -45,6 +45,7 @@ checkmk_agent/mcp_server/
 - **Extensibility**: Easy to add new tools to appropriate categories
 - **Code Quality**: 93% reduction in main server file, improved organization
 - **Team Development**: Multiple developers can work on different categories
+- **Historical Data**: Integrated modular web scraping (4,900-line monolith → 8 focused modules)
 
 ## Tool Categories
 
@@ -94,7 +95,15 @@ Event console operations:
 ### 6. Metrics Tools (2 tools)
 Performance monitoring and historical data:
 - `get_service_metrics`: Get current service metrics
-- `get_metric_history`: Get historical metric data
+- `get_metric_history`: Get historical metric data with modular web scraping architecture
+
+**Enhanced Historical Data Features**:
+- **Modular Web Scraping**: Refactored from monolithic 4,900-line scraper to modular system
+- **Multiple Extraction Methods**: Graph parsing, table extraction, AJAX endpoint handling
+- **Data Source Options**: REST API or web scraping via `data_source` parameter
+- **Temperature Zone 0**: Specialized support for temperature monitoring data
+- **Flexible Time Ranges**: 1h, 4h, 6h, 12h, 24h, 48h, 7d, 30d, 365d periods
+- **Error Recovery**: Robust fallback mechanisms and retry logic
 
 ### 7. Business Tools (2 tools)
 Business intelligence and reporting:

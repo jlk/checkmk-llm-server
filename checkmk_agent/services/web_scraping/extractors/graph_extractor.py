@@ -7,7 +7,6 @@ for historical monitoring data retrieval.
 
 import re
 import json
-import time
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional, Union
@@ -358,7 +357,9 @@ class GraphExtractor:
                         timestamp = self._convert_timestamp_to_iso(timestamp_raw)
                         if timestamp:
                             value = float(value_raw)
-                            extracted_data.append((timestamp, value))
+                            # Only accept reasonable temperature values (not timestamps or other large numbers)
+                            if self._is_reasonable_temperature_value(value):
+                                extracted_data.append((timestamp, value))
                 except (ValueError, TypeError):
                     continue
         
@@ -371,6 +372,26 @@ class GraphExtractor:
                 extracted_data.append((current_time, temp_value))
             except ValueError:
                 continue
+        
+        # Pattern 3: Look for temperature patterns in text
+        # Match patterns like "Temperature: 60.37" or just "60.37°C"
+        temperature_patterns = [
+            r'temperature\s*:?\s*([\d\.]+)\s*°?[cf]?',
+            r'temp\s*:?\s*([\d\.]+)\s*°?[cf]?',
+            r'([\d\.]+)\s*°[cf]',  # Direct temperature notation
+        ]
+        
+        for pattern in temperature_patterns:
+            temp_matches = re.finditer(pattern, script_content, re.IGNORECASE)
+            for match in temp_matches:
+                try:
+                    temp_value = float(match.group(1))
+                    # Only accept reasonable temperature values (not timestamps)
+                    if self._is_reasonable_temperature_value(temp_value):
+                        current_time = datetime.now().isoformat()
+                        extracted_data.append((current_time, temp_value))
+                except ValueError:
+                    continue
         
         return extracted_data
     
@@ -640,3 +661,16 @@ class GraphExtractor:
             pass
         
         return None
+    
+    def _is_reasonable_temperature_value(self, value: float) -> bool:
+        """Check if a value looks like a reasonable temperature (not a timestamp).
+        
+        Args:
+            value: Numeric value to check
+            
+        Returns:
+            True if value looks like a temperature, False if it looks like a timestamp or other data
+        """
+        # Temperature values should be reasonable for system monitoring
+        # Usually between -50°C and 150°C for computer systems
+        return -50.0 <= value <= 150.0

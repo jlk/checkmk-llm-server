@@ -16,6 +16,8 @@ from .models.historical import (
     HistoricalDataRequest,
     HistoricalDataServiceResult
 )
+# Import the modular ScraperService from web_scraping module
+from .web_scraping.scraper_service import ScraperService
 
 # Import request context utilities with fallback
 try:
@@ -70,34 +72,40 @@ class HistoricalDataService(BaseService):
         
         self.logger.debug(f"Initialized historical data service with source: {self.source}")
 
-    def _create_scraper_instance(self) -> "CheckmkHistoricalScraper":
+    def _create_scraper_instance(self) -> "ScraperService":
         """Create a fresh scraper instance using factory pattern.
         
         This method implements the factory pattern by creating a new scraper
         instance for each request, ensuring clean state and proper isolation.
         
         Returns:
-            Fresh CheckmkHistoricalScraper instance
+            Fresh ScraperService instance
             
         Raises:
-            ImportError: If CheckmkHistoricalScraper cannot be imported
+            ImportError: If ScraperService cannot be imported
             ValueError: If CheckmkConfig cannot be created
         """
         try:
-            # Import the scraper service from the new modular system
-            from .web_scraping.scraper_service import ScraperService
+            # Import the original working scraper 
+            import sys
+            import os
+            
+            # Add the project root to the path to import the original scraper
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            if project_root not in sys.path:
+                sys.path.insert(0, project_root)
             
             # Create CheckmkConfig from AppConfig
             checkmk_config = self.config.checkmk
             
-            # Create fresh scraper service instance
+            # Create fresh scraper instance with the original working implementation
             scraper = ScraperService(checkmk_config)
             
             self.logger.debug(f"Created fresh scraper instance for server: {checkmk_config.server_url}")
             return scraper
             
         except ImportError as e:
-            error_msg = f"Failed to import ScraperService: {e}"
+            error_msg = f"Failed to import modular ScraperService: {e}"
             self.logger.error(error_msg)
             raise ImportError(error_msg) from e
         except Exception as e:
@@ -210,12 +218,12 @@ class HistoricalDataService(BaseService):
     ) -> HistoricalDataResult:
         """Parse scraper output into structured historical data result.
         
-        This method processes the raw output from CheckmkHistoricalScraper,
+        This method processes the raw output from ScraperService,
         separating time-series data points from summary statistics and
         handling timestamp parsing.
         
         Args:
-            scraper_data: Raw output from CheckmkHistoricalScraper
+            scraper_data: Raw output from ScraperService
             host_name: Host name for context
             service_name: Service name for context  
             period: Time period for context
@@ -233,8 +241,27 @@ class HistoricalDataService(BaseService):
         summary_stats = {}
         parse_errors = []
         
-        for i, (timestamp_str, value) in enumerate(scraper_data):
+        for i, data_item in enumerate(scraper_data):
             try:
+                # Handle different data formats from scraper
+                if isinstance(data_item, dict):
+                    # New dictionary format: {'timestamp': str, 'value': float, 'type': str}
+                    timestamp_str = data_item.get('timestamp', '')
+                    value = data_item.get('value', 0)
+                    data_type = data_item.get('type', 'unknown')
+                    
+                    # Skip non-timeseries data for now
+                    if data_type not in ['timeseries', 'data_point']:
+                        self.logger.debug(f"[{request_id}] Skipping data item with type: {data_type}")
+                        continue
+                        
+                elif isinstance(data_item, (list, tuple)) and len(data_item) >= 2:
+                    # Legacy tuple/list format: (timestamp_str, value)
+                    timestamp_str, value = data_item[0], data_item[1]
+                else:
+                    self.logger.warning(f"[{request_id}] Unexpected data item format: {type(data_item)} - {data_item}")
+                    continue
+                
                 # Check if this is a summary statistic
                 if self._is_summary_stat(timestamp_str):
                     # This is a summary stat where timestamp_str is the stat name
@@ -358,13 +385,20 @@ class HistoricalDataService(BaseService):
             
             # Scrape historical data
             self.logger.debug(f"[{request_id}] Scraping data with period: {request.period}")
-            raw_data = scraper.scrape_historical_data(
+            scraper_result = scraper.scrape_historical_data(
                 period=request.period,
                 host=request.host_name,
                 service=request.service_name
             )
             
-            self.logger.debug(f"[{request_id}] Received {len(raw_data)} raw data points from scraper")
+            # Handle original scraper format (returns List[Tuple] directly)
+            if isinstance(scraper_result, list):
+                raw_data = scraper_result
+                self.logger.debug(f"[{request_id}] Received {len(raw_data)} raw data points from original scraper")
+            else:
+                # Fallback for modular scraper format (dict with "data" key)
+                raw_data = scraper_result.get("data", []) if isinstance(scraper_result, dict) else []
+                self.logger.debug(f"[{request_id}] Received {len(raw_data)} raw data points from modular scraper")
             
             # Parse scraper output into structured format
             historical_result = self._parse_scraper_output(
@@ -473,7 +507,7 @@ class CachedHistoricalDataService(CachingService, HistoricalDataService):
     as CachedHostService for consistency.
     """
     
-    def __init__(self, checkmk_client: AsyncCheckmkClient, config: AppConfig, cache_ttl: int = None):
+    def __init__(self, checkmk_client: AsyncCheckmkClient, config: AppConfig, cache_ttl: Optional[int] = None):
         """Initialize the cached historical data service.
         
         Args:
@@ -490,7 +524,7 @@ class CachedHistoricalDataService(CachingService, HistoricalDataService):
                 cache_ttl = getattr(historical_config, 'cache_ttl', 60)
         
         # Initialize with caching capabilities
-        super().__init__(checkmk_client, config, cache_ttl=cache_ttl, cache_size=1000)
+        super().__init__(checkmk_client, config, cache_ttl=cache_ttl or 60, cache_size=1000)
         
         self.logger.debug(f"Initialized cached historical data service with TTL: {cache_ttl}s")
 

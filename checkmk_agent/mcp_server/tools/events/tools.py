@@ -73,7 +73,7 @@ class EventTools:
             # Complex logic from original implementation would go here
             # For this extraction, we'll use a simplified version
             try:
-                event_service = self._get_service("event")
+                event_service = self._get_service("event_service")
                 if not event_service:
                     return {
                         "success": False,
@@ -146,7 +146,7 @@ class EventTools:
 
         async def list_host_events(host_name, limit=100, state_filter=None):
             try:
-                event_service = self._get_service("event")
+                event_service = self._get_service("event_service")
                 if not event_service:
                     return {
                         "success": False,
@@ -210,7 +210,7 @@ class EventTools:
 
         async def get_recent_critical_events(limit=20):
             try:
-                event_service = self._get_service("event")
+                event_service = self._get_service("event_service")
                 if not event_service:
                     return {
                         "success": False,
@@ -275,7 +275,7 @@ class EventTools:
 
         async def acknowledge_event(event_id, comment, contact=None, site_id=None):
             try:
-                event_service = self._get_service("event")
+                event_service = self._get_service("event_service")
                 if not event_service:
                     return {
                         "success": False,
@@ -335,7 +335,7 @@ class EventTools:
             search_term, limit=50, state_filter=None, host_filter=None
         ):
             try:
-                event_service = self._get_service("event")
+                event_service = self._get_service("event_service")
                 if not event_service:
                     return {
                         "success": False,

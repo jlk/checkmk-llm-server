@@ -31,6 +31,9 @@ A Python agent that connects Large Language Models to Checkmk through the Model 
 | **Performance Metrics**        | `services metrics server01 "Memory" --hours 24`               | `"show memory metrics for server01"`                  |
 | **Business Status**            | `bi status`                                                   | `"what's the business service status?"`               |
 | **System Info**                | `system info`                                                 | `"what version of Checkmk is running?"`               |
+| **Historical Data Scraping**   | `historical scrape -h server01 -s "CPU load" -p 4h`          | `"get 4 hours of CPU load history for server01"`      |
+| **Historical Services List**    | `historical services -h server01`                             | `"list services available for historical data"`       |
+| **Historical Scraper Test**     | `historical test`                                             | `"test historical data scraping functionality"`       |
 
 ## 📋 Architecture Overview
 
@@ -168,6 +171,9 @@ Once connected, you can use natural language commands like:
 - "Show me the event history for CPU load on server01"
 - "Get CPU performance metrics for the last 24 hours"
 - "What's the business service status?"
+- "Scrape 4 hours of Temperature Zone 0 data from server01"
+- "Get historical CPU load data for the past 24 hours"
+- "Extract disk usage trends from yesterday's monitoring data"
 
 📚 **See [Usage Examples](docs/USAGE_EXAMPLES.md) for examples of available features**
 
@@ -186,6 +192,7 @@ python checkmk_cli_mcp.py interactive
 python checkmk_cli_mcp.py hosts list
 python checkmk_cli_mcp.py status overview
 python checkmk_cli_mcp.py services list server01
+python checkmk_cli_mcp.py historical scrape -h server01 -s "CPU load" -p 4h
 
 # With specific configuration
 python checkmk_cli_mcp.py --config /path/to/config.yaml hosts list
@@ -204,6 +211,7 @@ python -m checkmk_agent.cli interactive
 python -m checkmk_agent.cli --config config.yaml hosts list
 python -m checkmk_agent.cli status overview
 python -m checkmk_agent.cli services list server01
+python -m checkmk_agent.cli historical scrape -h server01 -s "Temperature Zone 0" -p 24h
 ```
 
 ### Option 3: Module Import CLI
