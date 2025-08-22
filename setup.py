@@ -23,9 +23,9 @@ setup(
     description='MCP (Model Context Protocol) server for Checkmk monitoring integration',
     long_description=read_readme(),
     long_description_content_type='text/markdown',
-    author='Checkmk MCP Server Team',
-    author_email='dev@example.com',
-    url='https://github.com/your-org/checkmk-mcp-server',
+    author='John Kinsella',
+    author_email='jlkinsel@gmail.com',
+    url='https://github.com/jlk/checkmk-mcp-server',
     
     packages=find_packages(),
     python_requires='>=3.8',

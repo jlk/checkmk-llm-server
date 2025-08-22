@@ -9,5 +9,5 @@ configuration management through natural language interactions.
 # No need to configure logging here.
 
 __version__ = "0.1.0"
-__author__ = "Checkmk MCP Server Team"
+__author__ = "John Kinsella"
 __description__ = "MCP server for Checkmk monitoring integration"
