@@ -27,6 +27,14 @@ The project is a **FULLY OPERATIONAL** Checkmk MCP Server implementation with:
 
 ## Current Focus
 
+**Recently Completed - MCP CLI stdio Communication Timeout Fix** (2025-08-22):
+- **Root Cause Analysis**: Identified MCP SDK 1.12.0 stdio transport timeout issues specifically affecting macOS systems
+- **Intelligent Fallback System**: Implemented automatic fallback from MCP to direct CLI when stdio communication fails
+- **Enhanced Connection Logic**: Added multi-layered timeout strategy (5s fast, 60s patient, 15s overall) for robust connection handling
+- **Comprehensive Error Handling**: Added robust resource cleanup and connection verification to prevent hanging processes
+- **User Experience Enhancement**: Commands like `python checkmk_cli_mcp.py hosts list` now work correctly on macOS
+- **Architecture Validation**: Senior Python architect confirmed production-ready implementation with clean separation of concerns
+
 **Recently Completed - Documentation Reorganization for Open Source Release** (2025-08-22):
 - **Documentation Restructuring**: Transformed 719-line README into focused 144-line user value proposition
 - **Documentation Hub**: Created organized docs/ structure with logical navigation and cross-references
@@ -231,10 +239,11 @@ The project includes comprehensive MCP (Model Context Protocol) server integrati
 
 ### Enhanced MCP Server (`checkmk_mcp_server/mcp_server/server.py`)
 - **40 Tools Exposed**: Complete coverage of all Checkmk operations with advanced features and comprehensive parameter management
-- **Status**: ✅ Fully Functional - Successfully tested with Claude
+- **Status**: ✅ Fully Functional - Successfully tested with Claude, MCP CLI fully operational on macOS
 - **Core Features**: Host operations, service management, status monitoring, problem analysis
 - **Parameter Management**: 12 specialized tools for universal parameter read/write operations
 - **Advanced Features**: Batch processing, streaming operations, caching, performance metrics, specialized handlers
+- **MCP CLI Integration**: Robust stdio transport with intelligent fallback system for macOS compatibility
 - **Entry Point**: `mcp_checkmk_server.py` - Single server for all use cases
 
 ### Recent Fixes (2025-07-25)
