@@ -110,7 +110,7 @@ def run_mcp_server_tests() -> Dict[str, Any]:
 
 def analyze_mcp_server_file() -> Dict[str, Any]:
     """Analyze the current MCP server file structure."""
-    server_file = Path("checkmk_agent/mcp_server/server.py")
+    server_file = Path("checkmk_mcp_server/mcp_server/server.py")
     
     if not server_file.exists():
         return {"error": "MCP server file not found"}

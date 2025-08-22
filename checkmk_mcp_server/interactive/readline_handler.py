@@ -21,12 +21,12 @@ class ReadlineHandler:
         """Initialize readline handler.
 
         Args:
-            history_file: Path to history file. Defaults to ~/.checkmk_agent_history
+            history_file: Path to history file. Defaults to ~/.checkmk_mcp_server_history
             history_size: Maximum number of history entries to keep
         """
         self.has_readline = HAS_READLINE
         self.history_size = history_size
-        self.history_file = history_file or str(Path.home() / ".checkmk_agent_history")
+        self.history_file = history_file or str(Path.home() / ".checkmk_mcp_server_history")
         self.completer_function: Optional[Callable] = None
 
         if self.has_readline:

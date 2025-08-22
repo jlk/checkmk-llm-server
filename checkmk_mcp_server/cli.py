@@ -1517,7 +1517,7 @@ def discover_ruleset(ctx, host_name: str, service_description: str):
 
         click.echo()
         click.echo(
-            f"💡 To override parameters: checkmk-agent services params set {host_name or 'HOSTNAME'} '{service_description}' --warning 85 --critical 95"
+            f"💡 To override parameters: checkmk-mcp-server services params set {host_name or 'HOSTNAME'} '{service_description}' --warning 85 --critical 95"
         )
 
     except Exception as e:
@@ -1663,13 +1663,13 @@ def status_overview(ctx, format: str):
             click.echo(
                 f"🚨 {urgent_count} urgent problem(s) require immediate attention"
             )
-            click.echo("   Use 'checkmk-agent status critical' for details")
+            click.echo("   Use 'checkmk-mcp-server status critical' for details")
             click.echo()
 
         unhandled = dashboard.get("needs_attention", 0)
         if unhandled > 0:
             click.echo(f"💡 {unhandled} unacknowledged problem(s) need review")
-            click.echo("   Use 'checkmk-agent status problems' to see all issues")
+            click.echo("   Use 'checkmk-mcp-server status problems' to see all issues")
 
     except Exception as e:
         click.echo(f"❌ Error generating status overview: {e}", err=True)
@@ -2122,10 +2122,10 @@ def status_service(ctx, host_name: str, service_description: str, format: str):
             click.echo()
             click.echo("💡 Suggested Actions:")
             click.echo(
-                f"   • Acknowledge: checkmk-agent services acknowledge {host_name} '{service_description}'"
+                f"   • Acknowledge: checkmk-mcp-server services acknowledge {host_name} '{service_description}'"
             )
             click.echo(
-                f"   • Create downtime: checkmk-agent services downtime {host_name} '{service_description}' --hours 2"
+                f"   • Create downtime: checkmk-mcp-server services downtime {host_name} '{service_description}' --hours 2"
             )
 
     except Exception as e:

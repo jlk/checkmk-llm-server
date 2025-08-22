@@ -313,7 +313,7 @@ class TestServiceOperationsManager:
 
         assert "How to add a service to server01" in result
         assert "Method 1: Service Discovery" in result
-        assert "checkmk-agent services discover server01" in result
+        assert "checkmk-mcp-server services discover server01" in result
         assert "discover services on server01" in result
 
     def test_get_instructions_acknowledge_service(
@@ -332,7 +332,7 @@ class TestServiceOperationsManager:
 
         assert "How to acknowledge a service problem" in result
         assert "Purpose:" in result
-        assert "checkmk-agent services acknowledge" in result
+        assert "checkmk-mcp-server services acknowledge" in result
 
     def test_get_instructions_general(self, service_manager, mock_checkmk_client):
         """Test getting general service instructions."""

@@ -199,14 +199,14 @@ def find_config_file() -> Optional[Path]:
         Path.cwd() / "config.yml",
         Path.cwd() / "config.toml",
         Path.cwd() / "config.json",
-        Path.cwd() / ".checkmk-agent.yaml",
-        Path.cwd() / ".checkmk-agent.yml",
-        Path.cwd() / ".checkmk-agent.toml",
-        Path.cwd() / ".checkmk-agent.json",
-        Path.home() / ".config" / "checkmk-agent" / "config.yaml",
-        Path.home() / ".config" / "checkmk-agent" / "config.yml",
-        Path.home() / ".config" / "checkmk-agent" / "config.toml",
-        Path.home() / ".config" / "checkmk-agent" / "config.json",
+        Path.cwd() / ".checkmk-mcp-server.yaml",
+        Path.cwd() / ".checkmk-mcp-server.yml",
+        Path.cwd() / ".checkmk-mcp-server.toml",
+        Path.cwd() / ".checkmk-mcp-server.json",
+        Path.home() / ".config" / "checkmk-mcp-server" / "config.yaml",
+        Path.home() / ".config" / "checkmk-mcp-server" / "config.yml",
+        Path.home() / ".config" / "checkmk-mcp-server" / "config.toml",
+        Path.home() / ".config" / "checkmk-mcp-server" / "config.json",
     ]
 
     for config_path in search_paths:

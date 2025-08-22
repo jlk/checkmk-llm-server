@@ -201,7 +201,7 @@ class ServiceService(BaseService):
 
             # Set default author if not provided
             if not author:
-                author = self.config.checkmk.username or "checkmk_agent"
+                author = self.config.checkmk.username or "checkmk_mcp_server"
 
             # Acknowledge via API
             ack_data = {
@@ -281,7 +281,7 @@ class ServiceService(BaseService):
                 start_time = datetime.now()
 
             if not author:
-                author = self.config.checkmk.username or "checkmk_agent"
+                author = self.config.checkmk.username or "checkmk_mcp_server"
 
             end_time = start_time + timedelta(hours=duration_hours)
 

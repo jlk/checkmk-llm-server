@@ -401,7 +401,7 @@ class TestCLIEffectiveAttributes:
         # by checking the source code for the flag definition
 
         with open(
-            "/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/cli.py", "r"
+            "/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/cli.py", "r"
         ) as f:
             content = f.read()
 
@@ -456,7 +456,7 @@ class TestMCPServerEffectiveAttributes:
 
         # Verify that the effective_attributes parameter appears in the MCP server code
         with open(
-            "/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/mcp_server/server.py",
+            "/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/mcp_server/server.py",
             "r",
         ) as f:
             content = f.read()

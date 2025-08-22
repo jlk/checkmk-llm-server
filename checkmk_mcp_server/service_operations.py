@@ -512,7 +512,7 @@ class ServiceOperationsManager:
 
 **Method 1: Service Discovery (Recommended)**
 1. Run service discovery to automatically detect services:
-   • CLI: `checkmk-agent services discover {host_name if host_name else 'HOSTNAME'}`
+   • CLI: `checkmk-mcp-server services discover {host_name if host_name else 'HOSTNAME'}`
    • Interactive: "discover services on {host_name if host_name else 'HOSTNAME'}"
 
 2. Service discovery will:
@@ -532,7 +532,7 @@ class ServiceOperationsManager:
 2. Rules automatically apply to matching hosts
 
 **Next Steps:**
-• Run: `checkmk-agent services discover {host_name if host_name else 'HOSTNAME'}` to start
+• Run: `checkmk-mcp-server services discover {host_name if host_name else 'HOSTNAME'}` to start
 • Or ask: "discover services on {host_name if host_name else 'HOSTNAME'}" for automatic discovery"""
 
         elif instruction_type == "acknowledge_service":
@@ -542,7 +542,7 @@ class ServiceOperationsManager:
 
 **Methods:**
 1. **CLI Command:**
-   `checkmk-agent services acknowledge HOSTNAME SERVICE_NAME "Your comment"`
+   `checkmk-mcp-server services acknowledge HOSTNAME SERVICE_NAME "Your comment"`
 
 2. **Interactive Command:**
    "acknowledge SERVICE_NAME on HOSTNAME with comment 'Working on it'"
@@ -568,7 +568,7 @@ class ServiceOperationsManager:
 
 **Methods:**
 1. **CLI Command:**
-   `checkmk-agent services downtime HOSTNAME SERVICE_NAME HOURS "Comment"`
+   `checkmk-mcp-server services downtime HOSTNAME SERVICE_NAME HOURS "Comment"`
 
 2. **Interactive Command:**
    "create 2 hour downtime for SERVICE_NAME on HOSTNAME"

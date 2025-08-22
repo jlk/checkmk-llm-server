@@ -69,7 +69,7 @@ class CheckmkMCPServer:
             config: Application configuration
         """
         self.config = config
-        self.server: Server = Server("checkmk-agent")
+        self.server: Server = Server("checkmk-mcp-server")
         
         # Core components
         self.container = ServiceContainer(config)
@@ -310,7 +310,7 @@ class CheckmkMCPServer:
                     read_stream,
                     write_stream,
                     InitializationOptions(
-                        server_name="checkmk-agent",
+                        server_name="checkmk-mcp-server",
                         server_version="1.0.0",
                         capabilities=self.server.get_capabilities(
                             notification_options=NotificationOptions(),
@@ -452,6 +452,6 @@ Always approach problems with the mindset of maintaining high availability and m
             'prompt_count': len(self.protocol_handlers._prompts) if self._initialized else 0,
             'service_count': len(self.container.get_all_services()) if self._initialized else 0,
             'tool_categories': list(self._tool_categories.keys()) if self._initialized else [],
-            'server_name': 'checkmk-agent',
+            'server_name': 'checkmk-mcp-server',
             'server_version': '1.0.0'
         }

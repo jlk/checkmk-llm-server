@@ -414,7 +414,7 @@ class ToolAnalyzer:
 
 def main():
     """Main function to run tool analysis."""
-    server_file = "checkmk_agent/mcp_server/server.py"
+    server_file = "checkmk_mcp_server/mcp_server/server.py"
     
     if not Path(server_file).exists():
         print(f"❌ Error: {server_file} not found")

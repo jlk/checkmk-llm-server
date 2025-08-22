@@ -194,7 +194,7 @@ async def benchmark_modular_vs_monolithic():
     }
     
     # Analyze main server file size
-    server_file = Path(__file__).parent / "checkmk_agent" / "mcp_server" / "server.py"
+    server_file = Path(__file__).parent / "checkmk_mcp_server" / "mcp_server" / "server.py"
     if server_file.exists():
         with open(server_file, 'r') as f:
             server_lines = len(f.readlines())
@@ -202,7 +202,7 @@ async def benchmark_modular_vs_monolithic():
         print(f"  Main server.py: {server_lines} lines")
     
     # Count modules in the new architecture
-    mcp_server_dir = Path(__file__).parent / "checkmk_agent" / "mcp_server"
+    mcp_server_dir = Path(__file__).parent / "checkmk_mcp_server" / "mcp_server"
     module_files = []
     
     for path in mcp_server_dir.rglob("*.py"):

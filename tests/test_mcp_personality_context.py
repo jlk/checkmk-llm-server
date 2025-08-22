@@ -97,7 +97,7 @@ class TestMCPPersonalityContext:
         ]
         
         # Read the actual instructions from the modified server.py file
-        with open('/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/mcp_server/server.py', 'r') as f:
+        with open('/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/mcp_server/server.py', 'r') as f:
             content = f.read()
             
             # Find the instructions section
@@ -122,7 +122,7 @@ class TestMCPPersonalityContext:
         ]
         
         # Read the actual instructions
-        with open('/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/mcp_server/server.py', 'r') as f:
+        with open('/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/mcp_server/server.py', 'r') as f:
             content = f.read()
             
             if 'instructions="""You are an experienced' in content:
@@ -144,7 +144,7 @@ class TestMCPPersonalityContext:
         ]
         
         # Read the actual instructions
-        with open('/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/mcp_server/server.py', 'r') as f:
+        with open('/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/mcp_server/server.py', 'r') as f:
             content = f.read()
             
             if 'instructions="""You are an experienced' in content:
