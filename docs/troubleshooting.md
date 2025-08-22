@@ -271,6 +271,66 @@ checkmk:
   ca_cert_path: "checkmk.crt"
 ```
 
+## LLM Configuration Issues
+
+### Wrong Model Provider
+
+**Error**: `Invalid model` or `Model not found`
+
+**Common issues**:
+1. Using OpenAI model with Anthropic API key or vice versa
+2. Incorrect model name format
+
+**Solutions**:
+
+For **Anthropic/Claude**:
+```yaml
+llm:
+  anthropic_api_key: "sk-ant-your-key"
+  # Correct model names for Anthropic
+  default_model: "claude-3-5-sonnet-20241022"  # Latest Sonnet
+  # default_model: "claude-3-opus-20240229"     # Opus (most capable)
+  # default_model: "claude-3-haiku-20240307"    # Haiku (fastest/cheapest)
+```
+
+For **OpenAI**:
+```yaml
+llm:
+  openai_api_key: "sk-your-key"
+  # Correct model names for OpenAI
+  default_model: "gpt-4"                # GPT-4
+  # default_model: "gpt-4-turbo"        # GPT-4 Turbo
+  # default_model: "gpt-3.5-turbo"      # GPT-3.5 (faster/cheaper)
+```
+
+### API Key Issues
+
+**Error**: `Authentication failed` or `Invalid API key`
+
+**Diagnosis**:
+```bash
+# Check if API key is set
+echo $OPENAI_API_KEY
+echo $ANTHROPIC_API_KEY
+
+# Test Anthropic API directly
+curl https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{"model": "claude-3-haiku-20240307", "max_tokens": 10, "messages": [{"role": "user", "content": "Hi"}]}'
+
+# Test OpenAI API directly  
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $OPENAI_API_KEY"
+```
+
+**Common fixes**:
+- Ensure API key starts with correct prefix (`sk-` for OpenAI, `sk-ant-` for Anthropic)
+- Check API key has not expired
+- Verify billing/credits are available on your account
+- Make sure you're using the right provider's key with the right model
+
 ## MCP Connection Issues
 
 ### MCP Client Hangs on Connection

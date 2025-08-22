@@ -89,9 +89,13 @@ checkmk:
 
 llm:
   # Optional: Add OpenAI or Anthropic API key for enhanced processing
+  # Option 1: OpenAI
   # openai_api_key: "sk-your-openai-api-key"
-  # anthropic_api_key: "your-anthropic-api-key"
-  default_model: "gpt-3.5-turbo"
+  # default_model: "gpt-3.5-turbo"
+  
+  # Option 2: Anthropic (recommended)
+  anthropic_api_key: "sk-ant-your-api-key"
+  default_model: "claude-3-5-sonnet-20241022"
 
 # Advanced features (optional)
 advanced_features:

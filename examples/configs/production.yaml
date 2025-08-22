@@ -12,9 +12,13 @@ checkmk:
 
 llm:
   # Use environment variables for API keys in production
-  openai_api_key: "${OPENAI_API_KEY}"
+  # Option 1: OpenAI (uncomment to use)
+  # openai_api_key: "${OPENAI_API_KEY}"
+  # default_model: "gpt-4"
+  
+  # Option 2: Anthropic (recommended for advanced reasoning)
   anthropic_api_key: "${ANTHROPIC_API_KEY}"
-  default_model: "gpt-4"
+  default_model: "claude-3-5-sonnet-20241022"
 
 # UI Configuration for production
 ui:

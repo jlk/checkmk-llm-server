@@ -11,8 +11,13 @@ checkmk:
 
 llm:
   # Use mock or test API keys
+  # Option 1: OpenAI
   openai_api_key: "sk-test-key"
   default_model: "gpt-3.5-turbo"
+  
+  # Option 2: Anthropic (uncomment to use)
+  # anthropic_api_key: "sk-ant-test-key"
+  # default_model: "claude-3-haiku-20240307"
 
 # UI Configuration for testing
 ui:

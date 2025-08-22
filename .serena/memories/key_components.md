@@ -1,4 +1,4 @@
-# Key Components and Entry Points (Updated 2025-08-20)
+# Key Components and Entry Points (Updated 2025-08-22)
 
 ## Primary Entry Points
 
@@ -83,13 +83,22 @@ checkmk:
   site: "mysite"
 
 llm:
-  openai_api_key: "sk-your-key"
-  default_model: "gpt-3.5-turbo"
+  # Option 1: OpenAI
+  # openai_api_key: "sk-your-key"
+  # default_model: "gpt-4"
+  
+  # Option 2: Anthropic (recommended)
+  anthropic_api_key: "sk-ant-your-key"
+  default_model: "claude-3-5-sonnet-20241022"
 ```
 
 ### Environment Variables
 - `CHECKMK_SERVER_URL`, `CHECKMK_USERNAME`, `CHECKMK_PASSWORD`
 - `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
+
+### Supported Models
+- **OpenAI**: gpt-3.5-turbo, gpt-4, gpt-4-turbo
+- **Anthropic**: claude-3-haiku-20240307, claude-3-5-sonnet-20241022, claude-3-opus-20240229
 
 ## Interactive Mode (`checkmk_agent/interactive/`)
 - **Natural language processing** for commands

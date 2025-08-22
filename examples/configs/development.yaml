@@ -11,8 +11,13 @@ checkmk:
 
 llm:
   # Use a faster, cheaper model for development
+  # Option 1: OpenAI
   openai_api_key: "sk-dev-api-key"
   default_model: "gpt-3.5-turbo"
+  
+  # Option 2: Anthropic (uncomment to use instead)
+  # anthropic_api_key: "sk-ant-your-dev-key"
+  # default_model: "claude-3-haiku-20240307"
 
 # UI Configuration for development
 ui:
