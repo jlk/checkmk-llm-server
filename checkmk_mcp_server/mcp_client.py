@@ -63,27 +63,70 @@ class CheckmkMCPClient:
                 args=args,
                 env={
                     "PYTHONPATH": str(Path(__file__).parent.parent),
+                    "PYTHONUNBUFFERED": "1",  # Force unbuffered Python output
+                    "PYTHONIOENCODING": "utf-8",  # Ensure consistent encoding
                     **dict(os.environ),
                 },
             )
 
-            # Connect to the server
+            # Connect to the server with improved error handling
             self._stdio_context = stdio_client(server_params)
             self._read_stream, self._write_stream = (
                 await self._stdio_context.__aenter__()
             )
 
+            # Give the server process more time to fully start on macOS
+            await asyncio.sleep(2.0)
+
+            # Try to establish the session with better error handling for macOS
             self.session = ClientSession(self._read_stream, self._write_stream)
 
-            # Initialize the session with timeout (known issue with MCP SDK on macOS)
+            # Use a more aggressive approach for macOS - try immediate initialization
+            # without timeout to see if the issue is timeout-related
+            logger.info("Attempting MCP session initialization...")
             try:
-                await asyncio.wait_for(self.session.initialize(), timeout=30.0)
+                # First try without timeout to diagnose the issue
+                init_task = asyncio.create_task(self.session.initialize())
+                
+                # Wait a bit and check if it completes quickly
+                try:
+                    await asyncio.wait_for(init_task, timeout=5.0)
+                    logger.info("Session initialized successfully (fast path)")
+                except asyncio.TimeoutError:
+                    logger.info("Fast initialization failed, trying patient approach...")
+                    # Cancel the fast attempt
+                    init_task.cancel()
+                    try:
+                        await init_task
+                    except asyncio.CancelledError:
+                        pass
+                    
+                    # Try again with longer timeout and different approach
+                    await asyncio.sleep(1.0)
+                    await asyncio.wait_for(self.session.initialize(), timeout=60.0)
+                
                 logger.info("Successfully connected to MCP server")
                 logger.info(f"Server info: {self.session.server_info}")
-            except asyncio.TimeoutError:
-                raise RuntimeError(
-                    "MCP session initialization timed out (known issue with MCP SDK 1.12.0 on macOS)"
-                )
+                
+                # Verify connection with a simple ping test
+                try:
+                    ping_result = await self.call_tool("get_system_info", {})
+                    if ping_result.get("success"):
+                        logger.info("MCP connection verified with system info ping")
+                    else:
+                        logger.warning("MCP connection established but ping test failed")
+                except Exception as ping_error:
+                    logger.warning(f"MCP connection ping test failed: {ping_error}")
+                
+            except Exception as e:
+                # Handle any remaining initialization errors
+                if "timeout" in str(e).lower():
+                    raise RuntimeError(
+                        f"MCP session initialization timed out. "
+                        "This may be due to MCP SDK stdio communication issues on macOS."
+                    )
+                else:
+                    raise RuntimeError(f"MCP session initialization failed: {e}")
 
         except Exception as e:
             logger.exception("Failed to connect to MCP server")

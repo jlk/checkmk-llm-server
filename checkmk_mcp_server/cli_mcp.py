@@ -76,10 +76,11 @@ def async_command(f):
 )
 @click.option("--request-id", help="Specific request ID to use for tracing (optional)")
 @click.option("--no-color", is_flag=True, help="Disable colored output")
+@click.option("--force-direct", is_flag=True, help="Force direct CLI mode (bypass MCP)", hidden=True)
 @click.pass_context
 @async_command
 @with_request_tracking("MCP CLI Command")
-async def cli(ctx, config, log_level, request_id, no_color):
+async def cli(ctx, config, log_level, request_id, no_color, force_direct):
     """Checkmk LLM Agent CLI - MCP Edition"""
     # Setup logging with request ID support
     setup_logging(log_level, include_request_id=True)
@@ -100,14 +101,51 @@ async def cli(ctx, config, log_level, request_id, no_color):
     # Create formatter
     formatter = CLIFormatter(use_colors=not no_color)
 
-    # Create and connect MCP client
-    async with create_mcp_client(app_config, config_file_path) as mcp_client:
-        # Store in context for subcommands
-        ctx.obj = MCPCLIContext(app_config, mcp_client, formatter)
+    # Check if we should force direct mode or try MCP first
+    if force_direct:
+        # Skip MCP and go directly to fallback
+        click.echo(formatter.format_info("Using direct CLI mode (MCP bypassed)"))
+        from .cli import cli as direct_cli
+        import sys
+        original_args = sys.argv[1:]
+        if '--force-direct' in original_args:
+            original_args.remove('--force-direct')
+        sys.argv = ['checkmk_mcp_server.cli'] + original_args
+        direct_cli.main(standalone_mode=False)
+        return
 
-        # If this is not a subcommand, just connect and exit
-        if ctx.invoked_subcommand is None:
-            click.echo("Checkmk MCP CLI connected. Use --help for available commands.")
+    # Try MCP client connection with timeout, fallback to direct CLI if stdio fails
+    try:
+        # Set a reasonable timeout for MCP connection
+        mcp_client_context = create_mcp_client(app_config, config_file_path)
+        mcp_client = await asyncio.wait_for(mcp_client_context.__aenter__(), timeout=15.0)
+        try:
+            # Store in context for subcommands
+            ctx.obj = MCPCLIContext(app_config, mcp_client, formatter)
+
+            # If this is not a subcommand, just connect and exit
+            if ctx.invoked_subcommand is None:
+                click.echo("Checkmk MCP CLI connected. Use --help for available commands.")
+        finally:
+            # Ensure proper cleanup
+            await mcp_client_context.__aexit__(None, None, None)
+    except (RuntimeError, asyncio.TimeoutError) as e:
+        # Fallback to direct CLI for any MCP connection issues
+        click.echo(f"⚠️  MCP connection failed ({type(e).__name__}). Falling back to direct CLI...")
+        
+        # Import and delegate to the working direct CLI
+        from .cli import cli as direct_cli
+        
+        # Get the original command arguments and delegate
+        import sys
+        original_args = sys.argv[1:]  # Skip script name
+        
+        # Remove our script name and replace with direct CLI
+        sys.argv = ['checkmk_mcp_server.cli'] + original_args
+        
+        # Call the direct CLI which works perfectly
+        direct_cli.main(standalone_mode=False)
+        return
 
 
 @cli.group()

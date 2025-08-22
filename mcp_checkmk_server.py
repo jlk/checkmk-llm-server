@@ -132,6 +132,18 @@ async def main():
         
         logger.info("MCP Server initialized, starting transport...")
         
+        # Ensure stdio streams are properly configured for MCP communication
+        if args.transport == "stdio":
+            # Force stdout/stdin to be unbuffered for reliable MCP communication
+            import io
+            if hasattr(sys.stdout, 'reconfigure'):
+                sys.stdout.reconfigure(line_buffering=False)
+            if hasattr(sys.stdin, 'reconfigure'):
+                sys.stdin.reconfigure()
+            
+            # Flush any remaining output to stderr before starting MCP
+            sys.stderr.flush()
+        
         # Run the server
         await server.run(transport_type=args.transport)
         
