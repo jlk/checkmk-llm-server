@@ -16,17 +16,17 @@ KEY DECISIONS:
 - Integrated X-Request-ID headers in both sync and async API clients
 
 FILES CHANGED:
-- checkmk_agent/utils/request_context.py: Created request ID utilities with contextvars
-- checkmk_agent/middleware/request_tracking.py: Created middleware for automatic ID generation
-- checkmk_agent/logging_utils.py: Enhanced with RequestIDFormatter for consistent log format
-- checkmk_agent/mcp_server/server.py: Updated with request ID generation for all 47 tools
-- checkmk_agent/api_client.py: Added X-Request-ID headers to API calls
-- checkmk_agent/async_api_client.py: Added X-Request-ID headers to async API calls
-- checkmk_agent/cli.py: Integrated request tracing in CLI interfaces
-- checkmk_agent/cli_mcp.py: Added request ID context to MCP-based CLI
-- checkmk_agent/interactive/command_parser.py: Updated with request ID context
-- checkmk_agent/services/: Updated all service layer components with request ID propagation
-- checkmk_agent/common.py: Renamed from utils.py for better organization
+- checkmk_mcp_server/utils/request_context.py: Created request ID utilities with contextvars
+- checkmk_mcp_server/middleware/request_tracking.py: Created middleware for automatic ID generation
+- checkmk_mcp_server/logging_utils.py: Enhanced with RequestIDFormatter for consistent log format
+- checkmk_mcp_server/mcp_server/server.py: Updated with request ID generation for all 47 tools
+- checkmk_mcp_server/api_client.py: Added X-Request-ID headers to API calls
+- checkmk_mcp_server/async_api_client.py: Added X-Request-ID headers to async API calls
+- checkmk_mcp_server/cli.py: Integrated request tracing in CLI interfaces
+- checkmk_mcp_server/cli_mcp.py: Added request ID context to MCP-based CLI
+- checkmk_mcp_server/interactive/command_parser.py: Updated with request ID context
+- checkmk_mcp_server/services/: Updated all service layer components with request ID propagation
+- checkmk_mcp_server/common.py: Renamed from utils.py for better organization
 - tests/test_request_context.py: Created comprehensive unit tests
 - tests/test_request_tracking.py: Created middleware integration tests
 - tests/test_request_id_integration.py: Created end-to-end integration tests

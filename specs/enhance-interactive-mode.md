@@ -52,7 +52,7 @@ This plan outlines improvements to make the interactive mode more rich, intuitiv
   - Cursor key navigation (up/down for history, left/right for editing)
   - Tab completion for commands and parameters
   - Line editing capabilities (Ctrl+A, Ctrl+E, etc.)
-- History file stored in `~/.checkmk_agent_history`
+- History file stored in `~/.checkmk_mcp_server_history`
 - Custom completion function for Checkmk-specific commands
 
 **Code Changes**:
@@ -168,7 +168,7 @@ This plan outlines improvements to make the interactive mode more rich, intuitiv
 
 ### File Structure Changes
 ```
-checkmk_agent/
+checkmk_mcp_server/
 ├── interactive/
 │   ├── __init__.py
 │   ├── readline_handler.py     # Readline integration
@@ -187,7 +187,7 @@ checkmk_agent/
 - No new external dependencies required
 
 ### Configuration
-- History file location: `~/.checkmk_agent_history`
+- History file location: `~/.checkmk_mcp_server_history`
 - History size limit: 1000 commands
 - Completion cache timeout: 5 minutes
 - Help content updates: Dynamic based on available commands

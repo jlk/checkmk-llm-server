@@ -13,7 +13,7 @@
         "name": "import_and_instantiation",
         "message": "Server import and instantiation successful",
         "details": {
-          "server_name": "checkmk-agent",
+          "server_name": "checkmk-mcp-server",
           "container_type": "ServiceContainer",
           "initialized": false
         }
@@ -165,7 +165,7 @@
             "prompt_count": 0,
             "service_count": 0,
             "tool_categories": [],
-            "server_name": "checkmk-agent",
+            "server_name": "checkmk-mcp-server",
             "server_version": "1.0.0"
           },
           "import_successful": true

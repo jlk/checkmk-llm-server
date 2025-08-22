@@ -11,8 +11,8 @@ AFTER FIX: Correct "one_of" operator works without error
 import pytest
 import json
 from unittest.mock import patch, call
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.config import CheckmkConfig
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.config import CheckmkConfig
 
 
 class TestAPI400ConditionsFixDemo:
@@ -29,8 +29,8 @@ class TestAPI400ConditionsFixDemo:
 
     @pytest.fixture
     def client(self, config):
-        with patch("checkmk_agent.api_client.requests.Session"), patch(
-            "checkmk_agent.api_client.logging.getLogger"
+        with patch("checkmk_mcp_server.api_client.requests.Session"), patch(
+            "checkmk_mcp_server.api_client.logging.getLogger"
         ):
             return CheckmkClient(config)
 

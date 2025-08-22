@@ -13,8 +13,8 @@ KEY DECISIONS:
 - Added comprehensive test coverage for the new behavior
 
 FILES CHANGED:
-- checkmk_agent/llm_client.py: Added SYNTAX_ERROR enum value, updated _fallback_parse methods in both OpenAI and Anthropic clients to return SYNTAX_ERROR instead of LIST for unrecognized commands
-- checkmk_agent/host_operations.py: Added SYNTAX_ERROR handling in _execute_operation, updated process_command error handling to return simple error messages without triggering operations
+- checkmk_mcp_server/llm_client.py: Added SYNTAX_ERROR enum value, updated _fallback_parse methods in both OpenAI and Anthropic clients to return SYNTAX_ERROR instead of LIST for unrecognized commands
+- checkmk_mcp_server/host_operations.py: Added SYNTAX_ERROR handling in _execute_operation, updated process_command error handling to return simple error messages without triggering operations
 - tests/test_host_operations.py: Updated existing error test and added new syntax error test to verify proper behavior
 - tasks/fix-interactive-mode-list-hosts-bug.md: Created comprehensive task documentation with problem analysis, solution plan, and implementation status
 

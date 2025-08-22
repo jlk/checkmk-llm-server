@@ -1,4 +1,4 @@
-# Checkmk LLM Agent
+# Checkmk MCP Server
 
 Connect AI assistants like Claude to your Checkmk monitoring infrastructure using natural language. This MCP (Model Context Protocol) server enables conversational monitoring operations through any MCP-compatible client.
 
@@ -41,8 +41,8 @@ Then in Claude Desktop or other MCP client:
 
 1. **Install**:
 ```bash
-git clone https://github.com/jlk/checkmk_agent
-cd checkmk_agent
+git clone https://github.com/jlk/checkmk_mcp_server
+cd checkmk_mcp_server
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt

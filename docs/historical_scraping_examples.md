@@ -1,6 +1,6 @@
 # Historical Data Scraping Usage Examples
 
-This document provides examples of using the historical data scraping functionality in the Checkmk LLM Agent. The scraper provides enhanced data parsing capabilities and dual data source support for historical metrics and events.
+This document provides examples of using the historical data scraping functionality in the Checkmk MCP Server. The scraper provides enhanced data parsing capabilities and dual data source support for historical metrics and events.
 
 ## Table of Contents
 
@@ -530,7 +530,7 @@ Found 3 significant memory events:
 
 ```bash
 # Start interactive mode
-python checkmk_agent_cli.py interactive
+python checkmk_mcp_server_cli.py interactive
 
 # Natural language commands
 >>> "Get CPU temperature history for server01 using scraper"
@@ -549,11 +549,11 @@ python checkmk_agent_cli.py interactive
 
 #### Scraper Import Errors
 ```
-Error: "No module named 'checkmk_agent.services.web_scraping'"
+Error: "No module named 'checkmk_mcp_server.services.web_scraping'"
 
 Solution:
 1. Ensure web scraping services are properly installed
-2. Check that the checkmk_agent package is complete
+2. Check that the checkmk_mcp_server package is complete
 3. Fall back to REST API: data_source="rest_api"
 ```
 

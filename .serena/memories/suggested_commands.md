@@ -26,7 +26,7 @@ pytest tests/ -m slow                    # Slow running tests
 pytest tests/ -m api                     # API interaction tests
 
 # Run tests with coverage
-pytest tests/ --cov=checkmk_agent --cov-report=html
+pytest tests/ --cov=checkmk_mcp_server --cov-report=html
 
 # Run specific test files
 pytest tests/test_api_client.py
@@ -40,16 +40,16 @@ pytest tests/ -n auto
 ## Code Quality Commands
 ```bash
 # Format code with Black
-black checkmk_agent/ tests/
+black checkmk_mcp_server/ tests/
 
 # Lint with flake8
-flake8 checkmk_agent/ tests/
+flake8 checkmk_mcp_server/ tests/
 
 # Type checking with mypy
-mypy checkmk_agent/
+mypy checkmk_mcp_server/
 
 # Run all quality checks together
-black checkmk_agent/ tests/ && flake8 checkmk_agent/ tests/ && mypy checkmk_agent/
+black checkmk_mcp_server/ tests/ && flake8 checkmk_mcp_server/ tests/ && mypy checkmk_mcp_server/
 ```
 
 ## Application Entry Points
@@ -71,9 +71,9 @@ python checkmk_cli_mcp.py hosts list
 python checkmk_cli_mcp.py status overview
 
 # Direct CLI (legacy)
-python -m checkmk_agent.cli interactive
-python -m checkmk_agent.cli hosts list
-python -m checkmk_agent.cli status overview
+python -m checkmk_mcp_server.cli interactive
+python -m checkmk_mcp_server.cli hosts list
+python -m checkmk_mcp_server.cli status overview
 
 # With specific configuration
 python checkmk_cli_mcp.py --config /path/to/config.yaml hosts list
@@ -123,5 +123,5 @@ cp config.yaml.example config.yaml
 cp examples/configs/development.yaml config.yaml
 
 # Validate configuration
-python -c "from checkmk_agent.config import load_config; print('Config valid:', load_config('config.yaml'))"
+python -c "from checkmk_mcp_server.config import load_config; print('Config valid:', load_config('config.yaml'))"
 ```

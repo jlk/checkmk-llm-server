@@ -1,10 +1,10 @@
 # Advanced Features Guide
 
-This document provides comprehensive guidance on the advanced features implemented in Phase 4 of the Checkmk LLM Agent project.
+This document provides comprehensive guidance on the advanced features implemented in Phase 4 of the Checkmk MCP Server project.
 
 ## Overview
 
-The Checkmk LLM Agent includes several advanced features designed for larger deployments:
+The Checkmk MCP Server includes several advanced features designed for larger deployments:
 
 - **Streaming Support** - Handle large datasets efficiently
 - **Caching Layer** - Improve performance with intelligent caching
@@ -21,7 +21,7 @@ Streaming support allows the system to handle large Checkmk environments (thousa
 
 #### StreamingMixin
 ```python
-from checkmk_agent.services.streaming import StreamingMixin
+from checkmk_mcp_server.services.streaming import StreamingMixin
 
 class MyService(StreamingMixin, BaseService):
     async def process_large_dataset(self):
@@ -81,7 +81,7 @@ The caching layer dramatically improves performance by storing frequently access
 
 #### LRUCache
 ```python
-from checkmk_agent.services.cache import LRUCache
+from checkmk_mcp_server.services.cache import LRUCache
 
 # Create cache with 1000 entries, 5-minute TTL
 cache = LRUCache(max_size=1000, default_ttl=300)
@@ -99,7 +99,7 @@ else:
 
 #### CachingService Mixin
 ```python
-from checkmk_agent.services.cache import CachingService
+from checkmk_mcp_server.services.cache import CachingService
 
 class HostService(CachingService, BaseService):
     @cached(ttl=300, key_prefix="hosts")
@@ -149,7 +149,7 @@ Batch operations allow efficient processing of multiple items with concurrency c
 
 #### BatchProcessor
 ```python
-from checkmk_agent.services.batch import BatchProcessor
+from checkmk_mcp_server.services.batch import BatchProcessor
 
 processor = BatchProcessor(
     max_concurrent=10,    # Process 10 items simultaneously
@@ -214,7 +214,7 @@ Advanced error recovery patterns ensure system resilience in the face of network
 
 #### Circuit Breaker
 ```python
-from checkmk_agent.services.recovery import CircuitBreaker
+from checkmk_mcp_server.services.recovery import CircuitBreaker
 
 # Protect against cascading failures
 breaker = CircuitBreaker(
@@ -228,7 +228,7 @@ async def protected_api_call():
 
 #### Retry Policy
 ```python
-from checkmk_agent.services.recovery import RetryPolicy
+from checkmk_mcp_server.services.recovery import RetryPolicy
 
 # Intelligent retry with backoff
 retry_policy = RetryPolicy(
@@ -246,7 +246,7 @@ result = await retry_policy.execute(
 
 #### @resilient Decorator
 ```python
-from checkmk_agent.services.recovery import RecoveryMixin
+from checkmk_mcp_server.services.recovery import RecoveryMixin
 
 class HostService(RecoveryMixin, BaseService):
     @resilient(
@@ -392,7 +392,7 @@ Specialized parameter handlers provide intelligent, context-aware parameter gene
 
 #### Handler Registry
 ```python
-from checkmk_agent.services.handlers import get_handler_registry
+from checkmk_mcp_server.services.handlers import get_handler_registry
 
 # Get the global handler registry
 registry = get_handler_registry()

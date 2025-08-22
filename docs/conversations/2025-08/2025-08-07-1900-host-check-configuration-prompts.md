@@ -31,7 +31,7 @@ KEY DECISIONS:
 
 FILES CHANGED:
 - README.md: Technical review for accuracy, removed marketing language, fixed tool count to 47, added limitations section
-- checkmk_agent/mcp_server/server.py: Added 3 new host check configuration prompts (adjust_host_check_attempts, adjust_host_retry_interval, adjust_host_check_timeout) with comprehensive implementation (~400 lines)
+- checkmk_mcp_server/mcp_server/server.py: Added 3 new host check configuration prompts (adjust_host_check_attempts, adjust_host_retry_interval, adjust_host_check_timeout) with comprehensive implementation (~400 lines)
 - docs/conversations/: New conversation file documenting this session
 - docs/project-history.md: Added new entry for today's session
 - docs/project-status.md: Updated to reflect new host check configuration capabilities

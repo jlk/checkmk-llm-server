@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The Checkmk LLM Agent has been successfully updated from Checkmk 2.0 API compatibility to full Checkmk 2.4 support. This major update includes critical API fixes, new monitoring capabilities, and comprehensive documentation.
+The Checkmk MCP Server has been successfully updated from Checkmk 2.0 API compatibility to full Checkmk 2.4 support. This major update includes critical API fixes, new monitoring capabilities, and comprehensive documentation.
 
 ## Completed Phases
 
@@ -109,6 +109,6 @@ Based on the exploration phase, these features could be valuable additions:
 
 ## Conclusion
 
-The Checkmk LLM Agent now fully supports Checkmk 2.4 with enhanced monitoring capabilities. The original request for service history access has been fulfilled through Event Console integration, along with significant additional functionality for metrics, business intelligence, and system monitoring.
+The Checkmk MCP Server now fully supports Checkmk 2.4 with enhanced monitoring capabilities. The original request for service history access has been fulfilled through Event Console integration, along with significant additional functionality for metrics, business intelligence, and system monitoring.
 
 The project is **production-ready** for Checkmk 2.4 environments.

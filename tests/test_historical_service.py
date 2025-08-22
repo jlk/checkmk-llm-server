@@ -5,15 +5,15 @@ from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
 from typing import List, Tuple, Union
 
-from checkmk_agent.services.historical_service import HistoricalDataService
-from checkmk_agent.services.models.historical import (
+from checkmk_mcp_server.services.historical_service import HistoricalDataService
+from checkmk_mcp_server.services.models.historical import (
     HistoricalDataPoint,
     HistoricalDataResult,
     HistoricalDataRequest,
     HistoricalDataServiceResult,
 )
-from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig, HistoricalDataConfig
-from checkmk_agent.async_api_client import AsyncCheckmkClient
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig, HistoricalDataConfig
+from checkmk_mcp_server.async_api_client import AsyncCheckmkClient
 
 
 @pytest.fixture
@@ -353,7 +353,7 @@ class TestHistoricalDataService:
         # Should have parse errors recorded
         assert len(result.metadata["parse_errors"]) >= 0  # Depends on implementation
 
-    @patch('checkmk_agent.services.web_scraping.scraper_service.ScraperService')
+    @patch('checkmk_mcp_server.services.web_scraping.scraper_service.ScraperService')
     @pytest.mark.asyncio
     async def test_get_historical_data_success(
         self, 
@@ -385,7 +385,7 @@ class TestHistoricalDataService:
             service="Temperature Zone 0"
         )
 
-    @patch('checkmk_agent.services.web_scraping.scraper_service.ScraperService')
+    @patch('checkmk_mcp_server.services.web_scraping.scraper_service.ScraperService')
     @pytest.mark.asyncio
     async def test_get_historical_data_import_error(
         self, 
@@ -406,7 +406,7 @@ class TestHistoricalDataService:
         assert "Scraper not available" in result.error
         assert result.metadata["error_type"] == "import_error"
 
-    @patch('checkmk_agent.services.web_scraping.scraper_service.ScraperService')
+    @patch('checkmk_mcp_server.services.web_scraping.scraper_service.ScraperService')
     @pytest.mark.asyncio
     async def test_get_historical_data_scraper_error(
         self, 

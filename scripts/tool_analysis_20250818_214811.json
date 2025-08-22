@@ -1,6 +1,6 @@
 {
   "analysis_timestamp": "2025-08-18T21:48:11.310512",
-  "source_file": "checkmk_agent/mcp_server/server.py",
+  "source_file": "checkmk_mcp_server/mcp_server/server.py",
   "source_stats": {
     "total_lines": 4450,
     "file_size_bytes": 189210

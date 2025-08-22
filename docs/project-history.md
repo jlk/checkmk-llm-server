@@ -1,10 +1,10 @@
 # Project History
 
-This document tracks the major development sessions and milestones for the Checkmk LLM Agent project.
+This document tracks the major development sessions and milestones for the Checkmk MCP Server project.
 
 ## Session: 2025-08-22 - Documentation Reorganization for Open Source Release
 
-**Focus**: Complete documentation reorganization to prepare Checkmk LLM Agent for public GitHub release with streamlined README and comprehensive documentation structure
+**Focus**: Complete documentation reorganization to prepare Checkmk MCP Server for public GitHub release with streamlined README and comprehensive documentation structure
 
 **Key Achievements**:
 - **README Transformation**: Streamlined from 719 to 144 lines with user-focused value proposition removing verbose technical details
@@ -50,7 +50,7 @@ This document tracks the major development sessions and milestones for the Check
 - **Professional Presentation**: GitHub-ready documentation structure for open source community
 - **Developer Experience**: Logical documentation flow with comprehensive guides and references
 
-**Status**: ✅ Complete - Checkmk LLM Agent documentation fully prepared for open source GitHub release
+**Status**: ✅ Complete - Checkmk MCP Server documentation fully prepared for open source GitHub release
 
 ## Session: 2025-08-21 - Checkmk Scraper Refactoring Phase 7 Completion
 
@@ -104,9 +104,9 @@ This document tracks the major development sessions and milestones for the Check
 
 **Files Modified**:
 - `checkmk_scraper.py` - **DELETED** (4,900-line monolith eliminated)
-- `checkmk_agent/services/web_scraping/*` - Complete modular architecture implemented
-- `checkmk_agent/services/historical_service.py` - Updated to use modular ScraperService
-- `checkmk_agent/mcp_server/tools/metrics/tools.py` - Enhanced with modular web scraping
+- `checkmk_mcp_server/services/web_scraping/*` - Complete modular architecture implemented
+- `checkmk_mcp_server/services/historical_service.py` - Updated to use modular ScraperService
+- `checkmk_mcp_server/mcp_server/tools/metrics/tools.py` - Enhanced with modular web scraping
 - Multiple documentation files - Updated to reflect complete architectural transformation
 - `README.md` - Added new historical CLI commands and natural language examples
 
@@ -150,11 +150,11 @@ This document tracks the major development sessions and milestones for the Check
 - **Branch Prepared**: Set up feature branch for safe development workflow
 
 **Files Modified**:
-- `checkmk_agent/mcp_server/server.py` - Major refactoring from 4,449 to 457 lines
-- `checkmk_agent/mcp_server/tools/*` - Created 8 modular tool categories with 37 tools
-- `checkmk_agent/mcp_server/container.py` - New service container with dependency injection
-- `checkmk_agent/mcp_server/handlers/*` - New protocol and registry handlers
-- `checkmk_agent/mcp_server/config/*` - New configuration and tool definitions system
+- `checkmk_mcp_server/mcp_server/server.py` - Major refactoring from 4,449 to 457 lines
+- `checkmk_mcp_server/mcp_server/tools/*` - Created 8 modular tool categories with 37 tools
+- `checkmk_mcp_server/mcp_server/container.py` - New service container with dependency injection
+- `checkmk_mcp_server/mcp_server/handlers/*` - New protocol and registry handlers
+- `checkmk_mcp_server/mcp_server/config/*` - New configuration and tool definitions system
 - `tests/test_mcp_*` - 200+ new comprehensive test files for all components
 - `specs/refactor-checkmk-scraper.md` - New comprehensive refactoring specification
 
@@ -200,8 +200,8 @@ This document tracks the major development sessions and milestones for the Check
 - Unused imports and variables cluttering the codebase
 
 **Files Modified**:
-- `checkmk_agent/api_client.py` - Fixed type annotations, async client implementation, data structure handling
-- `checkmk_agent/recovery.py` - Enhanced with proper Pydantic configuration and field validation
+- `checkmk_mcp_server/api_client.py` - Fixed type annotations, async client implementation, data structure handling
+- `checkmk_mcp_server/recovery.py` - Enhanced with proper Pydantic configuration and field validation
 - Multiple files - Code quality improvements with unused import cleanup and type safety enhancements
 
 **Verification**: Warning now correctly shows only when no rules are actually found, async API calls return complete responses, improved type safety
@@ -239,11 +239,11 @@ This document tracks the major development sessions and milestones for the Check
 - **Performance Benchmarks**: Confirmed minimal performance impact with efficient implementation
 
 **Files Modified**:
-- **New Infrastructure**: `checkmk_agent/utils/request_context.py`, `checkmk_agent/middleware/request_tracking.py`
-- **Enhanced Logging**: `checkmk_agent/logging_utils.py` - Added RequestIDFormatter and fixed configuration
+- **New Infrastructure**: `checkmk_mcp_server/utils/request_context.py`, `checkmk_mcp_server/middleware/request_tracking.py`
+- **Enhanced Logging**: `checkmk_mcp_server/logging_utils.py` - Added RequestIDFormatter and fixed configuration
 - **System Integration**: Updated MCP server, API clients, CLI interfaces, service layers, and interactive components
 - **Comprehensive Testing**: 4 new test files with unit, integration, and performance coverage
-- **Reorganization**: `checkmk_agent/common.py` - Renamed from utils.py for better package structure
+- **Reorganization**: `checkmk_mcp_server/common.py` - Renamed from utils.py for better package structure
 
 **Verification**: All components generate and propagate request IDs correctly, logs display proper format, extensive testing passes
 
@@ -279,7 +279,7 @@ This document tracks the major development sessions and milestones for the Check
 
 **Files Modified**:
 - `README.md` - Technical review for accuracy, removed marketing language, fixed tool count, added limitations
-- `checkmk_agent/mcp_server/server.py` - Added 3 comprehensive host check configuration prompts with ~400 lines of code
+- `checkmk_mcp_server/mcp_server/server.py` - Added 3 comprehensive host check configuration prompts with ~400 lines of code
 - `docs/conversations/2025-08/2025-08-07-1900-host-check-configuration-prompts.md` - Session documentation
 
 **Verification**: New prompts functional with comprehensive parameter validation, README accuracy improved, documentation grounded in actual capabilities
@@ -319,11 +319,11 @@ This document tracks the major development sessions and milestones for the Check
 - Context-based approach provides extensibility for future parameter control needs
 
 **Files Modified**:
-- `checkmk_agent/services/handlers/parameter_policies.py` - New Strategy Pattern implementation with filtering strategies
-- `checkmk_agent/services/handlers/base.py` - Added policy manager integration and helper methods
-- `checkmk_agent/services/handlers/temperature.py` - Refactored to use policy-based filtering, simplified suggestion logic
-- `checkmk_agent/services/parameter_service.py` - Updated interface to use context parameter, deprecated old filtering
-- `checkmk_agent/mcp_server/server.py` - Updated tool schema and handler for context-based approach
+- `checkmk_mcp_server/services/handlers/parameter_policies.py` - New Strategy Pattern implementation with filtering strategies
+- `checkmk_mcp_server/services/handlers/base.py` - Added policy manager integration and helper methods
+- `checkmk_mcp_server/services/handlers/temperature.py` - Refactored to use policy-based filtering, simplified suggestion logic
+- `checkmk_mcp_server/services/parameter_service.py` - Updated interface to use context parameter, deprecated old filtering
+- `checkmk_mcp_server/mcp_server/server.py` - Updated tool schema and handler for context-based approach
 
 **Verification**: All tests pass with Strategy Pattern implementation, temperature parameters properly filtered based on context
 
@@ -365,9 +365,9 @@ This document tracks the major development sessions and milestones for the Check
 - Resolved test failures through comprehensive debugging achieving 100% pass rate
 
 **Files Modified**:
-- `checkmk_agent/services/parameter_service.py` - Enhanced with handlers, validation, bulk operations
-- `checkmk_agent/mcp_server/server.py` - Added 12 new parameter management tools
-- `checkmk_agent/services/handlers/` - Created complete specialized handler system
+- `checkmk_mcp_server/services/parameter_service.py` - Enhanced with handlers, validation, bulk operations
+- `checkmk_mcp_server/mcp_server/server.py` - Added 12 new parameter management tools
+- `checkmk_mcp_server/services/handlers/` - Created complete specialized handler system
 - `tests/` - Added 5 comprehensive test modules with performance benchmarks
 - `docs/PARAMETER_MANAGEMENT_GUIDE.md` - Created 731-line comprehensive guide
 - `examples/parameter_management/` - Added practical implementation examples
@@ -406,7 +406,7 @@ This document tracks the major development sessions and milestones for the Check
 - Parameter optimization to reduce false positives
 
 **Files Modified**:
-- checkmk_agent/mcp_server/server.py: Major security and functionality enhancements
+- checkmk_mcp_server/mcp_server/server.py: Major security and functionality enhancements
 - docs/conversations/: Added detailed session documentation
 
 **Verification**: All tests passing, error sanitization working, prompts functional, no breaking changes
@@ -426,10 +426,10 @@ This document tracks the major development sessions and milestones for the Check
 - **Documentation Overhaul**: Updated README, CLAUDE.md, IMPLEMENTATION_SUMMARY for single server architecture
 
 **Technical Details**:
-- Deleted basic server files: `mcp_checkmk_server.py`, `checkmk_agent/mcp_server/server.py`
+- Deleted basic server files: `mcp_checkmk_server.py`, `checkmk_mcp_server/mcp_server/server.py`
 - Renamed enhanced server files to become the standard server implementation
 - Updated class names: `EnhancedCheckmkMCPServer` → `CheckmkMCPServer`
-- Updated server naming: `checkmk-agent-enhanced` → `checkmk-agent`
+- Updated server naming: `checkmk-mcp-server-enhanced` → `checkmk-mcp-server`
 - Consolidated test suite: single test verifying 28 tools (24 standard + 4 advanced)
 - Added conditional logging based on feature flags
 
@@ -441,11 +441,11 @@ This document tracks the major development sessions and milestones for the Check
 - Reduced codebase complexity and maintenance overhead
 
 **Files Modified**:
-- Renamed and updated: `mcp_checkmk_server.py`, `checkmk_agent/mcp_server/server.py`
-- Updated imports: `checkmk_agent/mcp_server/__init__.py`, `checkmk_agent/mcp_client.py`
+- Renamed and updated: `mcp_checkmk_server.py`, `checkmk_mcp_server/mcp_server/server.py`
+- Updated imports: `checkmk_mcp_server/mcp_server/__init__.py`, `checkmk_mcp_server/mcp_client.py`
 - Consolidated tests: `tests/test_mcp_server_tools.py`, `test_new_features.py`
 - Documentation: `README.md`, `CLAUDE.md`, `IMPLEMENTATION_SUMMARY.md`, `CHANGELOG.md`
-- **Deleted**: `mcp_checkmk_enhanced_server.py`, `checkmk_agent/mcp_server/enhanced_server.py`
+- **Deleted**: `mcp_checkmk_enhanced_server.py`, `checkmk_mcp_server/mcp_server/enhanced_server.py`
 
 **Verification**: All 28 tools confirmed available, imports working, tests passing, CLI functional
 
@@ -476,8 +476,8 @@ This document tracks the major development sessions and milestones for the Check
 - Inconsistent error handling between basic and enhanced servers
 
 **Files Modified**:
-- `checkmk_agent/mcp_server/enhanced_server.py` - Added comprehensive error handling and improved logging
-- `checkmk_agent/mcp_server/server.py` - Added identical error handling pattern for consistency
+- `checkmk_mcp_server/mcp_server/enhanced_server.py` - Added comprehensive error handling and improved logging
+- `checkmk_mcp_server/mcp_server/server.py` - Added identical error handling pattern for consistency
 - `tests/test_cli.py` - Removed due to failing outdated test expectations
 - `tests/test_command_parser_parameter_routing.py` - Removed due to parameter routing failures
 - `tests/test_service_parameters_integration.py` - Removed due to integration test failures
@@ -512,9 +512,9 @@ This document tracks the major development sessions and milestones for the Check
 - Missing user context about Event Console purpose and usage
 
 **Files Modified**:
-- `checkmk_agent/mcp_server/enhanced_server.py` - Fixed 11 function signatures and empty result handling
-- `checkmk_agent/services/event_service.py` - Fixed API call chain, removed unused imports
-- `checkmk_agent/api_client.py` - Added/removed debug logging during investigation
+- `checkmk_mcp_server/mcp_server/enhanced_server.py` - Fixed 11 function signatures and empty result handling
+- `checkmk_mcp_server/services/event_service.py` - Fixed API call chain, removed unused imports
+- `checkmk_mcp_server/api_client.py` - Added/removed debug logging during investigation
 
 **Verification**: Event Console tools now correctly return success with count=0 and helpful messages when no events exist
 

@@ -7,7 +7,7 @@ The system was incorrectly showing "No matching rules found - service may use de
 **Data Structure Mismatch**: The parameter service expected a `rule_count` field that wasn't being provided by the API client.
 
 ### Technical Details
-1. **Location**: `checkmk_agent/services/parameter_service.py:364-367`
+1. **Location**: `checkmk_mcp_server/services/parameter_service.py:364-367`
 2. **Problem**: Checking `effective_result.get("rule_count", 0) == 0` always returned true because the field didn't exist
 3. **Secondary Issue**: Async API client had incomplete implementation (just `pass`)
 
@@ -29,9 +29,9 @@ The system was incorrectly showing "No matching rules found - service may use de
 - Enhanced `recovery.py` with proper Pydantic configuration
 
 ## Files Modified
-- `checkmk_agent/api_client.py` - Added rule_count to response, type fixes
-- `checkmk_agent/async_api_client.py` - Added async wrapper decorator
-- `checkmk_agent/services/recovery.py` - Type and validation improvements
+- `checkmk_mcp_server/api_client.py` - Added rule_count to response, type fixes
+- `checkmk_mcp_server/async_api_client.py` - Added async wrapper decorator
+- `checkmk_mcp_server/services/recovery.py` - Type and validation improvements
 
 ## Testing Notes
 - All existing tests pass (21/21)

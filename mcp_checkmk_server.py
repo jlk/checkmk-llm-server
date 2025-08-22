@@ -25,14 +25,14 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from checkmk_agent.config import load_config
-from checkmk_agent.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import load_config
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
 
 
 def setup_logging(log_level: str = "INFO"):
     """Setup logging configuration with request ID support."""
     # Import the proper logging setup function
-    from checkmk_agent.logging_utils import setup_logging as proper_setup_logging
+    from checkmk_mcp_server.logging_utils import setup_logging as proper_setup_logging
     
     # Use the proper setup with request ID support but output to stderr for MCP
     proper_setup_logging(log_level, include_request_id=True)

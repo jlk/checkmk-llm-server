@@ -1,6 +1,6 @@
 # Migration Guide: Checkmk 2.0 to 2.4
 
-This guide helps migrate from older Checkmk versions (2.0/2.1/2.2/2.3) to Checkmk 2.4+, which is required for the Checkmk LLM Agent.
+This guide helps migrate from older Checkmk versions (2.0/2.1/2.2/2.3) to Checkmk 2.4+, which is required for the Checkmk MCP Server.
 
 ## Why Upgrade to Checkmk 2.4?
 
@@ -27,7 +27,7 @@ POST /domain-types/host/collections/all
 Body: {"query": {"op": "=", "left": "name", "right": "server01"}}
 ```
 
-**Impact**: The Checkmk LLM Agent automatically handles this conversion, so no changes needed on your part.
+**Impact**: The Checkmk MCP Server automatically handles this conversion, so no changes needed on your part.
 
 ### 2. Query Expression Format
 
@@ -97,7 +97,7 @@ curl -k -u "user:password" \
   https://your-server/check_mk/api/1.0/domain-types/metric/collections/all
 ```
 
-### Step 2: Update the Checkmk LLM Agent
+### Step 2: Update the Checkmk MCP Server
 
 1. **Backup current agent**:
 ```bash
@@ -121,8 +121,8 @@ pip install -r requirements.txt --upgrade
 1. **Test basic connectivity**:
 ```bash
 python -c "
-from checkmk_agent.config import load_config
-from checkmk_agent.api_client import CheckmkAPIClient
+from checkmk_mcp_server.config import load_config
+from checkmk_mcp_server.api_client import CheckmkAPIClient
 
 config = load_config('config.yaml')
 client = CheckmkAPIClient(config)
@@ -297,8 +297,8 @@ pip install -r requirements-legacy.txt
 
 ```bash
 # Test basic operations work
-python -m checkmk_agent.cli hosts list
-python -m checkmk_agent.cli status overview
+python -m checkmk_mcp_server.cli hosts list
+python -m checkmk_mcp_server.cli status overview
 ```
 
 ## Reporting Migration Issues
@@ -365,7 +365,7 @@ Update your internal documentation to reflect:
 - Business Intelligence monitoring procedures
 - Enhanced event investigation workflows
 
-The migration to Checkmk 2.4 unlocks significant new capabilities for your monitoring workflows. The Checkmk LLM Agent is designed to make the most of these new features while maintaining backward compatibility where possible.
+The migration to Checkmk 2.4 unlocks significant new capabilities for your monitoring workflows. The Checkmk MCP Server is designed to make the most of these new features while maintaining backward compatibility where possible.
 
 ## Related Documentation
 

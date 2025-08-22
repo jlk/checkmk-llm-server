@@ -4,7 +4,7 @@ import pytest
 import asyncio
 from unittest.mock import patch
 
-from checkmk_agent.utils.request_context import (
+from checkmk_mcp_server.utils.request_context import (
     generate_request_id,
     generate_sub_request_id,
     get_request_id,

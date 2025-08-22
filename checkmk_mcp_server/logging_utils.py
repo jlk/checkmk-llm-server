@@ -20,7 +20,7 @@ class RequestIDFormatter(logging.Formatter):
     specific requests.
 
     Format: timestamp [request_id] level logger_name: message
-    Example: 2025-08-07 14:30:15.123 [req_a1b2c3] INFO checkmk_agent.api_client: Fetching host list
+    Example: 2025-08-07 14:30:15.123 [req_a1b2c3] INFO checkmk_mcp_server.api_client: Fetching host list
     """
 
     def __init__(self, fmt: Optional[str] = None, datefmt: Optional[str] = None):

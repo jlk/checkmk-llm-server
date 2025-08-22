@@ -1,4 +1,4 @@
-# System Architecture - Checkmk LLM Agent
+# System Architecture - Checkmk MCP Server
 
 ## High-Level Architecture
 
@@ -39,7 +39,7 @@
 
 ## Core Components
 
-### 1. API Client Layer (`checkmk_agent/api_client.py`)
+### 1. API Client Layer (`checkmk_mcp_server/api_client.py`)
 
 **Purpose**: Low-level communication with Checkmk REST API
 
@@ -55,7 +55,7 @@
 - Rate limiting
 - Connection pooling
 
-### 2. Service Layer (`checkmk_agent/services/`)
+### 2. Service Layer (`checkmk_mcp_server/services/`)
 
 **Purpose**: Business logic and domain-specific operations
 
@@ -78,7 +78,7 @@ class BaseService:
 - `BatchService`: Bulk operations
 - `StreamingService`: Large dataset handling
 
-### 3. Parameter Handlers (`checkmk_agent/services/handlers/`)
+### 3. Parameter Handlers (`checkmk_mcp_server/services/handlers/`)
 
 **Purpose**: Domain-specific parameter intelligence
 
@@ -99,7 +99,7 @@ HANDLER_REGISTRY = {
 - `optimize_parameters()`: Suggest improvements
 - `get_parameter_hints()`: User guidance
 
-### 4. MCP Server (`checkmk_agent/mcp_server/server.py`)
+### 4. MCP Server (`checkmk_mcp_server/mcp_server/server.py`)
 
 **Purpose**: Model Context Protocol integration for AI assistants
 
@@ -165,13 +165,13 @@ async def call_tool(name: str, arguments: dict):
    - adjust_host_retry_interval
    - adjust_host_check_timeout
 
-### 5. CLI Interface (`checkmk_agent/cli.py`)
+### 5. CLI Interface (`checkmk_mcp_server/cli.py`)
 
 **Purpose**: Command-line interface for direct interaction
 
 **Command Structure**:
 ```
-checkmk-agent
+checkmk-mcp-server
 ├── hosts
 │   ├── list
 │   ├── create
@@ -193,7 +193,7 @@ checkmk-agent
 └── interactive (natural language mode)
 ```
 
-### 6. Request ID Tracing (`checkmk_agent/context_vars.py`)
+### 6. Request ID Tracing (`checkmk_mcp_server/context_vars.py`)
 
 **Purpose**: End-to-end request tracking for debugging
 
@@ -220,7 +220,7 @@ class RequestContext:
         request_id_var.reset(self.token)
 ```
 
-### 7. Logging System (`checkmk_agent/logging_utils.py`)
+### 7. Logging System (`checkmk_mcp_server/logging_utils.py`)
 
 **Purpose**: Structured logging with request correlation
 
@@ -445,14 +445,14 @@ CMD ["python", "mcp_checkmk_server.py"]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: checkmk-llm-agent
+  name: checkmk-mcp-server
 spec:
   replicas: 3
   template:
     spec:
       containers:
       - name: agent
-        image: checkmk-llm-agent:latest
+        image: checkmk-mcp-server:latest
         env:
         - name: CHECKMK_URL
           valueFrom:

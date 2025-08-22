@@ -15,21 +15,21 @@ class TestBackwardCompatibility:
     
     def test_main_server_import_still_works(self):
         """Test that the main server class import still works."""
-        from checkmk_agent.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
         
         assert CheckmkMCPServer is not None
         assert hasattr(CheckmkMCPServer, '__init__')
         
     def test_direct_server_import_still_works(self):
         """Test that direct server module import still works.""" 
-        from checkmk_agent.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
         
         assert CheckmkMCPServer is not None
         
     def test_utilities_backward_compatibility_import(self):
         """Test that utilities can still be imported from main package."""
         # These imports should work for backward compatibility
-        from checkmk_agent.mcp_server import (
+        from checkmk_mcp_server.mcp_server import (
             MCPJSONEncoder,
             safe_json_dumps,
             sanitize_error
@@ -49,7 +49,7 @@ class TestBackwardCompatibility:
         
     def test_utilities_preferred_import_path(self):
         """Test that utilities can be imported from utils package."""
-        from checkmk_agent.mcp_server.utils import (
+        from checkmk_mcp_server.mcp_server.utils import (
             MCPJSONEncoder,
             safe_json_dumps,
             sanitize_error
@@ -61,7 +61,7 @@ class TestBackwardCompatibility:
         
     def test_configuration_import_from_main_package(self):
         """Test that configuration can be imported from main package."""
-        from checkmk_agent.mcp_server import (
+        from checkmk_mcp_server.mcp_server import (
             ALL_TOOL_SCHEMAS,
             TOOL_CATEGORIES,
             validate_tool_definitions
@@ -75,7 +75,7 @@ class TestBackwardCompatibility:
         
     def test_configuration_preferred_import_path(self):
         """Test that configuration can be imported from config package."""
-        from checkmk_agent.mcp_server.config import (
+        from checkmk_mcp_server.mcp_server.config import (
             ALL_TOOL_SCHEMAS,
             TOOL_CATEGORIES,
             validate_tool_definitions
@@ -87,18 +87,18 @@ class TestBackwardCompatibility:
     def test_same_objects_across_import_paths(self):
         """Test that the same objects are returned regardless of import path."""
         # Import from main package
-        from checkmk_agent.mcp_server import (
+        from checkmk_mcp_server.mcp_server import (
             MCPJSONEncoder as MainEncoder,
             safe_json_dumps as main_dumps,
             ALL_TOOL_SCHEMAS as main_schemas
         )
         
         # Import from specific packages
-        from checkmk_agent.mcp_server.utils import (
+        from checkmk_mcp_server.mcp_server.utils import (
             MCPJSONEncoder as UtilsEncoder,
             safe_json_dumps as utils_dumps
         )
-        from checkmk_agent.mcp_server.config import (
+        from checkmk_mcp_server.mcp_server.config import (
             ALL_TOOL_SCHEMAS as config_schemas
         )
         
@@ -110,7 +110,7 @@ class TestBackwardCompatibility:
     def test_entry_point_still_works(self):
         """Test that the entry point import pattern still works."""
         # This is the pattern used in mcp_checkmk_server.py
-        from checkmk_agent.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
         
         # Should be able to instantiate (though we won't fully initialize)
         assert CheckmkMCPServer is not None
@@ -118,7 +118,7 @@ class TestBackwardCompatibility:
         
     def test_all_exports_are_available(self):
         """Test that all exported items are available from main package."""
-        import checkmk_agent.mcp_server as mcp
+        import checkmk_mcp_server.mcp_server as mcp
         
         expected_exports = [
             "CheckmkMCPServer",
@@ -140,7 +140,7 @@ class TestExtractedUtilityFunctionality:
     
     def test_json_encoder_maintains_functionality(self):
         """Test that MCPJSONEncoder works the same after extraction."""
-        from checkmk_agent.mcp_server import MCPJSONEncoder
+        from checkmk_mcp_server.mcp_server import MCPJSONEncoder
         
         encoder = MCPJSONEncoder()
         
@@ -150,7 +150,7 @@ class TestExtractedUtilityFunctionality:
         
     def test_safe_json_dumps_maintains_functionality(self):
         """Test that safe_json_dumps works the same after extraction."""
-        from checkmk_agent.mcp_server import safe_json_dumps
+        from checkmk_mcp_server.mcp_server import safe_json_dumps
         import json
         
         data = {
@@ -168,7 +168,7 @@ class TestExtractedUtilityFunctionality:
         
     def test_sanitize_error_maintains_functionality(self):
         """Test that sanitize_error works the same after extraction."""
-        from checkmk_agent.mcp_server import sanitize_error
+        from checkmk_mcp_server.mcp_server import sanitize_error
         
         # Test basic functionality
         error = RuntimeError("Simple error message")
@@ -187,7 +187,7 @@ class TestConfigurationFunctionality:
     
     def test_tool_schemas_are_valid(self):
         """Test that tool schemas are valid and complete."""
-        from checkmk_agent.mcp_server import ALL_TOOL_SCHEMAS, validate_tool_definitions
+        from checkmk_mcp_server.mcp_server import ALL_TOOL_SCHEMAS, validate_tool_definitions
         
         assert len(ALL_TOOL_SCHEMAS) >= 7  # At least sample tools from each category
         assert validate_tool_definitions() is True
@@ -203,7 +203,7 @@ class TestConfigurationFunctionality:
             
     def test_tool_categories_are_complete(self):
         """Test that tool categories are properly organized."""
-        from checkmk_agent.mcp_server import TOOL_CATEGORIES
+        from checkmk_mcp_server.mcp_server import TOOL_CATEGORIES
         
         expected_categories = [
             "host_tools",
@@ -227,11 +227,11 @@ class TestDirectoryStructure:
     def test_all_new_packages_are_importable(self):
         """Test that all new packages can be imported."""
         packages = [
-            "checkmk_agent.mcp_server.tools",
-            "checkmk_agent.mcp_server.handlers", 
-            "checkmk_agent.mcp_server.utils",
-            "checkmk_agent.mcp_server.validation",
-            "checkmk_agent.mcp_server.config"
+            "checkmk_mcp_server.mcp_server.tools",
+            "checkmk_mcp_server.mcp_server.handlers", 
+            "checkmk_mcp_server.mcp_server.utils",
+            "checkmk_mcp_server.mcp_server.validation",
+            "checkmk_mcp_server.mcp_server.config"
         ]
         
         for package in packages:
@@ -242,7 +242,7 @@ class TestDirectoryStructure:
                 
     def test_utils_package_exports(self):
         """Test that utils package exports are correct."""
-        import checkmk_agent.mcp_server.utils as utils
+        import checkmk_mcp_server.mcp_server.utils as utils
         
         expected_exports = ["MCPJSONEncoder", "safe_json_dumps", "sanitize_error"]
         
@@ -252,7 +252,7 @@ class TestDirectoryStructure:
             
     def test_config_package_exports(self):
         """Test that config package exports are correct.""" 
-        import checkmk_agent.mcp_server.config as config
+        import checkmk_mcp_server.mcp_server.config as config
         
         expected_exports = [
             "ALL_TOOL_SCHEMAS",

@@ -13,11 +13,11 @@ KEY DECISIONS:
 - Implemented proper separation of concerns between policy logic and handler logic
 
 FILES CHANGED:
-- checkmk_agent/services/handlers/parameter_policies.py: New Strategy Pattern implementation with TrendingParameterFilter and ParameterPolicyManager
-- checkmk_agent/services/handlers/base.py: Added policy management integration and apply_parameter_policies() method
-- checkmk_agent/services/handlers/temperature.py: Refactored to use policy-based filtering, removed complex boolean logic
-- checkmk_agent/services/parameter_service.py: Simplified interface, replaced include_trending with context parameter, deprecated old filtering method
-- checkmk_agent/mcp_server/server.py: Updated tool schema to use context-based approach instead of boolean flags
+- checkmk_mcp_server/services/handlers/parameter_policies.py: New Strategy Pattern implementation with TrendingParameterFilter and ParameterPolicyManager
+- checkmk_mcp_server/services/handlers/base.py: Added policy management integration and apply_parameter_policies() method
+- checkmk_mcp_server/services/handlers/temperature.py: Refactored to use policy-based filtering, removed complex boolean logic
+- checkmk_mcp_server/services/parameter_service.py: Simplified interface, replaced include_trending with context parameter, deprecated old filtering method
+- checkmk_mcp_server/mcp_server/server.py: Updated tool schema to use context-based approach instead of boolean flags
 
 ARCHITECTURAL IMPROVEMENTS:
 - Strategy Pattern for extensible parameter filtering

@@ -7,13 +7,13 @@
 
 ## Executive Summary
 
-This specification outlines the addition of comprehensive service modification functionality to the Checkmk LLM Agent, enabling users to view default service rules, modify service parameters, and override default settings for specific hosts and services. The implementation focuses on providing intuitive natural language interfaces for managing service check parameters such as warning/critical thresholds for CPU, memory, disk, and network services.
+This specification outlines the addition of comprehensive service modification functionality to the Checkmk MCP Server, enabling users to view default service rules, modify service parameters, and override default settings for specific hosts and services. The implementation focuses on providing intuitive natural language interfaces for managing service check parameters such as warning/critical thresholds for CPU, memory, disk, and network services.
 
 ## 1. Overview and Objectives
 
 ### 1.1 Current State Analysis
 
-The Checkmk LLM Agent currently provides:
+The Checkmk MCP Server currently provides:
 - ✅ Service listing, status monitoring, and statistics
 - ✅ Service acknowledgment and downtime management
 - ✅ Service discovery functionality
@@ -172,7 +172,7 @@ Target specific services across multiple hosts:
 ### 3.1 New Component Architecture
 
 ```
-checkmk_agent/
+checkmk_mcp_server/
 ├── service_parameters.py      # NEW: Service parameter management
 ├── rule_operations.py         # ENHANCED: Extended rule operations
 ├── api_client.py             # ENHANCED: Add ruleset discovery methods
@@ -303,21 +303,21 @@ Return JSON with:
 **Service Parameters Command Group:**
 ```bash
 # View default parameters
-checkmk-agent service-params defaults [service_type]
-checkmk-agent service-params show <host> <service>
+checkmk-mcp-server service-params defaults [service_type]
+checkmk-mcp-server service-params show <host> <service>
 
 # Modify parameters
-checkmk-agent service-params set <host> <service> --warning 85 --critical 95
-checkmk-agent service-params override <host> <service> --parameters '{"levels": (85.0, 95.0)}'
+checkmk-mcp-server service-params set <host> <service> --warning 85 --critical 95
+checkmk-mcp-server service-params override <host> <service> --parameters '{"levels": (85.0, 95.0)}'
 
 # Rule management
-checkmk-agent service-params rules list [--ruleset RULESET]
-checkmk-agent service-params rules create --ruleset filesystem --host server01 --warning 80
-checkmk-agent service-params rules delete <rule_id>
+checkmk-mcp-server service-params rules list [--ruleset RULESET]
+checkmk-mcp-server service-params rules create --ruleset filesystem --host server01 --warning 80
+checkmk-mcp-server service-params rules delete <rule_id>
 
 # Discovery
-checkmk-agent service-params discover-rulesets
-checkmk-agent service-params templates [service_type]
+checkmk-mcp-server service-params discover-rulesets
+checkmk-mcp-server service-params templates [service_type]
 ```
 
 #### 3.4.2 Interactive Mode Extensions
@@ -444,7 +444,7 @@ class ServiceParameterTemplate(BaseModel):
 1. **Find the Service and Ruleset:**
    ```bash
    # CLI approach
-   checkmk-agent service-params discover server01 "CPU utilization"
+   checkmk-mcp-server service-params discover server01 "CPU utilization"
    
    # Interactive approach
    > "what ruleset controls CPU utilization on server01?"
@@ -456,7 +456,7 @@ class ServiceParameterTemplate(BaseModel):
 2. **Create Host-Specific Rule:**
    ```bash
    # CLI approach
-   checkmk-agent service-params override server01 "CPU utilization" --warning 85 --critical 95
+   checkmk-mcp-server service-params override server01 "CPU utilization" --warning 85 --critical 95
    
    # Interactive approach  
    > "override CPU warning to 85% for server01"
@@ -469,7 +469,7 @@ class ServiceParameterTemplate(BaseModel):
 3. **Verify the Override:**
    ```bash
    # CLI approach
-   checkmk-agent service-params show server01 "CPU utilization"
+   checkmk-mcp-server service-params show server01 "CPU utilization"
    
    # Interactive approach
    > "show CPU parameters for server01"
@@ -482,7 +482,7 @@ class ServiceParameterTemplate(BaseModel):
 4. **Activate Changes:**
    ```bash
    # CLI approach (if auto-activation disabled)
-   checkmk-agent activate-changes
+   checkmk-mcp-server activate-changes
    
    # Interactive approach
    > "activate changes"
@@ -494,7 +494,7 @@ class ServiceParameterTemplate(BaseModel):
 **Alternative: Bulk Override for Multiple Services:**
 ```bash
 # Override multiple filesystem thresholds for a host
-checkmk-agent service-params bulk-override server01 \
+checkmk-mcp-server service-params bulk-override server01 \
   --ruleset filesystems \
   --service-pattern "Filesystem.*" \
   --warning 85 --critical 95 \
@@ -514,7 +514,7 @@ checkmk-agent service-params bulk-override server01 \
 
 ```bash
 # CLI approach
-checkmk-agent service-params set server01 "CPU utilization" --warning 85 --critical 95
+checkmk-mcp-server service-params set server01 "CPU utilization" --warning 85 --critical 95
 
 # Interactive approach
 > "set CPU warning to 85% and critical to 95% for server01"
@@ -550,7 +550,7 @@ checkmk-agent service-params set server01 "CPU utilization" --warning 85 --criti
 
 ```bash
 # CLI approach
-checkmk-agent service-params show server01 "Filesystem /"
+checkmk-mcp-server service-params show server01 "Filesystem /"
 
 # Interactive approach  
 > "what are the disk space parameters for filesystem / on server01?"
@@ -580,7 +580,7 @@ checkmk-agent service-params show server01 "Filesystem /"
 
 ```bash
 # CLI approach
-checkmk-agent service-params rules create \
+checkmk-mcp-server service-params rules create \
   --ruleset filesystems \
   --host-tag "application:database" \
   --warning 90 \
@@ -729,7 +729,7 @@ service_parameters:
 
 ## 12. Conclusion
 
-This specification provides a comprehensive roadmap for adding service modification functionality to the Checkmk LLM Agent. The implementation leverages Checkmk's existing rule-based system while providing intuitive natural language and CLI interfaces for managing service parameters.
+This specification provides a comprehensive roadmap for adding service modification functionality to the Checkmk MCP Server. The implementation leverages Checkmk's existing rule-based system while providing intuitive natural language and CLI interfaces for managing service parameters.
 
 The phased approach ensures systematic development with clear milestones and acceptance criteria. The focus on rule-based configuration aligns with Checkmk's architecture while the natural language interface maintains the agent's core value proposition of making complex monitoring operations accessible through conversational commands.
 

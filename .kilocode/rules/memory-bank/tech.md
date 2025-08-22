@@ -1,4 +1,4 @@
-# Technology Stack - Checkmk LLM Agent
+# Technology Stack - Checkmk MCP Server
 
 ## Core Technologies
 
@@ -167,7 +167,7 @@ checkmk_llm_agent/
 ├── Dockerfile              # Container definition
 ├── docker-compose.yml      # Local development stack
 │
-├── checkmk_agent/          # Main package
+├── checkmk_mcp_server/          # Main package
 │   ├── __init__.py
 │   ├── __main__.py        # Entry point
 │   ├── api_client.py      # API communication
@@ -210,7 +210,7 @@ checkmk_llm_agent/
 ### Local Development
 ```bash
 # Run in development mode
-python -m checkmk_agent
+python -m checkmk_mcp_server
 
 # Run MCP server
 python mcp_checkmk_server.py
@@ -219,14 +219,14 @@ python mcp_checkmk_server.py
 pytest
 
 # Run with coverage
-pytest --cov=checkmk_agent --cov-report=html
+pytest --cov=checkmk_mcp_server --cov-report=html
 
 # Format code
-black checkmk_agent tests
-isort checkmk_agent tests
+black checkmk_mcp_server tests
+isort checkmk_mcp_server tests
 
 # Type checking
-mypy checkmk_agent
+mypy checkmk_mcp_server
 ```
 
 #### Claude Desktop Integration
@@ -352,7 +352,7 @@ jobs:
     - run: pip install -r requirements-dev.txt
     - run: pytest --cov
     - run: black --check .
-    - run: mypy checkmk_agent
+    - run: mypy checkmk_mcp_server
 ```
 
 ## Troubleshooting

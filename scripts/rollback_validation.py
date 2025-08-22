@@ -34,10 +34,10 @@ def test_import_compatibility() -> Tuple[bool, str]:
     
     try:
         # Test core imports that should continue to work
-        from checkmk_agent.mcp_server import CheckmkMCPServer
-        from checkmk_agent.mcp_server.server import CheckmkMCPServer as ServerCheckmkMCPServer
-        from checkmk_agent.config import AppConfig
-        from checkmk_agent.api_client import CheckmkClient
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.mcp_server.server import CheckmkMCPServer as ServerCheckmkMCPServer
+        from checkmk_mcp_server.config import AppConfig
+        from checkmk_mcp_server.api_client import CheckmkClient
         
         # Verify they're the same class
         if CheckmkMCPServer != ServerCheckmkMCPServer:
@@ -57,8 +57,8 @@ def test_mcp_server_instantiation() -> Tuple[bool, str]:
     start_time = time.time()
     
     try:
-        from checkmk_agent.mcp_server import CheckmkMCPServer
-        from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig
         
         # Create minimal config with proper structure
         config = AppConfig(
@@ -92,8 +92,8 @@ def test_tool_registration() -> Tuple[bool, str]:
     start_time = time.time()
     
     try:
-        from checkmk_agent.mcp_server import CheckmkMCPServer
-        from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig
         
         config = AppConfig(
             checkmk=CheckmkConfig(
@@ -134,8 +134,8 @@ def test_resource_handlers() -> Tuple[bool, str]:
     start_time = time.time()
     
     try:
-        from checkmk_agent.mcp_server import CheckmkMCPServer
-        from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig
         
         config = AppConfig(
             checkmk=CheckmkConfig(
@@ -169,9 +169,9 @@ def test_service_layer_integration() -> Tuple[bool, str]:
     start_time = time.time()
     
     try:
-        from checkmk_agent.mcp_server import CheckmkMCPServer
-        from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig
-        from checkmk_agent.services import HostService, StatusService
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig
+        from checkmk_mcp_server.services import HostService, StatusService
         
         config = AppConfig(
             checkmk=CheckmkConfig(
@@ -206,7 +206,7 @@ def test_error_handling() -> Tuple[bool, str]:
     start_time = time.time()
     
     try:
-        from checkmk_agent.mcp_server.server import sanitize_error, MCPJSONEncoder
+        from checkmk_mcp_server.mcp_server.server import sanitize_error, MCPJSONEncoder
         
         # Test error sanitization
         test_error = Exception("/secret/path/error.txt: Permission denied")

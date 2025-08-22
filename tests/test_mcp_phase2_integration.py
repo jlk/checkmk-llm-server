@@ -8,9 +8,9 @@ from mcp.types import Tool, Resource, Prompt
 from mcp.server import Server
 from pydantic import AnyUrl
 
-from checkmk_agent.mcp_server.handlers.registry import ToolRegistry
-from checkmk_agent.mcp_server.handlers.protocol import ProtocolHandlers
-from checkmk_agent.mcp_server.config.registry import RegistryConfig
+from checkmk_mcp_server.mcp_server.handlers.registry import ToolRegistry
+from checkmk_mcp_server.mcp_server.handlers.protocol import ProtocolHandlers
+from checkmk_mcp_server.mcp_server.config.registry import RegistryConfig
 
 
 class TestPhase2Integration:
@@ -289,9 +289,9 @@ class TestPhase2Integration:
         """Test that Phase 2 components maintain backward compatibility."""
         # Test imports work as expected
         try:
-            from checkmk_agent.mcp_server.handlers.registry import ToolRegistry
-            from checkmk_agent.mcp_server.handlers.protocol import ProtocolHandlers
-            from checkmk_agent.mcp_server.config.registry import RegistryConfig
+            from checkmk_mcp_server.mcp_server.handlers.registry import ToolRegistry
+            from checkmk_mcp_server.mcp_server.handlers.protocol import ProtocolHandlers
+            from checkmk_mcp_server.mcp_server.config.registry import RegistryConfig
             
             # Verify classes can be instantiated
             registry = ToolRegistry()

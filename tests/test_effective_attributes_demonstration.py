@@ -9,11 +9,11 @@ import asyncio
 import requests_mock
 from unittest.mock import AsyncMock
 
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.async_api_client import AsyncCheckmkClient
-from checkmk_agent.services.host_service import HostService
-from checkmk_agent.host_operations import HostOperationsManager
-from checkmk_agent.config import CheckmkConfig, LLMConfig, AppConfig
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.async_api_client import AsyncCheckmkClient
+from checkmk_mcp_server.services.host_service import HostService
+from checkmk_mcp_server.host_operations import HostOperationsManager
+from checkmk_mcp_server.config import CheckmkConfig, LLMConfig, AppConfig
 
 
 @pytest.fixture

@@ -9,9 +9,9 @@ from unittest.mock import Mock, patch, AsyncMock
 import asyncio
 from datetime import datetime
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.config import AppConfig, CheckmkConfig
-from checkmk_agent.services.historical_service import HistoricalDataService
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig
+from checkmk_mcp_server.services.historical_service import HistoricalDataService
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ class TestHistoricalErrorScenarios:
     async def test_authentication_failure(self, mock_config):
         """Test handling of authentication failures."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises authentication error
@@ -60,11 +60,11 @@ class TestHistoricalErrorScenarios:
         auth_error = Exception("401 Unauthorized: Invalid credentials")
         mock_scraper.scrape_historical_data.side_effect = auth_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             # Test direct service call
             historical_service = server.historical_service
             
-            from checkmk_agent.services.models.historical import HistoricalDataRequest
+            from checkmk_mcp_server.services.models.historical import HistoricalDataRequest
             request = HistoricalDataRequest(
                 host_name="test-host",
                 service_name="CPU load",
@@ -82,7 +82,7 @@ class TestHistoricalErrorScenarios:
     async def test_network_timeout_error(self, mock_config):
         """Test handling of network timeout errors."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises timeout error
@@ -90,7 +90,7 @@ class TestHistoricalErrorScenarios:
         timeout_error = asyncio.TimeoutError("Request timeout after 30 seconds")
         mock_scraper.scrape_historical_data.side_effect = timeout_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -110,7 +110,7 @@ class TestHistoricalErrorScenarios:
     async def test_connection_refused_error(self, mock_config):
         """Test handling of connection refused errors."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises connection error
@@ -118,7 +118,7 @@ class TestHistoricalErrorScenarios:
         connection_error = ConnectionRefusedError("Connection refused to test.checkmk.com:80")
         mock_scraper.scrape_historical_data.side_effect = connection_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             list_service_events = tool_handlers["list_service_events"]
             
@@ -137,7 +137,7 @@ class TestHistoricalErrorScenarios:
     async def test_ssl_certificate_error(self, mock_config):
         """Test handling of SSL certificate verification errors."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises SSL error
@@ -146,7 +146,7 @@ class TestHistoricalErrorScenarios:
         ssl_error = ssl.SSLCertVerificationError("certificate verify failed: self signed certificate")
         mock_scraper.scrape_historical_data.side_effect = ssl_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -165,11 +165,11 @@ class TestHistoricalErrorScenarios:
     async def test_scraper_import_failure(self, mock_config):
         """Test handling when scraper module cannot be imported."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock import failure
-        with patch('checkmk_agent.services.web_scraping.ScraperService', side_effect=ImportError("No module named 'web_scraping'")):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', side_effect=ImportError("No module named 'web_scraping'")):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -189,11 +189,11 @@ class TestHistoricalErrorScenarios:
     async def test_scraper_initialization_failure(self, mock_config):
         """Test handling when scraper initialization fails."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper class that fails during initialization
-        with patch('checkmk_agent.services.web_scraping.ScraperService', side_effect=ValueError("Invalid configuration")):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', side_effect=ValueError("Invalid configuration")):
             historical_service = server.historical_service
             
             # Test direct service method
@@ -204,7 +204,7 @@ class TestHistoricalErrorScenarios:
     async def test_malformed_server_response(self, mock_config):
         """Test handling of malformed responses from Checkmk server."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that returns malformed data
@@ -212,7 +212,7 @@ class TestHistoricalErrorScenarios:
         malformed_response = "HTTP/1.1 500 Internal Server Error\nContent-Type: text/html\n\n<html><body>Server Error</body></html>"
         mock_scraper.scrape_historical_data.side_effect = ValueError(f"Failed to parse response: {malformed_response}")
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -231,7 +231,7 @@ class TestHistoricalErrorScenarios:
     async def test_host_not_found_error(self, mock_config):
         """Test handling when requested host is not found."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises host not found error
@@ -239,7 +239,7 @@ class TestHistoricalErrorScenarios:
         host_error = Exception("404 Not Found: Host 'nonexistent-host' not found")
         mock_scraper.scrape_historical_data.side_effect = host_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             list_service_events = tool_handlers["list_service_events"]
             
@@ -257,7 +257,7 @@ class TestHistoricalErrorScenarios:
     async def test_service_not_found_error(self, mock_config):
         """Test handling when requested service is not found."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises service not found error
@@ -265,7 +265,7 @@ class TestHistoricalErrorScenarios:
         service_error = Exception("404 Not Found: Service 'nonexistent-service' not found on host 'test-host'")
         mock_scraper.scrape_historical_data.side_effect = service_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -284,7 +284,7 @@ class TestHistoricalErrorScenarios:
     async def test_insufficient_permissions_error(self, mock_config):
         """Test handling of insufficient permissions errors."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises permission error
@@ -292,7 +292,7 @@ class TestHistoricalErrorScenarios:
         permission_error = PermissionError("403 Forbidden: Insufficient permissions to access historical data")
         mock_scraper.scrape_historical_data.side_effect = permission_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -311,14 +311,14 @@ class TestHistoricalErrorScenarios:
     async def test_scraping_error_with_custom_exception(self, mock_config):
         """Test handling of custom ScrapingError exceptions."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises custom ScrapingError
         mock_scraper = Mock()
         
         # Create a mock ScrapingError class and instance
-        with patch('checkmk_agent.services.web_scraping.ScrapingError') as mock_scraping_error_class:
+        with patch('checkmk_mcp_server.services.web_scraping.ScrapingError') as mock_scraping_error_class:
             scraping_error = Exception("Authentication failed: Invalid API key")
             scraping_error.__class__ = mock_scraping_error_class
             mock_scraper.scrape_historical_data.side_effect = scraping_error
@@ -330,7 +330,7 @@ class TestHistoricalErrorScenarios:
                 return isinstance(obj, cls)
             
             with patch('builtins.isinstance', side_effect=mock_isinstance):
-                with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+                with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
                     tool_handlers = server._tool_handlers
                     get_metric_history = tool_handlers["get_metric_history"]
                     
@@ -350,7 +350,7 @@ class TestHistoricalErrorScenarios:
     async def test_data_parsing_error(self, mock_config):
         """Test handling of data parsing errors in the historical service."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that returns data that causes parsing errors
@@ -363,7 +363,7 @@ class TestHistoricalErrorScenarios:
         ]
         mock_scraper.scrape_historical_data.return_value = problematic_data
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -383,7 +383,7 @@ class TestHistoricalErrorScenarios:
     async def test_memory_error_during_scraping(self, mock_config):
         """Test handling of memory errors during large data scraping."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises memory error
@@ -391,7 +391,7 @@ class TestHistoricalErrorScenarios:
         memory_error = MemoryError("Unable to allocate memory for large dataset")
         mock_scraper.scrape_historical_data.side_effect = memory_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -415,7 +415,7 @@ class TestHistoricalErrorScenarios:
         mock_config.checkmk.username = None
         
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises configuration error
@@ -423,7 +423,7 @@ class TestHistoricalErrorScenarios:
         config_error = ValueError("Invalid server URL: 'invalid-url' is not a valid URL")
         mock_scraper.scrape_historical_data.side_effect = config_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -442,7 +442,7 @@ class TestHistoricalErrorScenarios:
     async def test_concurrent_access_error(self, mock_config):
         """Test handling of concurrent access issues."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that occasionally fails due to concurrent access
@@ -450,7 +450,7 @@ class TestHistoricalErrorScenarios:
         concurrent_error = Exception("429 Too Many Requests: Rate limit exceeded")
         mock_scraper.scrape_historical_data.side_effect = concurrent_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -477,7 +477,7 @@ class TestHistoricalErrorScenarios:
     async def test_fallback_to_rest_api_on_scraper_failure(self, mock_config):
         """Test that system doesn't automatically fallback to REST API on scraper failure."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that fails
@@ -488,7 +488,7 @@ class TestHistoricalErrorScenarios:
         mock_rest_result = Mock()
         mock_rest_result.success = True
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             with patch.object(server.metrics_service, 'get_metric_history', return_value=mock_rest_result) as mock_rest_api:
                 tool_handlers = server._tool_handlers
                 get_metric_history = tool_handlers["get_metric_history"]
@@ -509,7 +509,7 @@ class TestHistoricalErrorScenarios:
     async def test_error_metadata_collection(self, mock_config):
         """Test that error metadata is properly collected and reported."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper with detailed error
@@ -517,10 +517,10 @@ class TestHistoricalErrorScenarios:
         detailed_error = Exception("Connection timeout after 30.5 seconds to test.checkmk.com:80")
         mock_scraper.scrape_historical_data.side_effect = detailed_error
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             historical_service = server.historical_service
             
-            from checkmk_agent.services.models.historical import HistoricalDataRequest
+            from checkmk_mcp_server.services.models.historical import HistoricalDataRequest
             request = HistoricalDataRequest(
                 host_name="test-host",
                 service_name="CPU load",

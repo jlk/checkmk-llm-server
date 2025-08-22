@@ -68,7 +68,7 @@ pip install -e .
 pytest
 
 # Run with coverage
-pytest --cov=checkmk_agent
+pytest --cov=checkmk_mcp_server
 
 # Run specific test categories
 pytest -m unit          # Unit tests only
@@ -80,16 +80,16 @@ pytest tests/test_*.py  # Specific test files
 ### Code Quality
 ```bash
 # Format code
-black checkmk_agent/
+black checkmk_mcp_server/
 
 # Lint code
-flake8 checkmk_agent/
+flake8 checkmk_mcp_server/
 
 # Type checking
-mypy checkmk_agent/
+mypy checkmk_mcp_server/
 
 # Run all quality checks
-black checkmk_agent/ && flake8 checkmk_agent/ && mypy checkmk_agent/
+black checkmk_mcp_server/ && flake8 checkmk_mcp_server/ && mypy checkmk_mcp_server/
 ```
 
 ### Running the Application
@@ -102,11 +102,11 @@ python checkmk_cli_mcp.py interactive
 python checkmk_cli_mcp.py hosts list
 
 # Direct API CLI (legacy)
-python -m checkmk_agent.cli interactive
-python -m checkmk_agent.cli hosts list
+python -m checkmk_mcp_server.cli interactive
+python -m checkmk_mcp_server.cli hosts list
 
 # Module-based CLI
-python -m checkmk_agent.cli_mcp interactive
+python -m checkmk_mcp_server.cli_mcp interactive
 ```
 
 ### Configuration

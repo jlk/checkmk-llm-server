@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
-from checkmk_agent.service_status import ServiceStatusManager
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.config import AppConfig
+from checkmk_mcp_server.service_status import ServiceStatusManager
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.config import AppConfig
 
 
 class TestServiceStatusManager:

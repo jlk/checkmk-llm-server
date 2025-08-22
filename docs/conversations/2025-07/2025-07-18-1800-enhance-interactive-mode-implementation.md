@@ -7,20 +7,20 @@ INITIAL PROMPT: implement tasks/enhance-interactive-mode.md
 
 KEY DECISIONS:
 - Implemented complete interactive mode enhancement from task specification
-- Created new checkmk_agent/interactive/ module with 5 components
+- Created new checkmk_mcp_server/interactive/ module with 5 components
 - Fixed critical service routing bug preventing service commands from working properly
 - Enhanced natural language processing with search pattern recognition
 - Added comprehensive help system with contextual guidance
 
 FILES CHANGED:
-- checkmk_agent/interactive/__init__.py: Module initialization for new interactive components
-- checkmk_agent/interactive/readline_handler.py: Command history and readline integration
-- checkmk_agent/interactive/command_parser.py: Enhanced parsing with fuzzy matching and search patterns
-- checkmk_agent/interactive/help_system.py: Comprehensive contextual help system
-- checkmk_agent/interactive/tab_completer.py: Intelligent tab completion for commands and parameters
-- checkmk_agent/interactive/ui_manager.py: Rich UI formatting with colors and icons
-- checkmk_agent/cli.py: Updated to use enhanced interactive components with proper service routing
-- checkmk_agent/llm_client.py: Enhanced system prompts with search pattern examples
+- checkmk_mcp_server/interactive/__init__.py: Module initialization for new interactive components
+- checkmk_mcp_server/interactive/readline_handler.py: Command history and readline integration
+- checkmk_mcp_server/interactive/command_parser.py: Enhanced parsing with fuzzy matching and search patterns
+- checkmk_mcp_server/interactive/help_system.py: Comprehensive contextual help system
+- checkmk_mcp_server/interactive/tab_completer.py: Intelligent tab completion for commands and parameters
+- checkmk_mcp_server/interactive/ui_manager.py: Rich UI formatting with colors and icons
+- checkmk_mcp_server/cli.py: Updated to use enhanced interactive components with proper service routing
+- checkmk_mcp_server/llm_client.py: Enhanced system prompts with search pattern examples
 - CLAUDE.md: Updated current focus and architecture documentation
 - README.md: Added comprehensive interactive mode features documentation
 

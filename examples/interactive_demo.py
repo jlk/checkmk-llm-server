@@ -5,7 +5,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from checkmk_agent.interactive import ReadlineHandler, CommandParser, HelpSystem, TabCompleter, UIManager
+from checkmk_mcp_server.interactive import ReadlineHandler, CommandParser, HelpSystem, TabCompleter, UIManager
 
 def demonstrate_help_system():
     """Demonstrate the help system."""
@@ -83,7 +83,7 @@ def demonstrate_ui_manager():
     print("\n🔧 UI Manager Demo")
     print("=" * 50)
     
-    from checkmk_agent.interactive.ui_manager import MessageType
+    from checkmk_mcp_server.interactive.ui_manager import MessageType
     ui_manager = UIManager()
     
     # Test different message types
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     demonstrate_readline_handler()
     
     print("\n🎉 Demo complete! Try the interactive mode with:")
-    print("   python -m checkmk_agent.cli interactive")
+    print("   python -m checkmk_mcp_server.cli interactive")
     print("\nNew features you can try:")
     print("   • Type '?' for help")
     print("   • Use Up/Down arrows for command history")

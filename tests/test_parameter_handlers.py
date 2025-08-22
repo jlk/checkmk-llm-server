@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock
 from typing import Dict, Any
 
-from checkmk_agent.services.handlers import (
+from checkmk_mcp_server.services.handlers import (
     get_handler_registry,
     HandlerRegistry,
     BaseParameterHandler,
@@ -523,7 +523,7 @@ class TestParameterServiceIntegration:
 
     async def test_handler_integration_basic(self, mock_checkmk_client, mock_config):
         """Test basic handler integration with parameter service."""
-        from checkmk_agent.services.parameter_service import ParameterService
+        from checkmk_mcp_server.services.parameter_service import ParameterService
 
         service = ParameterService(mock_checkmk_client, mock_config)
 

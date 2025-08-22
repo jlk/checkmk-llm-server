@@ -8,7 +8,7 @@ import io
 import sys
 from datetime import datetime
 
-from checkmk_agent.middleware.request_tracking import (
+from checkmk_mcp_server.middleware.request_tracking import (
     track_request,
     RequestTrackingMiddleware,
     with_request_tracking,
@@ -16,7 +16,7 @@ from checkmk_agent.middleware.request_tracking import (
     propagate_request_context,
     restore_request_context,
 )
-from checkmk_agent.utils.request_context import (
+from checkmk_mcp_server.utils.request_context import (
     generate_request_id,
     set_request_id,
     get_request_id,

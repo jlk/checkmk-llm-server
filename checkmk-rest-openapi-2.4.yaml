@@ -42279,7 +42279,7 @@ components:
           items:
             type: string
             description: Tag groups tag ids are available via the host tag group endpoint.
-            example: checkmk-agent
+            example: checkmk-mcp-server
             pattern: ^[-0-9a-zA-Z_]+\Z
             nullable: true
       required:
@@ -42305,7 +42305,7 @@ components:
         tag_id:
           type: string
           description: Tag groups tag ids are available via the host tag group endpoint.
-          example: checkmk-agent
+          example: checkmk-mcp-server
           pattern: ^[-0-9a-zA-Z_]+\Z
           nullable: true
       required:
@@ -42354,7 +42354,7 @@ components:
           - tag_type: tag_group
             tag_group_id: agent
             operator: is
-            tag_id: checkmk-agent
+            tag_id: checkmk-mcp-server
           - tag_type: aux_tag
             operator: is_set
             tag_id: snmp
@@ -43760,7 +43760,7 @@ components:
         tag_id:
           type: string
           description: Tag groups tag ids are available via the host tag group endpoint.
-          example: checkmk-agent
+          example: checkmk-mcp-server
           pattern: ^[-0-9a-zA-Z_]+\Z
           nullable: true
     TagGroupNoneOfOrOneOfOutput:
@@ -43791,7 +43791,7 @@ components:
           items:
             type: string
             description: Tag groups tag ids are available via the host tag group endpoint.
-            example: checkmk-agent
+            example: checkmk-mcp-server
             pattern: ^[-0-9a-zA-Z_]+\Z
             nullable: true
     TagGroupIsNotOrIsOutput:
@@ -43817,7 +43817,7 @@ components:
         tag_id:
           type: string
           description: Tag groups tag ids are available via the host tag group endpoint.
-          example: checkmk-agent
+          example: checkmk-mcp-server
           pattern: ^[-0-9a-zA-Z_]+\Z
           nullable: true
     TagGroupSelectorOutput:
@@ -43863,7 +43863,7 @@ components:
           - tag_type: tag_group
             tag_group_id: agent
             operator: is
-            tag_id: checkmk-agent
+            tag_id: checkmk-mcp-server
           - tag_type: aux_tag
             operator: is_set
             tag_id: snmp

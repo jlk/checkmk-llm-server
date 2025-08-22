@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from mcp.types import GetPromptResult, PromptMessage, TextContent
 
-from checkmk_agent.mcp_server.prompts.definitions import PromptDefinitions
-from checkmk_agent.mcp_server.prompts.handlers import PromptHandlers
-from checkmk_agent.mcp_server.prompts.validators import PromptValidators
+from checkmk_mcp_server.mcp_server.prompts.definitions import PromptDefinitions
+from checkmk_mcp_server.mcp_server.prompts.handlers import PromptHandlers
+from checkmk_mcp_server.mcp_server.prompts.validators import PromptValidators
 
 
 class TestPromptIntegrationComplete:

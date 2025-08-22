@@ -5,9 +5,9 @@ import json
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 
-from checkmk_agent.service_parameters import ServiceParameterManager
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError
-from checkmk_agent.config import AppConfig
+from checkmk_mcp_server.service_parameters import ServiceParameterManager
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError
+from checkmk_mcp_server.config import AppConfig
 
 
 @pytest.fixture

@@ -8,7 +8,7 @@
 - `pytest.ini` - Test configuration
 - ~~`checkmk_scraper.py`~~ - **REMOVED** (4,900-line monolithic scraper → modular system)
 
-## Core Package: `checkmk_agent/`
+## Core Package: `checkmk_mcp_server/`
 
 ### API Layer
 - `api_client.py` - **Main Checkmk REST API client** (CheckmkClient class)

@@ -3,7 +3,7 @@
 ## Date: 2025-08-22
 
 ## Overview
-Successfully completed comprehensive documentation reorganization preparing the Checkmk LLM Agent project for open-source GitHub release.
+Successfully completed comprehensive documentation reorganization preparing the Checkmk MCP Server project for open-source GitHub release.
 
 ## Major Transformation
 - **README.md**: Streamlined from 719 to 144 lines (80% reduction)

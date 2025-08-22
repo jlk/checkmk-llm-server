@@ -15,13 +15,13 @@
 - **Usage**: `python checkmk_cli_mcp.py interactive`
 
 ### 3. Direct CLI (Legacy)
-- **File**: `checkmk_agent/cli.py`
+- **File**: `checkmk_mcp_server/cli.py`
 - **Purpose**: Direct API access without MCP layer
-- **Usage**: `python -m checkmk_agent.cli interactive`
+- **Usage**: `python -m checkmk_mcp_server.cli interactive`
 
 ## Core Components (Refactored Architecture)
 
-### Modular MCP Server (`checkmk_agent/mcp_server/`)
+### Modular MCP Server (`checkmk_mcp_server/mcp_server/`)
 
 #### Main Server (`server.py`)
 - **Class**: `CheckmkMCPServer`
@@ -53,20 +53,20 @@
 - **Handlers** (`handlers.py`): Prompt execution with service integration
 - **Validators** (`validators.py`): Argument validation
 
-### API Client (`checkmk_agent/api_client.py`)
+### API Client (`checkmk_mcp_server/api_client.py`)
 - **Class**: `CheckmkClient`
 - **Purpose**: Comprehensive Checkmk REST API integration
 - **Features**: Host/service management, monitoring, parameters, events, metrics
 - **Key Methods**: `list_hosts()`, `list_all_services()`, `get_service_status()`
 
-### Service Layer (`checkmk_agent/services/`)
+### Service Layer (`checkmk_mcp_server/services/`)
 - **Parameter Service**: Universal parameter management with specialized handlers
 - **Status Service**: Health monitoring and dashboard functionality  
 - **Host Service**: Host lifecycle management
 - **Streaming Service**: Memory-efficient large dataset processing
 - **Cache Service**: LRU caching with TTL for performance
 
-### Specialized Parameter Handlers (`checkmk_agent/services/handlers/`)
+### Specialized Parameter Handlers (`checkmk_mcp_server/services/handlers/`)
 - **Temperature Handler**: CPU, GPU, ambient, storage temperature monitoring
 - **Database Handler**: Oracle, MySQL, PostgreSQL, MongoDB, Redis parameters
 - **Network Handler**: HTTP/HTTPS, TCP/UDP, DNS, SSH monitoring
@@ -100,7 +100,7 @@ llm:
 - **OpenAI**: gpt-3.5-turbo, gpt-4, gpt-4-turbo
 - **Anthropic**: claude-3-haiku-20240307, claude-3-5-sonnet-20241022, claude-3-opus-20240229
 
-## Interactive Mode (`checkmk_agent/interactive/`)
+## Interactive Mode (`checkmk_mcp_server/interactive/`)
 - **Natural language processing** for commands
 - **Tab completion** and command history
 - **Color themes** and rich formatting

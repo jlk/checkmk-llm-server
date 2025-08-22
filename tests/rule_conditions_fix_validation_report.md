@@ -93,7 +93,7 @@ API error 400 on POST domain-types/rule/collections/all: These fields have probl
 ## Technical Implementation Details
 
 ### Fixed Methods
-- `CheckmkClient.create_service_parameter_rule()` in `/checkmk_agent/api_client.py`
+- `CheckmkClient.create_service_parameter_rule()` in `/checkmk_mcp_server/api_client.py`
 - Conditions building logic now uses proper Checkmk API specification
 
 ### Key Code Changes

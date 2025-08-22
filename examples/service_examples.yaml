@@ -5,19 +5,19 @@
 service_monitoring:
   # List all services for a specific host
   list_host_services:
-    command: "checkmk-agent services list server01"
+    command: "checkmk-mcp-server services list server01"
     description: "List all services for server01"
     expected_output: "Found X services for host: server01"
   
   # List all services across all hosts
   list_all_services:
-    command: "checkmk-agent services list"
+    command: "checkmk-mcp-server services list"
     description: "List all services across all hosts"
     expected_output: "Found X services across Y hosts"
   
   # Get detailed status of a specific service
   get_service_status:
-    command: "checkmk-agent services status server01 'CPU utilization'"
+    command: "checkmk-mcp-server services status server01 'CPU utilization'"
     description: "Get detailed status of CPU utilization service"
     expected_output: "Service Status: server01/CPU utilization"
 
@@ -25,13 +25,13 @@ service_monitoring:
 service_problem_management:
   # Acknowledge a service problem
   acknowledge_service:
-    command: "checkmk-agent services acknowledge server01 'CPU utilization' --comment 'Investigating high CPU usage'"
+    command: "checkmk-mcp-server services acknowledge server01 'CPU utilization' --comment 'Investigating high CPU usage'"
     description: "Acknowledge CPU utilization problem with comment"
     expected_output: "Acknowledged service problem: server01/CPU utilization"
   
   # Create service downtime
   create_downtime:
-    command: "checkmk-agent services downtime server01 'Memory utilization' --hours 4 --comment 'Memory upgrade maintenance'"
+    command: "checkmk-mcp-server services downtime server01 'Memory utilization' --hours 4 --comment 'Memory upgrade maintenance'"
     description: "Create 4-hour downtime for memory service"
     expected_output: "Created downtime for service: server01/Memory utilization"
 
@@ -39,13 +39,13 @@ service_problem_management:
 service_discovery:
   # Discover services on a host
   discover_services:
-    command: "checkmk-agent services discover server01"
+    command: "checkmk-mcp-server services discover server01"
     description: "Discover services on server01"
     expected_output: "Service discovery completed for host: server01"
   
   # Discover services with specific mode
   discover_services_new:
-    command: "checkmk-agent services discover server01 --mode new"
+    command: "checkmk-mcp-server services discover server01 --mode new"
     description: "Discover only new services on server01"
     expected_output: "New services found"
 
@@ -53,7 +53,7 @@ service_discovery:
 service_statistics:
   # Get service statistics
   get_stats:
-    command: "checkmk-agent services stats"
+    command: "checkmk-mcp-server services stats"
     description: "Show service statistics across all hosts"
     expected_output: "Service Statistics: Total Hosts: X, Total Services: Y"
 
@@ -84,17 +84,17 @@ interactive_mode:
 service_filtering:
   # Filter services by site
   filter_by_site:
-    command: "checkmk-agent services list --sites site1,site2"
+    command: "checkmk-mcp-server services list --sites site1,site2"
     description: "List services from specific sites"
     
   # Filter services with Livestatus query
   filter_by_query:
-    command: "checkmk-agent services list --query 'state != 0'"
+    command: "checkmk-mcp-server services list --query 'state != 0'"
     description: "List only services that are not OK"
     
   # Get specific columns
   specific_columns:
-    command: "checkmk-agent services list --columns host_name,description,state"
+    command: "checkmk-mcp-server services list --columns host_name,description,state"
     description: "Get services with specific columns"
 
 # Example 7: Service States and Emojis
@@ -136,15 +136,15 @@ discovery_modes:
 # Example 9: Error Handling Examples
 error_handling:
   service_not_found:
-    command: "checkmk-agent services status server01 'NonExistent Service'"
+    command: "checkmk-mcp-server services status server01 'NonExistent Service'"
     expected_error: "Service 'NonExistent Service' not found on host 'server01'"
     
   host_not_found:
-    command: "checkmk-agent services list nonexistent_host"
+    command: "checkmk-mcp-server services list nonexistent_host"
     expected_error: "No services found for host: nonexistent_host"
     
   missing_parameters:
-    command: "checkmk-agent services acknowledge server01"
+    command: "checkmk-mcp-server services acknowledge server01"
     expected_error: "Missing required service description parameter"
 
 # Example 10: Best Practices

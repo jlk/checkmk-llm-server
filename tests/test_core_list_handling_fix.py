@@ -11,8 +11,8 @@ import pytest
 from unittest.mock import patch
 from typing import Dict, Any
 
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError
-from checkmk_agent.config import CheckmkConfig
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError
+from checkmk_mcp_server.config import CheckmkConfig
 
 
 class TestCoreListHandlingFix:
@@ -33,8 +33,8 @@ class TestCoreListHandlingFix:
     @pytest.fixture
     def client(self, config):
         """Create CheckmkClient instance."""
-        with patch("checkmk_agent.api_client.requests.Session"), patch(
-            "checkmk_agent.api_client.logging.getLogger"
+        with patch("checkmk_mcp_server.api_client.requests.Session"), patch(
+            "checkmk_mcp_server.api_client.logging.getLogger"
         ):
             return CheckmkClient(config)
 

@@ -18,9 +18,9 @@ import yaml
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-from checkmk_agent.services.parameter_service import ParameterService
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.config import Config
+from checkmk_mcp_server.services.parameter_service import ParameterService
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.config import Config
 
 
 class DatabaseMonitoringSetup:

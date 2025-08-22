@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement comprehensive request ID generation and tracking throughout the Checkmk LLM Agent system to improve traceability, debugging, and troubleshooting capabilities.
+Implement comprehensive request ID generation and tracking throughout the Checkmk MCP Server system to improve traceability, debugging, and troubleshooting capabilities.
 
 ## Objectives
 
@@ -34,7 +34,7 @@ Implement comprehensive request ID generation and tracking throughout the Checkm
 ### Phase 1: Core Infrastructure
 
 #### 1.1 Request Context Manager
-**File**: `checkmk_agent/utils/request_tracking.py`
+**File**: `checkmk_mcp_server/utils/request_tracking.py`
 - [ ] Create request ID utilities using contextvars with robust fallback
 - [ ] Implement lazy `generate_request_id()` function
 - [ ] Create `@with_request_id` decorator for service methods
@@ -42,14 +42,14 @@ Implement comprehensive request ID generation and tracking throughout the Checkm
 - [ ] Implement ephemeral ID generation for orphaned operations
 
 #### 1.2 Enhanced Logging Utilities
-**File**: `checkmk_agent/logging_utils.py`
+**File**: `checkmk_mcp_server/logging_utils.py`
 - [ ] Modify existing logger configuration to include request ID
 - [ ] Create custom log formatter with request ID field
 - [ ] Add `get_logger_with_request_id()` function
 - [ ] Ensure backward compatibility with existing logging
 
 #### 1.3 Request ID Middleware
-**File**: `checkmk_agent/middleware/request_tracking.py`
+**File**: `checkmk_mcp_server/middleware/request_tracking.py`
 - [ ] Create middleware decorator `@track_request()`
 - [ ] Implement automatic request ID generation for entry points
 - [ ] Add request ID to response headers/metadata where applicable
@@ -57,14 +57,14 @@ Implement comprehensive request ID generation and tracking throughout the Checkm
 ### Phase 2: MCP Server Integration
 
 #### 2.1 MCP Tool Wrapper
-**File**: `checkmk_agent/mcp_server/server.py`
+**File**: `checkmk_mcp_server/mcp_server/server.py`
 - [ ] Modify `@server.call_tool()` decorator to generate request IDs
 - [ ] Update all 47 MCP tools to propagate request ID
 - [ ] Add request ID to tool response metadata
 - [ ] Ensure request ID flows through async operations
 
 #### 2.2 MCP Session Management
-**File**: `checkmk_agent/interactive/mcp_session.py`
+**File**: `checkmk_mcp_server/interactive/mcp_session.py`
 - [ ] Generate session-level request IDs for interactive mode
 - [ ] Maintain request ID across multi-turn conversations
 - [ ] Add request ID to MCP protocol messages
@@ -72,20 +72,20 @@ Implement comprehensive request ID generation and tracking throughout the Checkm
 ### Phase 3: Service Layer Integration
 
 #### 3.1 Base Service Updates
-**File**: `checkmk_agent/services/base.py`
+**File**: `checkmk_mcp_server/services/base.py`
 - [ ] Update `BaseService` to accept and propagate request ID
 - [ ] Modify error handling to include request ID in exceptions
 - [ ] Add request ID to service method signatures where needed
 
 #### 3.2 API Client Integration
-**File**: `checkmk_agent/api_client.py`
+**File**: `checkmk_mcp_server/api_client.py`
 - [ ] Add request ID to HTTP headers (`X-Request-ID`)
 - [ ] Include request ID in API call logging
 - [ ] Propagate request ID through retry mechanisms
 - [ ] Add request ID to API response logging
 
 #### 3.3 Service-Specific Updates
-**Files**: All service classes in `checkmk_agent/services/`
+**Files**: All service classes in `checkmk_mcp_server/services/`
 - [ ] `host_service.py` - Add request ID to host operations
 - [ ] `status_service.py` - Include request ID in status checks
 - [ ] `service_service.py` - Propagate through service operations
@@ -98,19 +98,19 @@ Implement comprehensive request ID generation and tracking throughout the Checkm
 ### Phase 4: CLI Integration
 
 #### 4.1 Direct CLI Updates
-**File**: `checkmk_agent/cli.py`
+**File**: `checkmk_mcp_server/cli.py`
 - [ ] Generate request ID for each CLI command
 - [ ] Add `--request-id` option to manually specify ID
 - [ ] Include request ID in command output (optional verbose mode)
 
 #### 4.2 MCP CLI Updates
-**File**: `checkmk_agent/cli_mcp.py`
+**File**: `checkmk_mcp_server/cli_mcp.py`
 - [ ] Integrate with MCP server request ID generation
 - [ ] Display request ID in verbose mode
 - [ ] Add request ID to error messages
 
 #### 4.3 Interactive Mode Updates
-**File**: `checkmk_agent/interactive/command_parser.py`
+**File**: `checkmk_mcp_server/interactive/command_parser.py`
 - [ ] Generate request ID for each interactive command
 - [ ] Maintain request ID context during command execution
 - [ ] Display request ID in debug mode
@@ -118,7 +118,7 @@ Implement comprehensive request ID generation and tracking throughout the Checkm
 ### Phase 5: Specialized Components
 
 #### 5.1 Parameter Handlers
-**Files**: `checkmk_agent/services/handlers/*.py`
+**Files**: `checkmk_mcp_server/services/handlers/*.py`
 - [ ] Update all parameter handlers to propagate request ID
 - [ ] Include request ID in handler-specific logging
 - [ ] Add request ID to validation error messages
@@ -163,9 +163,9 @@ REQUEST_ID_CONTEXT: ContextVar[Optional[str]] = ContextVar('request_id', default
 
 ### Logging Format
 ```
-2025-08-07 14:30:15.123 [req_a1b2c3] INFO checkmk_agent.api_client: Fetching host list
-2025-08-07 14:30:15.456 [req_a1b2c3] DEBUG checkmk_agent.services.host_service: Processing 15 hosts
-2025-08-07 14:30:15.789 [req_a1b2c3] ERROR checkmk_agent.api_client: API call failed: Connection timeout
+2025-08-07 14:30:15.123 [req_a1b2c3] INFO checkmk_mcp_server.api_client: Fetching host list
+2025-08-07 14:30:15.456 [req_a1b2c3] DEBUG checkmk_mcp_server.services.host_service: Processing 15 hosts
+2025-08-07 14:30:15.789 [req_a1b2c3] ERROR checkmk_mcp_server.api_client: API call failed: Connection timeout
 ```
 
 ### HTTP Headers
@@ -248,16 +248,16 @@ api:
 ## Files to Create/Modify
 
 ### New Files
-- `checkmk_agent/utils/request_context.py`
-- `checkmk_agent/middleware/request_tracking.py`
+- `checkmk_mcp_server/utils/request_context.py`
+- `checkmk_mcp_server/middleware/request_tracking.py`
 - `tests/test_request_tracking.py`
 - `tests/test_request_context.py`
 
 ### Modified Files
-- `checkmk_agent/logging_utils.py`
-- `checkmk_agent/mcp_server/server.py`
-- `checkmk_agent/api_client.py`
-- `checkmk_agent/services/base.py`
+- `checkmk_mcp_server/logging_utils.py`
+- `checkmk_mcp_server/mcp_server/server.py`
+- `checkmk_mcp_server/api_client.py`
+- `checkmk_mcp_server/services/base.py`
 - All service layer files
 - All CLI interface files
 - Configuration examples

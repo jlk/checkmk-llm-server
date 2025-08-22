@@ -1,6 +1,6 @@
 # Service Parameter Management
 
-The Checkmk LLM Agent now supports comprehensive service parameter management, allowing you to view default service rules, modify service parameters, and override default settings for specific hosts and services.
+The Checkmk MCP Server now supports comprehensive service parameter management, allowing you to view default service rules, modify service parameters, and override default settings for specific hosts and services.
 
 ## Overview
 
@@ -18,9 +18,9 @@ Service parameter management enables you to:
 
 ```bash
 # CLI commands
-checkmk-agent services params defaults cpu
-checkmk-agent services params defaults memory
-checkmk-agent services params defaults filesystem
+checkmk-mcp-server services params defaults cpu
+checkmk-mcp-server services params defaults memory
+checkmk-mcp-server services params defaults filesystem
 
 # Natural language (interactive mode)
 > "show default CPU parameters"
@@ -32,8 +32,8 @@ checkmk-agent services params defaults filesystem
 
 ```bash
 # CLI commands
-checkmk-agent services params set server01 "CPU utilization" --warning 85 --critical 95
-checkmk-agent services params set server01 "Filesystem /" --warning 90 --critical 95
+checkmk-mcp-server services params set server01 "CPU utilization" --warning 85 --critical 95
+checkmk-mcp-server services params set server01 "Filesystem /" --warning 90 --critical 95
 
 # Natural language (interactive mode)  
 > "set CPU warning to 85% for server01"
@@ -45,8 +45,8 @@ checkmk-agent services params set server01 "Filesystem /" --warning 90 --critica
 
 ```bash
 # CLI commands
-checkmk-agent services params show server01 "CPU utilization"
-checkmk-agent services params show server01 "Filesystem /"
+checkmk-mcp-server services params show server01 "CPU utilization"
+checkmk-mcp-server services params show server01 "Filesystem /"
 
 # Natural language (interactive mode)
 > "what are the CPU parameters for server01?"
@@ -61,7 +61,7 @@ checkmk-agent services params show server01 "Filesystem /"
 All service parameter commands are under the `services params` group:
 
 ```bash
-checkmk-agent services params --help
+checkmk-mcp-server services params --help
 ```
 
 #### Available Commands
@@ -177,43 +177,43 @@ Rules are applied in order of precedence (highest to lowest):
 
 1. **Discover the service and ruleset:**
    ```bash
-   checkmk-agent services params discover server01 "CPU utilization"
+   checkmk-mcp-server services params discover server01 "CPU utilization"
    ```
 
 2. **View current parameters:**
    ```bash
-   checkmk-agent services params show server01 "CPU utilization"
+   checkmk-mcp-server services params show server01 "CPU utilization"
    ```
 
 3. **Create override rule:**
    ```bash
-   checkmk-agent services params set server01 "CPU utilization" \
+   checkmk-mcp-server services params set server01 "CPU utilization" \
      --warning 85 --critical 95 \
      --comment "Production server needs higher thresholds"
    ```
 
 4. **Verify new parameters:**
    ```bash
-   checkmk-agent services params show server01 "CPU utilization"
+   checkmk-mcp-server services params show server01 "CPU utilization"
    ```
 
 ### Bulk Parameter Management
 
 1. **List all available rulesets:**
    ```bash
-   checkmk-agent services params rules
+   checkmk-mcp-server services params rules
    ```
 
 2. **Review existing rules for a ruleset:**
    ```bash
-   checkmk-agent services params rules --ruleset cpu_utilization_linux
+   checkmk-mcp-server services params rules --ruleset cpu_utilization_linux
    ```
 
 3. **Apply consistent thresholds to multiple hosts:**
    ```bash
    # Script to apply same thresholds to multiple hosts
    for host in server01 server02 server03; do
-     checkmk-agent services params set $host "CPU utilization" \
+     checkmk-mcp-server services params set $host "CPU utilization" \
        --warning 85 --critical 95 \
        --comment "Production CPU thresholds"
    done
@@ -290,16 +290,16 @@ The agent includes predefined templates for common scenarios. See `examples/serv
 
 ```bash
 # Check what rules affect a specific service
-checkmk-agent services params show server01 "CPU utilization"
+checkmk-mcp-server services params show server01 "CPU utilization"
 
 # List all rules in a ruleset
-checkmk-agent services params rules --ruleset cpu_utilization_linux
+checkmk-mcp-server services params rules --ruleset cpu_utilization_linux
 
 # Discover the correct ruleset for a service
-checkmk-agent services params discover server01 "CPU utilization"
+checkmk-mcp-server services params discover server01 "CPU utilization"
 
 # View default parameters for comparison
-checkmk-agent services params defaults cpu
+checkmk-mcp-server services params defaults cpu
 ```
 
 ## API Integration
@@ -363,7 +363,7 @@ Parameter rules can be managed through configuration management tools:
 # Ansible example
 - name: Set CPU thresholds for web servers
   shell: |
-    checkmk-agent services params set {{ inventory_hostname }} "CPU utilization" \
+    checkmk-mcp-server services params set {{ inventory_hostname }} "CPU utilization" \
       --warning 85 --critical 95 \
       --comment "Web server CPU thresholds"
   when: "'webservers' in group_names"

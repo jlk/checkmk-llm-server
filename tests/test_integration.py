@@ -5,10 +5,10 @@ import json
 from unittest.mock import Mock, patch
 import requests_mock
 
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError
-from checkmk_agent.llm_client import OpenAIClient, ParsedCommand, HostOperation
-from checkmk_agent.host_operations import HostOperationsManager
-from checkmk_agent.config import CheckmkConfig, LLMConfig, AppConfig
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError
+from checkmk_mcp_server.llm_client import OpenAIClient, ParsedCommand, HostOperation
+from checkmk_mcp_server.host_operations import HostOperationsManager
+from checkmk_mcp_server.config import CheckmkConfig, LLMConfig, AppConfig
 
 
 @pytest.fixture
@@ -293,7 +293,7 @@ class TestCheckmkAPIIntegration:
 class TestLLMIntegration:
     """Integration tests for LLM operations."""
 
-    @patch("checkmk_agent.llm_client.openai.OpenAI")
+    @patch("checkmk_mcp_server.llm_client.openai.OpenAI")
     def test_command_parsing_integration(self, mock_openai, llm_config):
         """Test complete command parsing workflow."""
         # Setup mock OpenAI response
@@ -316,7 +316,7 @@ class TestLLMIntegration:
         mock_client.chat.completions.create.return_value = mock_response
         mock_openai.return_value = mock_client
 
-        with patch("checkmk_agent.llm_client.OPENAI_AVAILABLE", True):
+        with patch("checkmk_mcp_server.llm_client.OPENAI_AVAILABLE", True):
             llm_client = OpenAIClient(llm_config)
 
             result = llm_client.parse_command(
@@ -335,12 +335,12 @@ class TestLLMIntegration:
             assert call_args[1]["model"] == "gpt-3.5-turbo"
             assert call_args[1]["temperature"] == 0.1
 
-    @patch("checkmk_agent.llm_client.openai.OpenAI")
+    @patch("checkmk_mcp_server.llm_client.openai.OpenAI")
     def test_response_formatting_integration(self, mock_openai, llm_config):
         """Test complete response formatting workflow."""
         mock_openai.return_value = Mock()
 
-        with patch("checkmk_agent.llm_client.OPENAI_AVAILABLE", True):
+        with patch("checkmk_mcp_server.llm_client.OPENAI_AVAILABLE", True):
             llm_client = OpenAIClient(llm_config)
 
             # Test formatting host list response
@@ -373,7 +373,7 @@ class TestLLMIntegration:
 class TestEndToEndIntegration:
     """End-to-end integration tests."""
 
-    @patch("checkmk_agent.llm_client.openai.OpenAI")
+    @patch("checkmk_mcp_server.llm_client.openai.OpenAI")
     def test_complete_host_creation_workflow(self, mock_openai, app_config):
         """Test complete workflow from natural language to host creation."""
         # Setup LLM mock
@@ -405,7 +405,7 @@ class TestEndToEndIntegration:
             },
         }
 
-        with patch("checkmk_agent.llm_client.OPENAI_AVAILABLE", True):
+        with patch("checkmk_mcp_server.llm_client.OPENAI_AVAILABLE", True):
             with requests_mock.Mocker() as m:
                 m.post(
                     "https://test-checkmk.example.com/mysite/check_mk/api/1.0/domain-types/host_config/collections/all",
@@ -436,7 +436,7 @@ class TestEndToEndIntegration:
                 assert request_data["folder"] == "/test"
                 assert request_data["attributes"]["ipaddress"] == "192.168.99.100"
 
-    @patch("checkmk_agent.llm_client.openai.OpenAI")
+    @patch("checkmk_mcp_server.llm_client.openai.OpenAI")
     def test_complete_host_listing_workflow(self, mock_openai, app_config):
         """Test complete workflow from natural language to host listing."""
         # Setup LLM mock for parsing
@@ -491,7 +491,7 @@ class TestEndToEndIntegration:
             ]
         }
 
-        with patch("checkmk_agent.llm_client.OPENAI_AVAILABLE", True):
+        with patch("checkmk_mcp_server.llm_client.OPENAI_AVAILABLE", True):
             with requests_mock.Mocker() as m:
                 m.get(
                     "https://test-checkmk.example.com/mysite/check_mk/api/1.0/domain-types/host_config/collections/all",

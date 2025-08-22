@@ -21,7 +21,7 @@ def find_test_files_to_update() -> List[Path]:
         return []
     
     # Pattern to match imports from server.py
-    server_import_pattern = re.compile(r'from checkmk_agent\.mcp_server\.server import')
+    server_import_pattern = re.compile(r'from checkmk_mcp_server\.mcp_server\.server import')
     
     for test_file in test_dir.glob("test_*.py"):
         try:
@@ -46,8 +46,8 @@ def update_import_in_file(file_path: Path) -> Tuple[bool, str]:
         
         # Replace the old import pattern with the new one
         updated_content = re.sub(
-            r'from checkmk_agent\.mcp_server\.server import CheckmkMCPServer',
-            'from checkmk_agent.mcp_server import CheckmkMCPServer',
+            r'from checkmk_mcp_server\.mcp_server\.server import CheckmkMCPServer',
+            'from checkmk_mcp_server.mcp_server import CheckmkMCPServer',
             original_content
         )
         
@@ -68,7 +68,7 @@ def validate_import_changes() -> bool:
     """Validate that the updated imports still work."""
     try:
         # Test the import path that we're updating to
-        from checkmk_agent.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
         return True
     except ImportError as e:
         print(f"Error: Import validation failed: {e}")

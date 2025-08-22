@@ -40,14 +40,14 @@ The CLI processes even malformed commands through the operation managers without
 ### Step 1: Add SYNTAX_ERROR Operation Type
 Add a new operation type to handle syntax errors without executing commands:
 
-**File**: `checkmk_agent/llm_client.py`
+**File**: `checkmk_mcp_server/llm_client.py`
 - Add `SYNTAX_ERROR = "syntax_error"` to `HostOperation` enum
 - Update `ParsedCommand` class to handle syntax errors appropriately
 
 ### Step 2: Fix LLM Client Fallback Logic
 Modify both OpenAI and Anthropic clients' `_fallback_parse()` methods:
 
-**File**: `checkmk_agent/llm_client.py`
+**File**: `checkmk_mcp_server/llm_client.py`
 - Change default fallback from `HostOperation.LIST` to `HostOperation.SYNTAX_ERROR`
 - Add better detection for truly unrecognized commands
 - Preserve current keyword matching for valid commands
@@ -56,8 +56,8 @@ Modify both OpenAI and Anthropic clients' `_fallback_parse()` methods:
 Prevent execution of operations when syntax errors occur:
 
 **Files**: 
-- `checkmk_agent/host_operations.py`
-- `checkmk_agent/service_operations.py`
+- `checkmk_mcp_server/host_operations.py`
+- `checkmk_mcp_server/service_operations.py`
 
 - Update `_execute_operation()` to handle `SYNTAX_ERROR` operations
 - Modify exception handling to not default to `LIST` operation
@@ -66,7 +66,7 @@ Prevent execution of operations when syntax errors occur:
 ### Step 4: Improve Interactive Mode Error Display
 Better error handling in CLI interactive mode:
 
-**File**: `checkmk_agent/cli.py`
+**File**: `checkmk_mcp_server/cli.py`
 - Add validation before passing commands to operation managers
 - Improve error message display for syntax errors
 
@@ -131,10 +131,10 @@ def _execute_operation(self, command: ParsedCommand) -> Any:
 
 ## Files to Modify
 
-- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/llm_client.py`
-- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/host_operations.py`
-- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/service_operations.py`
-- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/cli.py` (optional improvements)
+- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/llm_client.py`
+- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/host_operations.py`
+- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/service_operations.py`
+- `/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/cli.py` (optional improvements)
 
 ## Priority
 
@@ -164,8 +164,8 @@ def _execute_operation(self, command: ParsedCommand) -> Any:
 
 ## Files Modified
 
-- ✅ `/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/llm_client.py` - Added SYNTAX_ERROR enum and updated fallback logic
-- ✅ `/Users/jlk/code-local/checkmk_llm_agent/checkmk_agent/host_operations.py` - Added SYNTAX_ERROR handling and improved error messages
+- ✅ `/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/llm_client.py` - Added SYNTAX_ERROR enum and updated fallback logic
+- ✅ `/Users/jlk/code-local/checkmk_llm_agent/checkmk_mcp_server/host_operations.py` - Added SYNTAX_ERROR handling and improved error messages
 - ✅ `/Users/jlk/code-local/checkmk_llm_agent/tests/test_host_operations.py` - Updated and added tests for new behavior
 
 The fix ensures that syntax errors in interactive mode display appropriate error messages without executing any unintended commands like "list hosts".

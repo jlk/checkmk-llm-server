@@ -8,7 +8,7 @@ This test validates the fix for the API error:
 import pytest
 from unittest.mock import Mock
 
-from checkmk_agent.api_client import CheckmkClient
+from checkmk_mcp_server.api_client import CheckmkClient
 
 
 class TestTemperatureParameterFix:

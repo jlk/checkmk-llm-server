@@ -1,7 +1,7 @@
 # Update to Checkmk 2.4 API
 
 ## Overview
-Upgrade the Checkmk LLM Agent to use the new Checkmk 2.4 REST API, which is significantly larger (48,927 lines vs 21,353 lines) and includes critical breaking changes to existing endpoints.
+Upgrade the Checkmk MCP Server to use the new Checkmk 2.4 REST API, which is significantly larger (48,927 lines vs 21,353 lines) and includes critical breaking changes to existing endpoints.
 
 ## Critical Breaking Changes Found
 
@@ -55,7 +55,7 @@ Upgrade the Checkmk LLM Agent to use the new Checkmk 2.4 REST API, which is sign
 - [ ] Test all MCP tools with new API
 
 ### Phase 2: Event Console Integration
-- [ ] Create `checkmk_agent/services/event_service.py`
+- [ ] Create `checkmk_mcp_server/services/event_service.py`
 - [ ] Implement Event Console methods:
   - [ ] `list_events(query, host, application, state, phase)`
   - [ ] `get_event(event_id, site_id)`
@@ -70,7 +70,7 @@ Upgrade the Checkmk LLM Agent to use the new Checkmk 2.4 REST API, which is sign
   - [ ] `search_events` - Search events by query expression
 
 ### Phase 3: Metrics and Performance Data
-- [ ] Create `checkmk_agent/services/metrics_service.py`
+- [ ] Create `checkmk_mcp_server/services/metrics_service.py`
 - [ ] Implement graph/metrics retrieval
 - [ ] Add Metrics MCP tools:
   - [ ] `get_service_metrics` - Get performance metrics/graphs

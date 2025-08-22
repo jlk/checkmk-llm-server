@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.config import AppConfig
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import AppConfig
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ class TestMCPServerTools:
         """Test that the consolidated server registers all tools correctly."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Check tools are registered (refactored architecture has 37 tools)
@@ -86,7 +86,7 @@ class TestMCPServerTools:
         """Test that tool handlers are properly callable."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock the host service

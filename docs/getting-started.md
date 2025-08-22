@@ -1,10 +1,10 @@
-# Getting Started with Checkmk LLM Agent
+# Getting Started with Checkmk MCP Server
 
-This guide walks you through setting up the Checkmk LLM Agent from installation to your first natural language monitoring query.
+This guide walks you through setting up the Checkmk MCP Server from installation to your first natural language monitoring query.
 
 ## Overview
 
-The Checkmk LLM Agent acts as a bridge between AI assistants and your Checkmk monitoring infrastructure. Once set up, you can use natural language to monitor, manage, and analyze your infrastructure through any MCP-compatible AI client.
+The Checkmk MCP Server acts as a bridge between AI assistants and your Checkmk monitoring infrastructure. Once set up, you can use natural language to monitor, manage, and analyze your infrastructure through any MCP-compatible AI client.
 
 ## Prerequisites
 
@@ -28,8 +28,8 @@ Choose one or more MCP-compatible clients:
 
 ### 1.1 Clone the Repository
 ```bash
-git clone https://github.com/jlk/checkmk_agent
-cd checkmk_agent
+git clone https://github.com/jlk/checkmk_mcp_server
+cd checkmk_mcp_server
 ```
 
 ### 1.2 Create Virtual Environment
@@ -156,8 +156,8 @@ In Checkmk Web UI:
 ```bash
 # Test your configuration
 python -c "
-from checkmk_agent.config import load_config
-from checkmk_agent.api_client import CheckmkAPIClient
+from checkmk_mcp_server.config import load_config
+from checkmk_mcp_server.api_client import CheckmkAPIClient
 
 config = load_config('config.yaml')
 client = CheckmkAPIClient(config)
@@ -175,10 +175,10 @@ python mcp_checkmk_server.py --config config.yaml
 
 You should see output like:
 ```
-INFO:checkmk_agent.mcp_server:Starting Checkmk MCP Server
-INFO:checkmk_agent.mcp_server:Loaded configuration from config.yaml
-INFO:checkmk_agent.mcp_server:Registered 37 monitoring tools
-INFO:checkmk_agent.mcp_server:MCP server ready for connections
+INFO:checkmk_mcp_server.mcp_server:Starting Checkmk MCP Server
+INFO:checkmk_mcp_server.mcp_server:Loaded configuration from config.yaml
+INFO:checkmk_mcp_server.mcp_server:Registered 37 monitoring tools
+INFO:checkmk_mcp_server.mcp_server:MCP server ready for connections
 ```
 
 ### 3.2 Verify Server Health
@@ -207,7 +207,7 @@ Download and install Claude Desktop from Anthropic's website.
 {
   "mcpServers": {
     "checkmk": {
-      "command": "/full/path/to/checkmk_agent/venv/bin/python",
+      "command": "/full/path/to/checkmk_mcp_server/venv/bin/python",
       "args": [
         "/full/path/to/checkmk_llm_agent/mcp_checkmk_server.py",
         "--config",

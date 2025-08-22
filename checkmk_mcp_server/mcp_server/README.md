@@ -11,7 +11,7 @@ The Checkmk MCP (Model Context Protocol) Server provides a comprehensive interfa
 The MCP server has been refactored from a monolithic 4,449-line file into a clean, modular architecture:
 
 ```
-checkmk_agent/mcp_server/
+checkmk_mcp_server/mcp_server/
 ├── server.py                    # Main orchestration (300 lines, 93% reduction)
 ├── container.py                 # Service dependency injection
 ├── tools/                       # Tool categories (8 categories, 37 tools)
@@ -214,8 +214,8 @@ The refactoring maintains 100% backward compatibility:
 
 ```python
 # These imports continue to work unchanged
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.mcp_server.server import CheckmkMCPServer
 ```
 
 ## Development Guidelines

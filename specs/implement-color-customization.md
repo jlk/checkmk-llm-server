@@ -6,7 +6,7 @@ Create a flexible color customization system that allows users to personalize th
 ## Current State Analysis
 
 ### Existing Foundation
-- **UIManager Class**: Comprehensive ANSI color support in `checkmk_agent/interactive/ui_manager.py`
+- **UIManager Class**: Comprehensive ANSI color support in `checkmk_mcp_server/interactive/ui_manager.py`
 - **Current Colors**: 8 base colors (red, green, yellow, blue, magenta, cyan, white) plus styles (bold, dim, reset)
 - **Message Types**: 6 styled message types with predefined colors:
   - `INFO`: blue with ℹ️ icon
@@ -164,7 +164,7 @@ ui:
 #### 3.1 New File: `color_manager.py`
 **Goal**: Centralized color management system
 
-**Location**: `checkmk_agent/interactive/color_manager.py`
+**Location**: `checkmk_mcp_server/interactive/color_manager.py`
 
 **Key Classes**:
 ```python

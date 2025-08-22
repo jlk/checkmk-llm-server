@@ -8,18 +8,18 @@ import json
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from checkmk_agent.utils.request_context import (
+from checkmk_mcp_server.utils.request_context import (
     generate_request_id,
     set_request_id,
     get_request_id,
     REQUEST_ID_CONTEXT,
 )
-from checkmk_agent.middleware.request_tracking import RequestTrackingMiddleware
-from checkmk_agent.logging_utils import setup_logging, RequestIDFormatter
-from checkmk_agent.config import AppConfig, CheckmkConfig
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.services.base import BaseService, ServiceResult
-from checkmk_agent.async_api_client import AsyncCheckmkClient
+from checkmk_mcp_server.middleware.request_tracking import RequestTrackingMiddleware
+from checkmk_mcp_server.logging_utils import setup_logging, RequestIDFormatter
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.services.base import BaseService, ServiceResult
+from checkmk_mcp_server.async_api_client import AsyncCheckmkClient
 
 
 class TestEndToEndRequestFlow:
@@ -154,7 +154,7 @@ class TestMCPServerIntegration:
     @pytest.mark.asyncio
     async def test_mcp_tool_call_request_id_generation(self):
         """Test MCP tool call generates and tracks request IDs."""
-        from checkmk_agent.mcp_server import CheckmkMCPServer
+        from checkmk_mcp_server.mcp_server import CheckmkMCPServer
 
         # Mock configuration
         config = Mock()
@@ -218,14 +218,14 @@ class TestCLIIntegration:
         """Setup for CLI tests."""
         REQUEST_ID_CONTEXT.set(None)
 
-    @patch("checkmk_agent.cli.CheckmkClient")
-    @patch("checkmk_agent.cli.load_config")
+    @patch("checkmk_mcp_server.cli.CheckmkClient")
+    @patch("checkmk_mcp_server.cli.load_config")
     def test_cli_command_request_id_generation(
         self, mock_load_config, mock_client_class
     ):
         """Test CLI commands generate request IDs."""
         from click.testing import CliRunner
-        from checkmk_agent.cli import cli
+        from checkmk_mcp_server.cli import cli
 
         # Mock configuration
         mock_config = Mock()
@@ -247,17 +247,17 @@ class TestCLIIntegration:
     def test_cli_with_specific_request_id(self):
         """Test CLI with manually specified request ID."""
         from click.testing import CliRunner
-        from checkmk_agent.cli import cli
+        from checkmk_mcp_server.cli import cli
 
         test_id = "req_cli_test"
 
-        with patch("checkmk_agent.cli.load_config") as mock_load_config:
+        with patch("checkmk_mcp_server.cli.load_config") as mock_load_config:
             mock_config = Mock()
             mock_config.checkmk = self.checkmk_config
             mock_config.log_level = "INFO"
             mock_load_config.return_value = mock_config
 
-            with patch("checkmk_agent.cli.CheckmkClient"):
+            with patch("checkmk_mcp_server.cli.CheckmkClient"):
                 runner = CliRunner()
                 result = runner.invoke(cli, ["--request-id", test_id, "test"])
 
@@ -278,7 +278,7 @@ class TestInteractiveModeIntegration:
 
     def test_command_parser_request_id_generation(self):
         """Test command parser generates request IDs."""
-        from checkmk_agent.interactive.command_parser import CommandParser
+        from checkmk_mcp_server.interactive.command_parser import CommandParser
 
         parser = CommandParser()
 
@@ -292,7 +292,7 @@ class TestInteractiveModeIntegration:
 
     def test_interactive_session_request_continuity(self):
         """Test request ID continuity in interactive sessions."""
-        from checkmk_agent.interactive.command_parser import CommandParser
+        from checkmk_mcp_server.interactive.command_parser import CommandParser
 
         parser = CommandParser()
 
@@ -320,7 +320,7 @@ class TestBatchOperationsIntegration:
     @pytest.mark.asyncio
     async def test_batch_operation_sub_request_ids(self):
         """Test batch operations generate sub-request IDs."""
-        from checkmk_agent.services.base import BaseService
+        from checkmk_mcp_server.services.base import BaseService
 
         # Mock async client
         mock_client = Mock(spec=AsyncCheckmkClient)
@@ -371,7 +371,7 @@ class TestErrorHandlingIntegration:
 
     def test_api_error_includes_request_id(self, caplog):
         """Test API errors include request ID in error messages."""
-        from checkmk_agent.api_client import CheckmkAPIError
+        from checkmk_mcp_server.api_client import CheckmkAPIError
 
         test_id = "req_error_test"
         set_request_id(test_id)
@@ -398,7 +398,7 @@ class TestErrorHandlingIntegration:
     @pytest.mark.asyncio
     async def test_service_error_preserves_request_id(self):
         """Test service errors preserve request ID context."""
-        from checkmk_agent.services.base import BaseService
+        from checkmk_mcp_server.services.base import BaseService
 
         mock_client = Mock(spec=AsyncCheckmkClient)
         service = BaseService(mock_client, Mock())
@@ -431,7 +431,7 @@ class TestPerformanceImpactIntegration:
     def test_end_to_end_performance_impact(self):
         """Test end-to-end performance impact of request tracking."""
         import time
-        from checkmk_agent.middleware.request_tracking import with_request_tracking
+        from checkmk_mcp_server.middleware.request_tracking import with_request_tracking
 
         # Test function without request tracking
         def plain_operation():
@@ -472,7 +472,7 @@ class TestPerformanceImpactIntegration:
     async def test_async_performance_impact(self):
         """Test performance impact in async scenarios."""
         import time
-        from checkmk_agent.middleware.request_tracking import with_request_tracking
+        from checkmk_mcp_server.middleware.request_tracking import with_request_tracking
 
         # Async function without tracking
         async def plain_async_operation():
@@ -551,7 +551,7 @@ class TestConfigurationIntegration:
 
     def test_request_id_persistence_across_components(self):
         """Test request ID persists across different component interactions."""
-        from checkmk_agent.middleware.request_tracking import RequestTrackingMiddleware
+        from checkmk_mcp_server.middleware.request_tracking import RequestTrackingMiddleware
 
         middleware = RequestTrackingMiddleware()
 

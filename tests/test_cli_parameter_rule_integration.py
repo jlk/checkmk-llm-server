@@ -9,8 +9,8 @@ import json
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
-from checkmk_agent.cli import cli
-from checkmk_agent.config import CheckmkConfig
+from checkmk_mcp_server.cli import cli
+from checkmk_mcp_server.config import CheckmkConfig
 
 
 class TestCLIParameterRuleIntegration:
@@ -38,14 +38,14 @@ class TestCLIParameterRuleIntegration:
         """
 
         # Mock the configuration loading
-        with patch("checkmk_agent.cli.load_config") as mock_load_config, patch(
-            "checkmk_agent.services.parameter_service.AsyncCheckmkClient"
+        with patch("checkmk_mcp_server.cli.load_config") as mock_load_config, patch(
+            "checkmk_mcp_server.services.parameter_service.AsyncCheckmkClient"
         ) as mock_client_class, patch(
-            "checkmk_agent.cli.CheckmkClient"
+            "checkmk_mcp_server.cli.CheckmkClient"
         ) as mock_cli_client_class:
 
             # Setup configuration mock
-            from checkmk_agent.config import AppConfig, LLMConfig
+            from checkmk_mcp_server.config import AppConfig, LLMConfig
 
             app_config = AppConfig(checkmk=mock_config, llm=LLMConfig())
             mock_load_config.return_value = app_config
@@ -77,7 +77,7 @@ class TestCLIParameterRuleIntegration:
 
             # Mock parameter validation
             with patch(
-                "checkmk_agent.services.parameter_service.ParameterService.validate_parameters"
+                "checkmk_mcp_server.services.parameter_service.ParameterService.validate_parameters"
             ) as mock_validate:
                 mock_validate.return_value = MagicMock(
                     success=True,
@@ -91,7 +91,7 @@ class TestCLIParameterRuleIntegration:
 
                 # Mock ruleset discovery
                 with patch(
-                    "checkmk_agent.services.parameter_service.ParameterService.discover_ruleset_dynamic"
+                    "checkmk_mcp_server.services.parameter_service.ParameterService.discover_ruleset_dynamic"
                 ) as mock_discover:
                     mock_discover.return_value = MagicMock(
                         success=True,
@@ -153,14 +153,14 @@ class TestCLIParameterRuleIntegration:
 
         This reproduces the exact CLI scenario from the error logs.
         """
-        with patch("checkmk_agent.cli.load_config") as mock_load_config, patch(
-            "checkmk_agent.services.parameter_service.AsyncCheckmkClient"
+        with patch("checkmk_mcp_server.cli.load_config") as mock_load_config, patch(
+            "checkmk_mcp_server.services.parameter_service.AsyncCheckmkClient"
         ) as mock_client_class, patch(
-            "checkmk_agent.cli.CheckmkClient"
+            "checkmk_mcp_server.cli.CheckmkClient"
         ) as mock_cli_client_class:
 
             # Setup mocks (same as above)
-            from checkmk_agent.config import AppConfig, LLMConfig
+            from checkmk_mcp_server.config import AppConfig, LLMConfig
 
             app_config = AppConfig(checkmk=mock_config, llm=LLMConfig())
             mock_load_config.return_value = app_config
@@ -194,9 +194,9 @@ class TestCLIParameterRuleIntegration:
             }
 
             with patch(
-                "checkmk_agent.services.parameter_service.ParameterService.validate_parameters"
+                "checkmk_mcp_server.services.parameter_service.ParameterService.validate_parameters"
             ) as mock_validate, patch(
-                "checkmk_agent.services.parameter_service.ParameterService.discover_ruleset_dynamic"
+                "checkmk_mcp_server.services.parameter_service.ParameterService.discover_ruleset_dynamic"
             ) as mock_discover:
 
                 mock_validate.return_value = MagicMock(
@@ -249,14 +249,14 @@ class TestCLIParameterRuleIntegration:
 
         This ensures that the conditions fix doesn't break other error handling.
         """
-        with patch("checkmk_agent.cli.load_config") as mock_load_config, patch(
-            "checkmk_agent.services.parameter_service.AsyncCheckmkClient"
+        with patch("checkmk_mcp_server.cli.load_config") as mock_load_config, patch(
+            "checkmk_mcp_server.services.parameter_service.AsyncCheckmkClient"
         ) as mock_client_class, patch(
-            "checkmk_agent.cli.CheckmkClient"
+            "checkmk_mcp_server.cli.CheckmkClient"
         ) as mock_cli_client_class:
 
-            from checkmk_agent.config import AppConfig, LLMConfig
-            from checkmk_agent.api_client import CheckmkAPIError
+            from checkmk_mcp_server.config import AppConfig, LLMConfig
+            from checkmk_mcp_server.api_client import CheckmkAPIError
 
             app_config = AppConfig(checkmk=mock_config, llm=LLMConfig())
             mock_load_config.return_value = app_config
@@ -271,9 +271,9 @@ class TestCLIParameterRuleIntegration:
             )
 
             with patch(
-                "checkmk_agent.services.parameter_service.ParameterService.validate_parameters"
+                "checkmk_mcp_server.services.parameter_service.ParameterService.validate_parameters"
             ) as mock_validate, patch(
-                "checkmk_agent.services.parameter_service.ParameterService.discover_ruleset_dynamic"
+                "checkmk_mcp_server.services.parameter_service.ParameterService.discover_ruleset_dynamic"
             ) as mock_discover:
 
                 mock_validate.return_value = MagicMock(

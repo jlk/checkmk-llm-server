@@ -5,8 +5,8 @@ import requests
 from unittest.mock import Mock, patch, MagicMock
 from requests.exceptions import RequestException
 
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError, CreateHostRequest
-from checkmk_agent.config import CheckmkConfig
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError, CreateHostRequest
+from checkmk_mcp_server.config import CheckmkConfig
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ class TestCheckmkClient:
         assert client.session.headers["Accept"] == "application/json"
         assert client.session.headers["Content-Type"] == "application/json"
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_make_request_success(self, mock_request, client, mock_response):
         """Test successful API request."""
         mock_request.return_value = mock_response
@@ -65,7 +65,7 @@ class TestCheckmkClient:
         assert "test-endpoint" in kwargs["url"]
         assert kwargs["timeout"] == 30
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_make_request_204_no_content(self, mock_request, client):
         """Test API request with 204 No Content response."""
         mock_response = Mock()
@@ -76,7 +76,7 @@ class TestCheckmkClient:
 
         assert result == {}
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_make_request_api_error(self, mock_request, client):
         """Test API request with error response."""
         mock_response = Mock()
@@ -90,7 +90,7 @@ class TestCheckmkClient:
         assert exc_info.value.status_code == 400
         assert "Bad request" in str(exc_info.value)
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_make_request_network_error(self, mock_request, client):
         """Test API request with network error."""
         mock_request.side_effect = RequestException("Network error")
@@ -100,7 +100,7 @@ class TestCheckmkClient:
 
         assert "Network error" in str(exc_info.value)
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_list_hosts(self, mock_request, client):
         """Test list_hosts method."""
         mock_response = Mock()
@@ -124,7 +124,7 @@ class TestCheckmkClient:
         assert "/domain-types/host_config/collections/all" in kwargs["url"]
         assert kwargs.get("params") == {}
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_list_hosts_with_effective_attributes(self, mock_request, client):
         """Test list_hosts with effective_attributes parameter."""
         mock_response = Mock()
@@ -137,7 +137,7 @@ class TestCheckmkClient:
         args, kwargs = mock_request.call_args
         assert kwargs.get("params") == {"effective_attributes": "true"}
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_get_host(self, mock_request, client):
         """Test get_host method."""
         mock_response = Mock()
@@ -156,7 +156,7 @@ class TestCheckmkClient:
         args, kwargs = mock_request.call_args
         assert "/objects/host_config/test-host" in kwargs["url"]
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_create_host(self, mock_request, client):
         """Test create_host method."""
         mock_response = Mock()
@@ -182,7 +182,7 @@ class TestCheckmkClient:
         assert kwargs["json"]["host_name"] == "new-host"
         assert kwargs["json"]["attributes"]["ipaddress"] == "192.168.1.10"
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_create_host_with_bake_agent(self, mock_request, client):
         """Test create_host with bake_agent parameter."""
         mock_response = Mock()
@@ -195,7 +195,7 @@ class TestCheckmkClient:
         args, kwargs = mock_request.call_args
         assert kwargs.get("params") == {"bake_agent": "true"}
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_delete_host(self, mock_request, client):
         """Test delete_host method."""
         mock_response = Mock()
@@ -209,7 +209,7 @@ class TestCheckmkClient:
         assert kwargs["method"] == "DELETE"
         assert "/objects/host_config/test-host" in kwargs["url"]
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_update_host(self, mock_request, client):
         """Test update_host method."""
         mock_response = Mock()
@@ -230,7 +230,7 @@ class TestCheckmkClient:
         assert kwargs["json"]["attributes"]["ipaddress"] == "192.168.1.20"
         assert kwargs["headers"]["If-Match"] == "test-etag"
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_bulk_create_hosts(self, mock_request, client):
         """Test bulk_create_hosts method."""
         mock_response = Mock()
@@ -256,7 +256,7 @@ class TestCheckmkClient:
         assert kwargs["json"]["entries"][0]["host_name"] == "host1"
         assert kwargs["json"]["entries"][1]["attributes"]["ipaddress"] == "192.168.1.10"
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_bulk_delete_hosts(self, mock_request, client):
         """Test bulk_delete_hosts method."""
         mock_response = Mock()
@@ -273,7 +273,7 @@ class TestCheckmkClient:
         assert "/domain-types/host_config/actions/bulk-delete/invoke" in kwargs["url"]
         assert kwargs["json"]["entries"] == host_names
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_test_connection_success(self, mock_request, client):
         """Test test_connection method with successful connection."""
         mock_response = Mock()
@@ -285,7 +285,7 @@ class TestCheckmkClient:
 
         assert result is True
 
-    @patch("checkmk_agent.api_client.requests.Session.request")
+    @patch("checkmk_mcp_server.api_client.requests.Session.request")
     def test_test_connection_failure(self, mock_request, client):
         """Test test_connection method with failed connection."""
         mock_request.side_effect = CheckmkAPIError("Connection failed")

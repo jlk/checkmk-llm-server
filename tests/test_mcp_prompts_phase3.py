@@ -3,8 +3,8 @@
 import pytest
 from mcp.types import Prompt, PromptArgument
 
-from checkmk_agent.mcp_server.prompts.definitions import PromptDefinitions
-from checkmk_agent.mcp_server.prompts.validators import PromptValidators
+from checkmk_mcp_server.mcp_server.prompts.definitions import PromptDefinitions
+from checkmk_mcp_server.mcp_server.prompts.validators import PromptValidators
 
 
 class TestPromptDefinitions:

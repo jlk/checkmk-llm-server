@@ -1,7 +1,7 @@
 # Project Overview (Updated 2025-08-21 - Phase 7 Complete)
 
 ## Purpose
-The **Checkmk LLM Agent** is a comprehensive Python application that integrates Large Language Models with Checkmk monitoring systems through the Model Context Protocol (MCP). It enables natural language interactions for infrastructure monitoring and management with **complete modular architecture**.
+The **Checkmk MCP Server** is a comprehensive Python application that integrates Large Language Models with Checkmk monitoring systems through the Model Context Protocol (MCP). It enables natural language interactions for infrastructure monitoring and management with **complete modular architecture**.
 
 ## Key Features
 - **Fully Modular Architecture**: 37 MCP tools + 8 web scraping modules
@@ -122,4 +122,4 @@ Users can interact with the system using natural language:
 - **Circuit Breakers**: Automatic failure recovery and retry logic
 - **Type Safety**: Complete type annotations throughout
 
-The Checkmk LLM Agent represents a complete architectural transformation, successfully eliminating 9,349 lines of monolithic code and replacing it with a clean, modular, maintainable system. The refactoring maintains 100% functionality while dramatically improving code quality, testability, and extensibility. The system is exceptionally production-ready and represents one of the most successful architectural transformations in the project's history.
+The Checkmk MCP Server represents a complete architectural transformation, successfully eliminating 9,349 lines of monolithic code and replacing it with a clean, modular, maintainable system. The refactoring maintains 100% functionality while dramatically improving code quality, testability, and extensibility. The system is exceptionally production-ready and represents one of the most successful architectural transformations in the project's history.

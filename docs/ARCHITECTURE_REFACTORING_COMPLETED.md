@@ -107,7 +107,7 @@ ServiceOperationsFacade
 ## Files Created/Modified
 
 ### New Command System Files
-- `checkmk_agent/commands/` - Complete command system package
+- `checkmk_mcp_server/commands/` - Complete command system package
   - `__init__.py` - Package exports
   - `base.py` - Core interfaces and data structures
   - `registry.py` - Command registry and management
@@ -119,7 +119,7 @@ ServiceOperationsFacade
   - `utility_commands.py` - Utility and help commands
 
 ### Enhanced Manager
-- `checkmk_agent/service_operations_v2.py` - Drop-in replacement with new architecture
+- `checkmk_mcp_server/service_operations_v2.py` - Drop-in replacement with new architecture
 
 ### Testing and Documentation
 - `tests/test_commands.py` - Comprehensive test suite (21 tests)
@@ -144,7 +144,7 @@ ServiceOperationsFacade
 ### For Existing Code (Zero Changes Required)
 ```python
 # This continues to work exactly as before
-from checkmk_agent.service_operations_v2 import ServiceOperationsManager
+from checkmk_mcp_server.service_operations_v2 import ServiceOperationsManager
 
 manager = ServiceOperationsManager(checkmk_client, llm_client, config)
 result = manager.process_command("list services for server01")
@@ -161,7 +161,7 @@ result = manager.execute_command_directly("list_services", {"host_name": "server
 
 ### For Direct Command Usage
 ```python
-from checkmk_agent.commands import ServiceOperationsFacade
+from checkmk_mcp_server.commands import ServiceOperationsFacade
 
 facade = ServiceOperationsFacade(checkmk_client, llm_client, config)
 result = facade.process_command("acknowledge CPU load on server01")

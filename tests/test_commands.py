@@ -4,22 +4,22 @@ import pytest
 from unittest.mock import Mock, MagicMock
 from datetime import datetime
 
-from checkmk_agent.commands.base import (
+from checkmk_mcp_server.commands.base import (
     BaseCommand,
     CommandContext,
     CommandResult,
     CommandCategory,
 )
-from checkmk_agent.commands.registry import CommandRegistry
-from checkmk_agent.commands.factory import CommandFactory
-from checkmk_agent.commands.service_commands import (
+from checkmk_mcp_server.commands.registry import CommandRegistry
+from checkmk_mcp_server.commands.factory import CommandFactory
+from checkmk_mcp_server.commands.service_commands import (
     ListServicesCommand,
     GetServiceStatusCommand,
     AcknowledgeServiceCommand,
 )
-from checkmk_agent.commands.parameter_commands import ViewDefaultParametersCommand
-from checkmk_agent.commands.utility_commands import ConnectionTestCommand, HelpCommand
-from checkmk_agent.api_client import CheckmkAPIError
+from checkmk_mcp_server.commands.parameter_commands import ViewDefaultParametersCommand
+from checkmk_mcp_server.commands.utility_commands import ConnectionTestCommand, HelpCommand
+from checkmk_mcp_server.api_client import CheckmkAPIError
 
 
 class TestBaseCommand:

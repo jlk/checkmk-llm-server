@@ -10,10 +10,10 @@ import asyncio
 import time
 from datetime import datetime, timedelta
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.config import AppConfig, CheckmkConfig
-from checkmk_agent.services.historical_service import CachedHistoricalDataService
-from checkmk_agent.services.models.historical import HistoricalDataRequest
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig
+from checkmk_mcp_server.services.historical_service import CachedHistoricalDataService
+from checkmk_mcp_server.services.models.historical import HistoricalDataRequest
 
 
 @pytest.fixture
@@ -74,13 +74,13 @@ class TestHistoricalPerformance:
     async def test_cache_hit_behavior(self, mock_config, sample_scraper_data):
         """Test that repeated requests with same parameters hit the cache."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = sample_scraper_data
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -122,13 +122,13 @@ class TestHistoricalPerformance:
     async def test_cache_miss_with_different_parameters(self, mock_config, sample_scraper_data):
         """Test that requests with different parameters miss the cache."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = sample_scraper_data
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -171,13 +171,13 @@ class TestHistoricalPerformance:
         mock_config.historical_data['cache_ttl'] = 0.1  # 100ms TTL
         
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = sample_scraper_data
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -211,7 +211,7 @@ class TestHistoricalPerformance:
     async def test_concurrent_request_handling(self, mock_config, sample_scraper_data):
         """Test handling of concurrent requests for the same data."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper with slight delay to simulate real-world scenario
@@ -221,7 +221,7 @@ class TestHistoricalPerformance:
             return sample_scraper_data
         mock_scraper.scrape_historical_data.side_effect = delayed_scrape
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -254,7 +254,7 @@ class TestHistoricalPerformance:
     async def test_cache_statistics_tracking(self, mock_config, sample_scraper_data):
         """Test that cache statistics are properly tracked."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
@@ -263,7 +263,7 @@ class TestHistoricalPerformance:
         historical_service = server.historical_service
         assert isinstance(historical_service, CachedHistoricalDataService)
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             # Get initial cache stats
             initial_stats = historical_service.get_cache_stats()
             
@@ -292,7 +292,7 @@ class TestHistoricalPerformance:
     async def test_cache_invalidation(self, mock_config, sample_scraper_data):
         """Test cache invalidation functionality."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
@@ -300,7 +300,7 @@ class TestHistoricalPerformance:
         
         historical_service = server.historical_service
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             request = HistoricalDataRequest(
                 host_name="test-host", 
                 service_name="CPU load",
@@ -326,7 +326,7 @@ class TestHistoricalPerformance:
     async def test_performance_with_large_datasets(self, mock_config):
         """Test performance characteristics with large datasets."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Generate large dataset (1000 data points)
@@ -347,7 +347,7 @@ class TestHistoricalPerformance:
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = large_dataset
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -377,7 +377,7 @@ class TestHistoricalPerformance:
     async def test_memory_usage_optimization(self, mock_config, sample_scraper_data):
         """Test memory usage patterns and optimization."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
@@ -385,7 +385,7 @@ class TestHistoricalPerformance:
         
         historical_service = server.historical_service
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             # Make multiple requests to fill cache
             requests = []
             for i in range(10):
@@ -408,7 +408,7 @@ class TestHistoricalPerformance:
     async def test_error_caching_behavior(self, mock_config):
         """Test that errors are not cached."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that fails first time, succeeds second time
@@ -425,7 +425,7 @@ class TestHistoricalPerformance:
         
         mock_scraper.scrape_historical_data.side_effect = side_effect
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -456,7 +456,7 @@ class TestHistoricalPerformance:
     async def test_cache_key_generation(self, mock_config, sample_scraper_data):
         """Test that cache keys are generated correctly for different requests."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
@@ -464,7 +464,7 @@ class TestHistoricalPerformance:
         
         historical_service = server.historical_service
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             # Different requests should generate different cache keys
             requests = [
                 HistoricalDataRequest(host_name="host1", service_name="service1", period="4h"),
@@ -484,13 +484,13 @@ class TestHistoricalPerformance:
     async def test_performance_metrics_collection(self, mock_config, sample_scraper_data):
         """Test that performance metrics are properly collected."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = sample_scraper_data
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
             
@@ -523,7 +523,7 @@ class TestHistoricalPerformance:
     async def test_cache_cleanup_on_service_shutdown(self, mock_config, sample_scraper_data):
         """Test that cache is properly cleaned up when service shuts down."""
         server = CheckmkMCPServer(mock_config)
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         mock_scraper = Mock()
@@ -531,7 +531,7 @@ class TestHistoricalPerformance:
         
         historical_service = server.historical_service
         
-        with patch('checkmk_agent.services.web_scraping.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.web_scraping.ScraperService', return_value=mock_scraper):
             # Populate cache with some data
             request = HistoricalDataRequest(
                 host_name="test-host",

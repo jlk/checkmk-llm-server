@@ -1,7 +1,7 @@
 # Task: Implement Service Status Monitoring
 
 ## Overview
-Add comprehensive service status monitoring capabilities to the Checkmk LLM Agent, enabling users to query, analyze, and monitor service health through natural language commands.
+Add comprehensive service status monitoring capabilities to the Checkmk MCP Server, enabling users to query, analyze, and monitor service health through natural language commands.
 
 ## Background
 The Checkmk OpenAPI provides extensive service status endpoints that can retrieve detailed monitoring information including service states, performance data, acknowledgements, downtimes, and check results. This task will implement a complete service status system that integrates with the existing CLI and interactive modes.
@@ -47,7 +47,7 @@ STATUS_COLUMNS = [
 ### 2. Service Status Manager (`service_status.py`)
 
 #### Create New Module:
-- **Location**: `checkmk_agent/service_status.py`
+- **Location**: `checkmk_mcp_server/service_status.py`
 - **Purpose**: High-level service status operations and analysis
 - **Dependencies**: `api_client.py`, `config.py`
 
@@ -72,14 +72,14 @@ class ServiceStatusManager:
 
 #### New Command Group: `status`
 ```bash
-checkmk-agent status --help                    # Show status command help
-checkmk-agent status overview                  # Service health dashboard
-checkmk-agent status problems                  # List all problem services
-checkmk-agent status host <hostname>           # Status for specific host
-checkmk-agent status service <host> <service>  # Detailed service status
-checkmk-agent status critical                  # Show only critical services
-checkmk-agent status acknowledged              # Show acknowledged problems
-checkmk-agent status downtime                  # Show services in downtime
+checkmk-mcp-server status --help                    # Show status command help
+checkmk-mcp-server status overview                  # Service health dashboard
+checkmk-mcp-server status problems                  # List all problem services
+checkmk-mcp-server status host <hostname>           # Status for specific host
+checkmk-mcp-server status service <host> <service>  # Detailed service status
+checkmk-mcp-server status critical                  # Show only critical services
+checkmk-mcp-server status acknowledged              # Show acknowledged problems
+checkmk-mcp-server status downtime                  # Show services in downtime
 ```
 
 #### Command Implementation:

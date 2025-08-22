@@ -5,21 +5,21 @@ When completing any coding task, run these commands in order:
 
 ### 1. Code Formatting
 ```bash
-black checkmk_agent/ tests/
+black checkmk_mcp_server/ tests/
 ```
 - Ensures consistent code formatting
 - Must pass without errors
 
 ### 2. Linting
 ```bash
-flake8 checkmk_agent/ tests/
+flake8 checkmk_mcp_server/ tests/
 ```
 - Checks for code quality issues
 - Must resolve all violations
 
 ### 3. Type Checking
 ```bash
-mypy checkmk_agent/
+mypy checkmk_mcp_server/
 ```
 - Validates type annotations
 - Must pass without type errors
@@ -30,7 +30,7 @@ mypy checkmk_agent/
 pytest tests/
 
 # Run with coverage if significant changes
-pytest tests/ --cov=checkmk_agent --cov-report=term-missing
+pytest tests/ --cov=checkmk_mcp_server --cov-report=term-missing
 ```
 - All tests must pass (100% pass rate expected)
 - Coverage should remain high for new code
@@ -53,7 +53,7 @@ python test_new_features.py
 ## Configuration Validation
 ```bash
 # Test with example configuration
-python -c "from checkmk_agent.config import load_config; load_config('config.yaml.example')"
+python -c "from checkmk_mcp_server.config import load_config; load_config('config.yaml.example')"
 ```
 
 ## MCP Server Testing
@@ -79,9 +79,9 @@ pytest tests/test_performance.py
 ## Final Verification
 ```bash
 # Complete validation sequence
-black checkmk_agent/ tests/ && \
-flake8 checkmk_agent/ tests/ && \
-mypy checkmk_agent/ && \
+black checkmk_mcp_server/ tests/ && \
+flake8 checkmk_mcp_server/ tests/ && \
+mypy checkmk_mcp_server/ && \
 pytest tests/ && \
 echo "✅ All checks passed - ready for commit"
 ```

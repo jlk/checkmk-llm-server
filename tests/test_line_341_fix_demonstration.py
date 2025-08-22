@@ -12,10 +12,10 @@ import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
 
-from checkmk_agent.async_api_client import AsyncCheckmkClient
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError
-from checkmk_agent.config import AppConfig, CheckmkConfig
-from checkmk_agent.services.parameter_service import ParameterService
+from checkmk_mcp_server.async_api_client import AsyncCheckmkClient
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig
+from checkmk_mcp_server.services.parameter_service import ParameterService
 
 
 class TestLine341FixDemonstration:

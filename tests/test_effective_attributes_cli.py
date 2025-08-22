@@ -12,7 +12,7 @@ from unittest.mock import patch, Mock
 from click.testing import CliRunner
 import requests_mock
 
-from checkmk_agent.cli import cli
+from checkmk_mcp_server.cli import cli
 
 
 @pytest.fixture

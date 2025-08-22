@@ -11,8 +11,8 @@ import json
 from typing import Dict, Any, List
 from unittest.mock import Mock, AsyncMock
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.services.parameter_service import ParameterService
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.services.parameter_service import ParameterService
 
 
 class TestMCPParameterTools:
@@ -120,15 +120,15 @@ class TestMCPParameterTools:
         server.checkmk_client = mock_checkmk_client
 
         # Initialize services
-        from checkmk_agent.services import (
+        from checkmk_mcp_server.services import (
             HostService,
             StatusService,
             ServiceService,
             ParameterService,
         )
-        from checkmk_agent.services.event_service import EventService
-        from checkmk_agent.services.metrics_service import MetricsService
-        from checkmk_agent.services.bi_service import BIService
+        from checkmk_mcp_server.services.event_service import EventService
+        from checkmk_mcp_server.services.metrics_service import MetricsService
+        from checkmk_mcp_server.services.bi_service import BIService
 
         server.host_service = HostService(mock_checkmk_client, mock_config)
         server.status_service = StatusService(mock_checkmk_client, mock_config)
@@ -580,15 +580,15 @@ class TestMCPToolErrorHandling:
         server.checkmk_client = client
 
         # Initialize services
-        from checkmk_agent.services import (
+        from checkmk_mcp_server.services import (
             HostService,
             StatusService,
             ServiceService,
             ParameterService,
         )
-        from checkmk_agent.services.event_service import EventService
-        from checkmk_agent.services.metrics_service import MetricsService
-        from checkmk_agent.services.bi_service import BIService
+        from checkmk_mcp_server.services.event_service import EventService
+        from checkmk_mcp_server.services.metrics_service import MetricsService
+        from checkmk_mcp_server.services.bi_service import BIService
 
         server.host_service = HostService(client, config)
         server.status_service = StatusService(client, config)
@@ -709,15 +709,15 @@ class TestMCPToolPerformance:
         server.checkmk_client = client
 
         # Initialize services
-        from checkmk_agent.services import (
+        from checkmk_mcp_server.services import (
             HostService,
             StatusService,
             ServiceService,
             ParameterService,
         )
-        from checkmk_agent.services.event_service import EventService
-        from checkmk_agent.services.metrics_service import MetricsService
-        from checkmk_agent.services.bi_service import BIService
+        from checkmk_mcp_server.services.event_service import EventService
+        from checkmk_mcp_server.services.metrics_service import MetricsService
+        from checkmk_mcp_server.services.bi_service import BIService
 
         server.host_service = HostService(client, config)
         server.status_service = StatusService(client, config)

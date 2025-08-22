@@ -4,10 +4,10 @@ import pytest
 from datetime import datetime
 from typing import List, Tuple, Union
 
-from checkmk_agent.services.historical_service import HistoricalDataService
-from checkmk_agent.services.models.historical import HistoricalDataPoint, HistoricalDataResult
-from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig, HistoricalDataConfig
-from checkmk_agent.async_api_client import AsyncCheckmkClient
+from checkmk_mcp_server.services.historical_service import HistoricalDataService
+from checkmk_mcp_server.services.models.historical import HistoricalDataPoint, HistoricalDataResult
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig, HistoricalDataConfig
+from checkmk_mcp_server.async_api_client import AsyncCheckmkClient
 from unittest.mock import Mock
 
 

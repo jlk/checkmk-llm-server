@@ -12,7 +12,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from typing import Dict, Any, List
 from concurrent.futures import ThreadPoolExecutor
 
-from checkmk_agent.services.handlers import (
+from checkmk_mcp_server.services.handlers import (
     get_handler_registry,
     HandlerRegistry,
     BaseParameterHandler,

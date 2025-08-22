@@ -23,11 +23,11 @@
 - `examples/` - Configuration examples and usage samples
 - `specs/` - Feature specifications and implementation plans
 
-## Core Package Structure (`checkmk_agent/`)
+## Core Package Structure (`checkmk_mcp_server/`)
 
 ### Main Modules
 ```
-checkmk_agent/
+checkmk_mcp_server/
 ├── __init__.py              # Package initialization
 ├── api_client.py            # Synchronous CheckMK REST API client
 ├── async_api_client.py      # Asynchronous API wrapper

@@ -1,10 +1,10 @@
-# Checkmk LLM Agent Documentation
+# Checkmk MCP Server Documentation
 
-Welcome to the Checkmk LLM Agent documentation. This directory contains all the guides and references you need to set up, use, and understand the agent.
+Welcome to the Checkmk MCP Server documentation. This directory contains all the guides and references you need to set up, use, and understand the agent.
 
 ## Getting Started
 
-**New to the Checkmk LLM Agent? Start here:**
+**New to the Checkmk MCP Server? Start here:**
 
 - **[Getting Started Guide](getting-started.md)** - Complete setup walkthrough from installation to first use
 - **[Usage Examples](USAGE_EXAMPLES.md)** - Practical examples and common workflows

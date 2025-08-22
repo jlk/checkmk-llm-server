@@ -5,15 +5,15 @@ import asyncio
 from unittest.mock import AsyncMock, Mock
 from datetime import datetime
 
-from checkmk_agent.services.streaming import (
+from checkmk_mcp_server.services.streaming import (
     StreamingMixin,
     StreamBatch,
     StreamingHostService,
     StreamingServiceService,
 )
-from checkmk_agent.services.models.hosts import HostInfo
-from checkmk_agent.services.models.services import ServiceInfo, ServiceState
-from checkmk_agent.config import AppConfig
+from checkmk_mcp_server.services.models.hosts import HostInfo
+from checkmk_mcp_server.services.models.services import ServiceInfo, ServiceState
+from checkmk_mcp_server.config import AppConfig
 
 
 class MockStreamingService(StreamingMixin):

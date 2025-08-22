@@ -4,8 +4,8 @@ import pytest
 from unittest.mock import Mock, patch
 import json
 
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError
-from checkmk_agent.config import CheckmkConfig
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError
+from checkmk_mcp_server.config import CheckmkConfig
 
 
 class TestCheckMkClientStatusMethods:
@@ -48,7 +48,7 @@ class TestCheckMkClientStatusMethods:
         expected = {"op": "or", "expr": expressions}
         assert combined == expected
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_service_status_specific_service_found(self, mock_request):
         """Test getting status for a specific service that exists."""
         mock_response = {
@@ -82,7 +82,7 @@ class TestCheckMkClientStatusMethods:
         assert "status" in result
         assert result["status"]["extensions"]["description"] == "CPU Load"
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_service_status_specific_service_not_found(self, mock_request):
         """Test getting status for a specific service that doesn't exist."""
         mock_response = {"value": []}
@@ -96,7 +96,7 @@ class TestCheckMkClientStatusMethods:
         assert result["found"] is False
         assert result["status"] is None
 
-    @patch("checkmk_agent.api_client.CheckmkClient.list_host_services")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient.list_host_services")
     def test_get_service_status_all_services(self, mock_list_services):
         """Test getting status for all services on a host."""
         mock_services = [
@@ -118,7 +118,7 @@ class TestCheckMkClientStatusMethods:
         assert result["services"] == mock_services
         assert result["service_count"] == 3
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_list_problem_services_no_filter(self, mock_request):
         """Test listing problem services without host filter."""
         mock_response = {
@@ -163,7 +163,7 @@ class TestCheckMkClientStatusMethods:
         assert result[0]["extensions"]["state"] == 2
         assert result[1]["extensions"]["state"] == 1
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_list_problem_services_with_host_filter(self, mock_request):
         """Test listing problem services with host filter."""
         mock_response = {"value": []}
@@ -187,7 +187,7 @@ class TestCheckMkClientStatusMethods:
             },
         )
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_service_health_summary(self, mock_request):
         """Test getting service health summary."""
         mock_response = {
@@ -258,7 +258,7 @@ class TestCheckMkClientStatusMethods:
         assert result["problems"] == 3  # warning + critical + unknown
         assert result["health_percentage"] == 40.0  # 2/5 * 100
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_service_health_summary_empty(self, mock_request):
         """Test getting service health summary with no services."""
         mock_response = {"value": []}
@@ -271,7 +271,7 @@ class TestCheckMkClientStatusMethods:
         assert result["health_percentage"] == 100.0  # Default when no services
         assert result["problems"] == 0
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_services_by_state(self, mock_request):
         """Test getting services by specific state."""
         mock_response = {
@@ -308,7 +308,7 @@ class TestCheckMkClientStatusMethods:
         assert len(result) == 1
         assert result[0]["extensions"]["state"] == 2
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_services_by_state_with_host_filter(self, mock_request):
         """Test getting services by state with host filter."""
         mock_response = {"value": []}
@@ -332,7 +332,7 @@ class TestCheckMkClientStatusMethods:
             },
         )
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_acknowledged_services(self, mock_request):
         """Test getting acknowledged services."""
         mock_response = {
@@ -369,7 +369,7 @@ class TestCheckMkClientStatusMethods:
         assert len(result) == 1
         assert result[0]["extensions"]["acknowledged"] == 1
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_get_services_in_downtime(self, mock_request):
         """Test getting services in downtime."""
         mock_response = {
@@ -406,7 +406,7 @@ class TestCheckMkClientStatusMethods:
         assert len(result) == 1
         assert result[0]["extensions"]["scheduled_downtime_depth"] == 1
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_status_columns_constant(self, mock_request):
         """Test that STATUS_COLUMNS constant contains expected columns."""
         expected_columns = [
@@ -427,7 +427,7 @@ class TestCheckMkClientStatusMethods:
 
         assert self.client.STATUS_COLUMNS == expected_columns
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_api_error_handling(self, mock_request):
         """Test error handling in status methods."""
         mock_request.side_effect = CheckmkAPIError("API Error", 500)
@@ -560,7 +560,7 @@ class TestCheckMkClientStatusIntegration:
 
         self.client = CheckmkClient(self.mock_config)
 
-    @patch("checkmk_agent.api_client.CheckmkClient._make_request")
+    @patch("checkmk_mcp_server.api_client.CheckmkClient._make_request")
     def test_complete_status_monitoring_scenario(self, mock_request):
         """Test complete status monitoring scenario."""
         # Simulate a realistic Checkmk environment response

@@ -13,7 +13,7 @@ KEY DECISIONS:
 - Established mcp_checkmk_server.py as the canonical entry point
 
 FILES CHANGED:
-- checkmk_agent/mcp_server/server.py: Added error sanitization, individual exception handling for all tool handlers, restored MCP prompts system with list_prompts() and get_prompt() handlers, removed duplicate main function and debugging artifacts
+- checkmk_mcp_server/mcp_server/server.py: Added error sanitization, individual exception handling for all tool handlers, restored MCP prompts system with list_prompts() and get_prompt() handlers, removed duplicate main function and debugging artifacts
 
 TECHNICAL DETAILS:
 - **Security Enhancements**: Added sanitize_error() function that removes sensitive paths and truncates long messages, comprehensive try-catch blocks in acknowledge_service_problem, create_service_downtime, list_hosts, create_host, get_host, update_host, delete_host, list_host_services, list_all_services, get_health_dashboard, get_critical_problems, get_effective_parameters, set_service_parameters

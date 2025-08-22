@@ -13,11 +13,11 @@ KEY DECISIONS:
 - Added new monitoring-specific API methods to handle livestatus data properly
 
 FILES CHANGED:
-- checkmk_agent/mcp_server/enhanced_server.py: Fixed parameter mismatches in MCP tool handlers
-- checkmk_agent/services/service_service.py: Updated to use monitoring endpoints and added state_type conversion
-- checkmk_agent/api_client.py: Added new monitoring data methods (list_host_services_with_monitoring_data, list_all_services_with_monitoring_data)
-- checkmk_agent/async_api_client.py: Added async wrappers for new monitoring methods
-- checkmk_agent/cli.py: Fixed critical state extraction logic to handle falsy numeric values properly
+- checkmk_mcp_server/mcp_server/enhanced_server.py: Fixed parameter mismatches in MCP tool handlers
+- checkmk_mcp_server/services/service_service.py: Updated to use monitoring endpoints and added state_type conversion
+- checkmk_mcp_server/api_client.py: Added new monitoring data methods (list_host_services_with_monitoring_data, list_all_services_with_monitoring_data)
+- checkmk_mcp_server/async_api_client.py: Added async wrappers for new monitoring methods
+- checkmk_mcp_server/cli.py: Fixed critical state extraction logic to handle falsy numeric values properly
 
 TECHNICAL ISSUES RESOLVED:
 1. **TypeError: ServiceService.list_host_services() got unexpected keyword argument 'include_downtimes'**

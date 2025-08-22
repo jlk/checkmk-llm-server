@@ -3,7 +3,7 @@ DATE: 2025-08-21
 PARTICIPANTS: User, Claude Code, Senior Python Architect
 SUMMARY: Successfully completed Phase 7 of the checkmk scraper refactoring, eliminating the 4,900-line monolithic scraper and replacing it with a sophisticated modular architecture of 8 focused modules while preserving 100% functionality.
 
-INITIAL PROMPT: clean up the errors in checkmk_agent/services/web_scraping/extractors/graph_extractor.py
+INITIAL PROMPT: clean up the errors in checkmk_mcp_server/services/web_scraping/extractors/graph_extractor.py
 
 KEY DECISIONS:
 - Completed elimination of 9,349-line monolithic codebase (MCP server + web scraper)
@@ -13,10 +13,10 @@ KEY DECISIONS:
 - Integrated modular web scraping with historical service and MCP tools
 
 FILES CHANGED:
-- checkmk_agent/services/web_scraping/extractors/graph_extractor.py: Removed unused time import
-- checkmk_agent/services/web_scraping/extractors/table_extractor.py: Fixed Python type safety issues, enhanced regex patterns for negative temperatures
-- checkmk_agent/services/web_scraping/extractors/ajax_extractor.py: Fixed type annotations and removed unused imports
-- checkmk_agent/services/historical_service.py: Updated to use modular ScraperService
+- checkmk_mcp_server/services/web_scraping/extractors/graph_extractor.py: Removed unused time import
+- checkmk_mcp_server/services/web_scraping/extractors/table_extractor.py: Fixed Python type safety issues, enhanced regex patterns for negative temperatures
+- checkmk_mcp_server/services/web_scraping/extractors/ajax_extractor.py: Fixed type annotations and removed unused imports
+- checkmk_mcp_server/services/historical_service.py: Updated to use modular ScraperService
 - Multiple documentation files: Updated to reflect Phase 7 completion and architectural transformation
 - README.md: Added new historical CLI commands and examples
 - Project memories: Updated with complete refactoring achievement details

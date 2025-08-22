@@ -8,8 +8,8 @@ from mcp.types import Resource, Prompt, PromptMessage, GetPromptResult, TextCont
 from mcp.server import Server
 from pydantic import AnyUrl
 
-from checkmk_agent.mcp_server.handlers.protocol import ProtocolHandlers
-from checkmk_agent.services.models.services import ServiceState
+from checkmk_mcp_server.mcp_server.handlers.protocol import ProtocolHandlers
+from checkmk_mcp_server.services.models.services import ServiceState
 
 
 class TestProtocolHandlers:
@@ -166,7 +166,7 @@ class TestProtocolHandlers:
         """Test reading server metrics resource."""
         mock_stats = {"cpu": 50, "memory": 75}
         
-        with patch('checkmk_agent.mcp_server.handlers.protocol.get_metrics_collector') as mock_collector:
+        with patch('checkmk_mcp_server.mcp_server.handlers.protocol.get_metrics_collector') as mock_collector:
             mock_collector.return_value.get_stats = AsyncMock(return_value=mock_stats)
             
             uri = AnyUrl("checkmk://metrics/server")

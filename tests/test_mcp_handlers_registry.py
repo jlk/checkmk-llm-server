@@ -7,7 +7,7 @@ from typing import Dict, Any
 from mcp.types import Tool
 from mcp.server import Server
 
-from checkmk_agent.mcp_server.handlers.registry import ToolRegistry
+from checkmk_mcp_server.mcp_server.handlers.registry import ToolRegistry
 
 
 class TestToolRegistry:
@@ -225,8 +225,8 @@ class TestToolRegistry:
         registry.register_mcp_handlers(mock_server, mock_services_check)
         
         # Test the call_tool handler
-        with patch('checkmk_agent.mcp_server.handlers.registry.generate_request_id', return_value='req_123456'):
-            with patch('checkmk_agent.mcp_server.handlers.registry.set_request_id'):
+        with patch('checkmk_mcp_server.mcp_server.handlers.registry.generate_request_id', return_value='req_123456'):
+            with patch('checkmk_mcp_server.mcp_server.handlers.registry.set_request_id'):
                 result = await call_tool_handler("test_tool", {"param": "value"})
         
         # Verify handler was called with correct arguments
@@ -256,8 +256,8 @@ class TestToolRegistry:
         
         # Test unknown tool
         with pytest.raises(ValueError, match="Unknown tool: unknown_tool"):
-            with patch('checkmk_agent.mcp_server.handlers.registry.generate_request_id', return_value='req_123456'):
-                with patch('checkmk_agent.mcp_server.handlers.registry.set_request_id'):
+            with patch('checkmk_mcp_server.mcp_server.handlers.registry.generate_request_id', return_value='req_123456'):
+                with patch('checkmk_mcp_server.mcp_server.handlers.registry.set_request_id'):
                     await call_tool_handler("unknown_tool", {})
 
     @pytest.mark.asyncio
@@ -279,8 +279,8 @@ class TestToolRegistry:
         
         # Test services not initialized
         with pytest.raises(RuntimeError, match="Services not initialized"):
-            with patch('checkmk_agent.mcp_server.handlers.registry.generate_request_id', return_value='req_123456'):
-                with patch('checkmk_agent.mcp_server.handlers.registry.set_request_id'):
+            with patch('checkmk_mcp_server.mcp_server.handlers.registry.generate_request_id', return_value='req_123456'):
+                with patch('checkmk_mcp_server.mcp_server.handlers.registry.set_request_id'):
                     await call_tool_handler("test_tool", {})
 
     def test_clear_registry(self, registry, mock_tool, mock_handler):

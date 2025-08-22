@@ -13,11 +13,11 @@ KEY DECISIONS:
 - Created extensive test coverage for all new status functionality
 
 FILES CHANGED:
-- checkmk_agent/api_client.py: Added 6 new status methods and STATUS_COLUMNS constant, replaced Livestatus queries with fallback filtering
-- checkmk_agent/service_status.py: Created new 497-line ServiceStatusManager class with health dashboards and problem analysis
-- checkmk_agent/cli.py: Added complete status command group with 7 subcommands for comprehensive status monitoring
-- checkmk_agent/interactive/command_parser.py: Enhanced status keyword recognition and parameter extraction for "service status for X" patterns
-- checkmk_agent/interactive/ui_manager.py: Added rich status UI methods with health bars, color coding, and visual indicators
+- checkmk_mcp_server/api_client.py: Added 6 new status methods and STATUS_COLUMNS constant, replaced Livestatus queries with fallback filtering
+- checkmk_mcp_server/service_status.py: Created new 497-line ServiceStatusManager class with health dashboards and problem analysis
+- checkmk_mcp_server/cli.py: Added complete status command group with 7 subcommands for comprehensive status monitoring
+- checkmk_mcp_server/interactive/command_parser.py: Enhanced status keyword recognition and parameter extraction for "service status for X" patterns
+- checkmk_mcp_server/interactive/ui_manager.py: Added rich status UI methods with health bars, color coding, and visual indicators
 - tests/test_service_status.py: Created comprehensive 553-line test suite for ServiceStatusManager functionality
 - tests/test_api_client_status.py: Created 531-line API client status method test suite
 - README.md: Updated with complete service status monitoring documentation and examples

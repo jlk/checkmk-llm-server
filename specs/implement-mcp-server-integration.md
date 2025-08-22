@@ -1,7 +1,7 @@
 # Checkmk MCP Server Implementation (MCP-First Architecture)
 
 ## Overview
-Transform the Checkmk LLM Agent into an MCP-first architecture where the MCP server becomes the primary interface, and the CLI becomes a specialized MCP client. This provides a unified service layer with multiple presentation formats: rich CLI interface and standardized MCP protocol.
+Transform the Checkmk MCP Server into an MCP-first architecture where the MCP server becomes the primary interface, and the CLI becomes a specialized MCP client. This provides a unified service layer with multiple presentation formats: rich CLI interface and standardized MCP protocol.
 
 ## Architecture Vision: Service Layer + Multiple Clients
 
@@ -44,7 +44,7 @@ Transform the Checkmk LLM Agent into an MCP-first architecture where the MCP ser
 Create a clean service layer that both MCP and CLI can consume:
 
 ```
-checkmk_agent/
+checkmk_mcp_server/
 ├── services/              # NEW: Core business services
 │   ├── __init__.py
 │   ├── base.py           # Base service with common patterns
@@ -77,7 +77,7 @@ checkmk_agent/
 Create Pydantic models for all service responses:
 
 ```python
-# checkmk_agent/services/models/hosts.py
+# checkmk_mcp_server/services/models/hosts.py
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -113,7 +113,7 @@ asyncio-compat>=0.3.0  # For async compatibility
 
 ### 1.2 Implement Service Layer
 ```python
-# checkmk_agent/services/host_service.py
+# checkmk_mcp_server/services/host_service.py
 from typing import Optional, Dict, Any
 from ..api_client import CheckmkClient
 from ..config import AppConfig
@@ -173,7 +173,7 @@ class HostService:
 
 ### 2.1 Core MCP Server with Official SDK
 ```python
-# checkmk_agent/mcp_server/server.py
+# checkmk_mcp_server/mcp_server/server.py
 import asyncio
 from mcp import Server
 from mcp.types import Tool, Resource, TextContent, ImageContent
@@ -372,7 +372,7 @@ mcp:
 
 ### 3.1 CLI MCP Client Implementation
 ```python
-# checkmk_agent/cli_client/client.py
+# checkmk_mcp_server/cli_client/client.py
 import asyncio
 from mcp import Client
 from mcp.client.stdio import stdio_client
@@ -417,7 +417,7 @@ class CheckmkCLIClient:
 
 ### 3.2 Enhanced CLI with Rich Formatting
 ```python
-# checkmk_agent/cli_client/interactive_ui.py
+# checkmk_mcp_server/cli_client/interactive_ui.py
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -473,7 +473,7 @@ async def hosts_stream() -> TextContent:
 
 ### 4.2 Enhanced Error Handling
 ```python
-# checkmk_agent/services/base.py
+# checkmk_mcp_server/services/base.py
 from typing import TypeVar, Generic, Union
 from pydantic import BaseModel
 
@@ -508,8 +508,8 @@ class BaseService:
 ```python
 # tests/test_mcp_integration.py
 import pytest
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
-from checkmk_agent.cli_client.client import CheckmkCLIClient
+from checkmk_mcp_server.mcp_server.server import CheckmkMCPServer
+from checkmk_mcp_server.cli_client.client import CheckmkCLIClient
 
 @pytest.mark.asyncio
 async def test_mcp_cli_integration():
@@ -533,7 +533,7 @@ async def test_mcp_cli_integration():
   "mcpServers": {
     "checkmk-monitoring": {
       "command": "python",
-      "args": ["-m", "checkmk_agent.mcp_server.server"],
+      "args": ["-m", "checkmk_mcp_server.mcp_server.server"],
       "cwd": "/path/to/checkmk_llm_agent",
       "env": {
         "CHECKMK_CONFIG_FILE": "/path/to/config.yaml"

@@ -16,11 +16,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, Any
 
-from checkmk_agent.async_api_client import AsyncCheckmkClient
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.config import AppConfig
-from checkmk_agent.services.parameter_service import ParameterService
-from checkmk_agent.api_client import CheckmkAPIError
+from checkmk_mcp_server.async_api_client import AsyncCheckmkClient
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.config import AppConfig
+from checkmk_mcp_server.services.parameter_service import ParameterService
+from checkmk_mcp_server.api_client import CheckmkAPIError
 
 
 class TestAsyncCoroutineFix:
@@ -339,7 +339,7 @@ class TestAsyncCoroutineFix:
 
     def test_sync_method_signature_matches_async(self):
         """Test that sync and async method signatures match for compatibility."""
-        from checkmk_agent.config import CheckmkConfig
+        from checkmk_mcp_server.config import CheckmkConfig
 
         # Create a mock config
         mock_config = MagicMock(spec=CheckmkConfig)

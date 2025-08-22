@@ -14,15 +14,15 @@ KEY DECISIONS:
 - Maintained backward compatibility while adding powerful new customization features
 
 FILES CHANGED:
-- checkmk_agent/interactive/color_manager.py: New comprehensive color management system with themes, terminal capability detection, and color preview functionality
-- checkmk_agent/config.py: Added UIConfig schema with environment variable support for all UI settings
-- checkmk_agent/interactive/ui_manager.py: Integrated ColorManager, added theme management methods, maintained backward compatibility
-- checkmk_agent/cli.py: Added theme/color commands to interactive mode, integrated UI configuration from app config
-- checkmk_agent/interactive/command_parser.py: Fixed get_command_type() method to properly classify host vs service commands with explicit keyword checking
-- checkmk_agent/llm_client.py: Enhanced system prompts with strict validation rules to prevent invalid commands from being parsed as valid operations
-- checkmk_agent/interactive/help_system.py: Added comprehensive help for theme and color commands with examples
-- checkmk_agent/interactive/tab_completer.py: Added tab completion support for theme names and color commands
-- checkmk_agent/interactive/__init__.py: Updated exports to include ColorManager and MessageType
+- checkmk_mcp_server/interactive/color_manager.py: New comprehensive color management system with themes, terminal capability detection, and color preview functionality
+- checkmk_mcp_server/config.py: Added UIConfig schema with environment variable support for all UI settings
+- checkmk_mcp_server/interactive/ui_manager.py: Integrated ColorManager, added theme management methods, maintained backward compatibility
+- checkmk_mcp_server/cli.py: Added theme/color commands to interactive mode, integrated UI configuration from app config
+- checkmk_mcp_server/interactive/command_parser.py: Fixed get_command_type() method to properly classify host vs service commands with explicit keyword checking
+- checkmk_mcp_server/llm_client.py: Enhanced system prompts with strict validation rules to prevent invalid commands from being parsed as valid operations
+- checkmk_mcp_server/interactive/help_system.py: Added comprehensive help for theme and color commands with examples
+- checkmk_mcp_server/interactive/tab_completer.py: Added tab completion support for theme names and color commands
+- checkmk_mcp_server/interactive/__init__.py: Updated exports to include ColorManager and MessageType
 - examples/configs/development.yaml: Added UI configuration example with colorful theme for development
 - examples/configs/production.yaml: Added conservative UI configuration for production environment
 - examples/configs/testing.yaml: Added minimal UI configuration optimized for CI/CD

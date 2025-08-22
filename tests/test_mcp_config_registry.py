@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 from mcp.types import Prompt, PromptArgument
 
-from checkmk_agent.mcp_server.config.registry import RegistryConfig, ToolMetadata, ServiceDependency
+from checkmk_mcp_server.mcp_server.config.registry import RegistryConfig, ToolMetadata, ServiceDependency
 
 
 class TestServiceDependency:

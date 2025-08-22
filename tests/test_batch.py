@@ -5,7 +5,7 @@ import asyncio
 from unittest.mock import AsyncMock, Mock
 from datetime import datetime
 
-from checkmk_agent.services.batch import (
+from checkmk_mcp_server.services.batch import (
     BatchProcessor,
     BatchItem,
     BatchProgress,

@@ -63,13 +63,13 @@ The agent automatically searches for configuration files in these locations:
 
 1. **Current directory**:
    - `config.yaml`, `config.yml`, `config.toml`, `config.json`
-   - `.checkmk-agent.yaml`, `.checkmk-agent.yml`, `.checkmk-agent.toml`, `.checkmk-agent.json`
+   - `.checkmk-mcp-server.yaml`, `.checkmk-mcp-server.yml`, `.checkmk-mcp-server.toml`, `.checkmk-mcp-server.json`
 
 2. **User config directory**:
-   - `~/.config/checkmk-agent/config.yaml`
-   - `~/.config/checkmk-agent/config.yml`
-   - `~/.config/checkmk-agent/config.toml`
-   - `~/.config/checkmk-agent/config.json`
+   - `~/.config/checkmk-mcp-server/config.yaml`
+   - `~/.config/checkmk-mcp-server/config.yml`
+   - `~/.config/checkmk-mcp-server/config.toml`
+   - `~/.config/checkmk-mcp-server/config.json`
 
 ## Implementation Examples
 
@@ -120,8 +120,8 @@ editor config.yaml
 
 # Test configuration
 python -c "
-from checkmk_agent.config import load_config
-from checkmk_agent.api_client import CheckmkAPIClient
+from checkmk_mcp_server.config import load_config
+from checkmk_mcp_server.api_client import CheckmkAPIClient
 config = load_config('config.yaml')
 client = CheckmkAPIClient(config)
 print('✅ YAML Configuration test:', client.get_version())
@@ -137,8 +137,8 @@ editor .env
 # Test configuration
 source .env
 python -c "
-from checkmk_agent.config import load_config
-from checkmk_agent.api_client import CheckmkAPIClient
+from checkmk_mcp_server.config import load_config
+from checkmk_mcp_server.api_client import CheckmkAPIClient
 config = load_config()  # Auto-loads from environment
 client = CheckmkAPIClient(config)
 print('✅ Environment Configuration test:', client.get_version())

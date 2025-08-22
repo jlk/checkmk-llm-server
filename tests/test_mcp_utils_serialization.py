@@ -14,7 +14,7 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import Any
 
-from checkmk_agent.mcp_server.utils.serialization import MCPJSONEncoder, safe_json_dumps
+from checkmk_mcp_server.mcp_server.utils.serialization import MCPJSONEncoder, safe_json_dumps
 
 
 # Test fixtures and helper classes
@@ -239,7 +239,7 @@ class TestUtilityIntegration:
     def test_backward_compatibility_imports(self):
         """Test that utilities can be imported from utils package."""
         # Test direct imports
-        from checkmk_agent.mcp_server.utils import MCPJSONEncoder, safe_json_dumps
+        from checkmk_mcp_server.mcp_server.utils import MCPJSONEncoder, safe_json_dumps
         
         # Test that they work
         data = {"timestamp": datetime.now()}

@@ -1156,7 +1156,7 @@ def view_default_parameters(ctx, service_type: str):
         sys.exit(1)
 
     # Use parameter manager directly
-    from checkmk_agent.service_parameters import ServiceParameterManager
+    from checkmk_mcp_server.service_parameters import ServiceParameterManager
 
     checkmk_client = ctx.obj["checkmk_client"]
     config = ctx.obj["config"]
@@ -1211,7 +1211,7 @@ def view_service_parameters(ctx, host_name: str, service_description: str):
         click.echo("❌ Service manager not available", err=True)
         sys.exit(1)
 
-    from checkmk_agent.service_parameters import ServiceParameterManager
+    from checkmk_mcp_server.service_parameters import ServiceParameterManager
 
     checkmk_client = ctx.obj["checkmk_client"]
     config = ctx.obj["config"]
@@ -1298,7 +1298,7 @@ def set_service_parameters(
         click.echo("❌ Service manager not available", err=True)
         sys.exit(1)
 
-    from checkmk_agent.service_parameters import ServiceParameterManager
+    from checkmk_mcp_server.service_parameters import ServiceParameterManager
 
     checkmk_client = ctx.obj["checkmk_client"]
     config = ctx.obj["config"]
@@ -1370,7 +1370,7 @@ def list_parameter_rules(ctx, ruleset: str):
         click.echo("❌ Service manager not available", err=True)
         sys.exit(1)
 
-    from checkmk_agent.service_parameters import ServiceParameterManager
+    from checkmk_mcp_server.service_parameters import ServiceParameterManager
 
     checkmk_client = ctx.obj["checkmk_client"]
     config = ctx.obj["config"]
@@ -1469,7 +1469,7 @@ def discover_ruleset(ctx, host_name: str, service_description: str):
         click.echo("❌ Service manager not available", err=True)
         sys.exit(1)
 
-    from checkmk_agent.service_parameters import ServiceParameterManager
+    from checkmk_mcp_server.service_parameters import ServiceParameterManager
 
     checkmk_client = ctx.obj["checkmk_client"]
     config = ctx.obj["config"]

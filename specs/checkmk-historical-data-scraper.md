@@ -127,7 +127,7 @@ class ScrapingError(Exception):
 ## Dependencies
 - **Existing**: `requests`, `beautifulsoup4` (if already available)
 - **New**: `lxml` (fast HTML parser)
-- **Imports**: `checkmk_agent.api_client`, `checkmk_agent.config`
+- **Imports**: `checkmk_mcp_server.api_client`, `checkmk_mcp_server.config`
 
 ## CLI Interface
 ```bash

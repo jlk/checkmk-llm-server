@@ -1,6 +1,6 @@
 # Usage Examples and Common Workflows
 
-This guide provides practical examples of using the Checkmk LLM Agent for real-world monitoring scenarios. Examples show both natural language queries (for AI clients) and CLI commands.
+This guide provides practical examples of using the Checkmk MCP Server for real-world monitoring scenarios. Examples show both natural language queries (for AI clients) and CLI commands.
 
 ## Quick Reference
 
@@ -83,7 +83,7 @@ Access performance graphs and historical metric data.
 
 ```bash
 # CLI command
-python -m checkmk_agent.cli services metrics server01 "CPU utilization" --hours 24
+python -m checkmk_mcp_server.cli services metrics server01 "CPU utilization" --hours 24
 
 # Natural language
 "Show me CPU metrics for server01 over the last 24 hours"
@@ -94,7 +94,7 @@ python -m checkmk_agent.cli services metrics server01 "CPU utilization" --hours 
 
 ```bash
 # CLI command - requires metric ID from Checkmk UI
-python -m checkmk_agent.cli metrics history server01 "CPU utilization" cpu_user --hours 168
+python -m checkmk_mcp_server.cli metrics history server01 "CPU utilization" cpu_user --hours 168
 
 # Natural language
 "Show me the CPU user metric history for server01 for the past week"
@@ -104,10 +104,10 @@ python -m checkmk_agent.cli metrics history server01 "CPU utilization" cpu_user 
 
 ```bash
 # Get maximum values (useful for capacity planning)
-python -m checkmk_agent.cli services metrics server01 "Interface eth0" --hours 24 --reduce max
+python -m checkmk_mcp_server.cli services metrics server01 "Interface eth0" --hours 24 --reduce max
 
 # Get minimum values
-python -m checkmk_agent.cli services metrics server01 "Temperature" --hours 24 --reduce min
+python -m checkmk_mcp_server.cli services metrics server01 "Temperature" --hours 24 --reduce min
 
 # Natural language
 "Show me the peak network usage on server01 eth0 today"
@@ -122,10 +122,10 @@ Monitor business-level service aggregations and high-level status.
 
 ```bash
 # CLI command
-python -m checkmk_agent.cli bi status
+python -m checkmk_mcp_server.cli bi status
 
 # Filter by business groups
-python -m checkmk_agent.cli bi status --groups "Web Services,Database"
+python -m checkmk_mcp_server.cli bi status --groups "Web Services,Database"
 
 # Natural language
 "Show me the business service status"
@@ -137,7 +137,7 @@ python -m checkmk_agent.cli bi status --groups "Web Services,Database"
 
 ```bash
 # CLI command
-python -m checkmk_agent.cli bi critical
+python -m checkmk_mcp_server.cli bi critical
 
 # Natural language
 "What business services are critical right now?"
@@ -148,7 +148,7 @@ python -m checkmk_agent.cli bi critical
 
 ```python
 # Python API example
-from checkmk_agent.services.bi_service import BIService
+from checkmk_mcp_server.services.bi_service import BIService
 
 # Get business summary
 bi_service = BIService(client, config)
@@ -172,7 +172,7 @@ Use the new expiration feature for acknowledgments.
 
 ```bash
 # CLI command - expires in 4 hours
-python -m checkmk_agent.cli services acknowledge server01 "CPU load" \
+python -m checkmk_mcp_server.cli services acknowledge server01 "CPU load" \
   --comment "Known batch job, will complete soon" \
   --expire "2024-01-20T18:00:00"
 
@@ -185,15 +185,15 @@ python -m checkmk_agent.cli services acknowledge server01 "CPU load" \
 
 ```bash
 # Non-sticky acknowledgment (clears when service recovers)
-python -m checkmk_agent.cli services acknowledge server01 "Memory" \
+python -m checkmk_mcp_server.cli services acknowledge server01 "Memory" \
   --comment "Restarting service" --no-sticky
 
 # Persistent acknowledgment (survives Checkmk restart)
-python -m checkmk_agent.cli services acknowledge server01 "Disk" \
+python -m checkmk_mcp_server.cli services acknowledge server01 "Disk" \
   --comment "Ordered new disk" --persistent
 
 # With expiration and no notification
-python -m checkmk_agent.cli services acknowledge server01 "CPU" \
+python -m checkmk_mcp_server.cli services acknowledge server01 "CPU" \
   --comment "Maintenance window" --expire "2024-01-20T22:00:00" --no-notify
 ```
 
@@ -205,7 +205,7 @@ Get Checkmk system and version information.
 
 ```bash
 # CLI command
-python -m checkmk_agent.cli system info
+python -m checkmk_mcp_server.cli system info
 
 # Natural language
 "What version of Checkmk is running?"

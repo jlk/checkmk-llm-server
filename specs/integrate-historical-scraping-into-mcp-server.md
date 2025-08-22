@@ -1,7 +1,7 @@
 # Plan: Integrate Historical Data Scraping into MCP Server
 
 ## 1. Create Historical Scraping Service
-- **New Service**: `checkmk_agent/services/historical_service.py`
+- **New Service**: `checkmk_mcp_server/services/historical_service.py`
 - **Purpose**: Wrapper around `CheckmkHistoricalScraper` following service layer patterns
 - **Architecture**: Factory pattern for scraper instance management
 - **Scraper Factory**: Creates fresh scraper instance per request (handles session timeouts)
@@ -116,9 +116,9 @@
 ## 9. Implementation To-Do List
 
 ### Phase 1 Tasks ✅ COMPLETED
-- [x] Create `checkmk_agent/services/models/historical.py` with `HistoricalDataPoint` and `HistoricalDataResult` classes
-- [x] Create `checkmk_agent/services/historical_service.py` with scraper factory pattern
-- [x] Update `checkmk_agent/config.py` to load `historical_data` configuration section
+- [x] Create `checkmk_mcp_server/services/models/historical.py` with `HistoricalDataPoint` and `HistoricalDataResult` classes
+- [x] Create `checkmk_mcp_server/services/historical_service.py` with scraper factory pattern
+- [x] Update `checkmk_mcp_server/config.py` to load `historical_data` configuration section
 - [x] Implement `_parse_scraper_output()` method with timestamp and summary stat detection
 - [x] Implement `_is_timestamp()` helper method for timestamp detection
 - [x] Implement `_is_summary_stat()` helper method for summary stat detection

@@ -6,14 +6,14 @@ import time
 import logging
 from unittest.mock import AsyncMock, Mock
 
-from checkmk_agent.services.cache import (
+from checkmk_mcp_server.services.cache import (
     LRUCache,
     CacheEntry,
     CacheStats,
     CachingService,
     CachedHostService,
 )
-from checkmk_agent.config import AppConfig
+from checkmk_mcp_server.config import AppConfig
 
 
 class MockCachingService(CachingService):

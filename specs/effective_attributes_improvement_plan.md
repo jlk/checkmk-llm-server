@@ -18,8 +18,8 @@ The LLM currently doesn't realize it can pass the `effective_attributes` paramet
 **Issue**: The host service layer calls `await self.checkmk.get_host()` but the API client's `get_host()` method is synchronous. This causes runtime failures.
 
 **Files to fix**:
-- `checkmk_agent/api_client.py:281` - Make `get_host()` method async
-- `checkmk_agent/api_client.py:308` - Make `list_hosts()` method async 
+- `checkmk_mcp_server/api_client.py:281` - Make `get_host()` method async
+- `checkmk_mcp_server/api_client.py:308` - Make `list_hosts()` method async 
 
 **Fix Required**:
 ```python
@@ -34,7 +34,7 @@ async def get_host(self, host_name: str, effective_attributes: bool = False) -> 
 **Issue**: The MCP README created incorrectly claims `effective_attributes` is already working with examples that will fail.
 
 **Files to fix**:
-- `checkmk_agent/mcp_server/README.md` - Remove incorrect examples and mark feature as planned
+- `checkmk_mcp_server/mcp_server/README.md` - Remove incorrect examples and mark feature as planned
 
 ### 3. **Missing Implementation Scope** (Priority: HIGH)
 **Status**: Gap in plan
@@ -60,7 +60,7 @@ async def get_host(self, host_name: str, effective_attributes: bool = False) -> 
 
 #### Task 3: Update Host Service Layer
 **Files to modify**:
-- `checkmk_agent/services/host_service.py`
+- `checkmk_mcp_server/services/host_service.py`
 
 **Changes**:
 1. Update `get_host()` method signature:
@@ -79,7 +79,7 @@ async def get_host(self, host_name: str, effective_attributes: bool = False) -> 
 
 #### Task 4: Update MCP Server Tool Definitions
 **Files to modify**:
-- `checkmk_agent/mcp_server/server.py`
+- `checkmk_mcp_server/mcp_server/server.py`
 
 **Changes**:
 1. Update `get_host` tool schema to include:
@@ -107,7 +107,7 @@ async def get_host(self, host_name: str, effective_attributes: bool = False) -> 
 
 #### Task 5: Update CLI Interface
 **Files to modify**:
-- `checkmk_agent/cli.py`
+- `checkmk_mcp_server/cli.py`
 
 **Changes**:
 - Add `--effective-attributes` flag for host commands

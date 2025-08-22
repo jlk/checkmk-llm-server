@@ -1,10 +1,10 @@
 # Architecture Guide
 
-This document provides a comprehensive overview of the Checkmk LLM Agent's technical architecture, design decisions, and implementation details.
+This document provides a comprehensive overview of the Checkmk MCP Server's technical architecture, design decisions, and implementation details.
 
 ## Overview
 
-The Checkmk LLM Agent implements a **MCP-first architecture** that bridges AI assistants with Checkmk monitoring infrastructure through the Model Context Protocol (MCP). The system prioritizes scalability, maintainability, and production readiness.
+The Checkmk MCP Server implements a **MCP-first architecture** that bridges AI assistants with Checkmk monitoring infrastructure through the Model Context Protocol (MCP). The system prioritizes scalability, maintainability, and production readiness.
 
 ## Architecture Diagram
 
@@ -48,7 +48,7 @@ The Checkmk LLM Agent implements a **MCP-first architecture** that bridges AI as
 
 ```
 checkmk_llm_agent/
-├── checkmk_agent/                    # Core package
+├── checkmk_mcp_server/                    # Core package
 │   ├── services/                     # Service layer (business logic)
 │   │   ├── base.py                   # Base service with error handling
 │   │   ├── host_service.py           # Host management operations
@@ -382,7 +382,7 @@ class ParameterHandlerRegistry:
 - **Custom Clients**: Alternative client implementations
 - **Custom Dashboards**: User-defined monitoring views
 
-This architecture provides a solid foundation for scaling the Checkmk LLM Agent to meet enterprise requirements while maintaining code quality, performance, and maintainability.
+This architecture provides a solid foundation for scaling the Checkmk MCP Server to meet enterprise requirements while maintaining code quality, performance, and maintainability.
 
 ## Related Documentation
 

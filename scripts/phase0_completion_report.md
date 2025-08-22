@@ -96,8 +96,8 @@ All 9 critical validation tests passed:
 - Unit tests passing
 
 ### Backward Compatibility: Confirmed ✅
-- `from checkmk_agent.mcp_server import CheckmkMCPServer` ✅
-- `from checkmk_agent.mcp_server.server import CheckmkMCPServer` ✅
+- `from checkmk_mcp_server.mcp_server import CheckmkMCPServer` ✅
+- `from checkmk_mcp_server.mcp_server.server import CheckmkMCPServer` ✅
 - Configuration structure validated ✅
 - Service initialization patterns confirmed ✅
 

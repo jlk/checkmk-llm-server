@@ -10,7 +10,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-from checkmk_agent.mcp_server.utils.errors import sanitize_error
+from checkmk_mcp_server.mcp_server.utils.errors import sanitize_error
 
 
 class TestSanitizeError:
@@ -166,7 +166,7 @@ class TestSanitizeError:
             
     def test_path_home_exception_fallback(self):
         """Test fallback when Path.home() raises exception."""
-        with patch('checkmk_agent.mcp_server.utils.errors.Path.home', side_effect=OSError("No home directory")):
+        with patch('checkmk_mcp_server.mcp_server.utils.errors.Path.home', side_effect=OSError("No home directory")):
             error = FileNotFoundError("/home/user/file.txt not found")
             result = sanitize_error(error)
             # Should return generic error message when Path.home() fails
@@ -227,7 +227,7 @@ class TestErrorUtilityIntegration:
     
     def test_backward_compatibility_import(self):
         """Test that error utilities can be imported from utils package."""
-        from checkmk_agent.mcp_server.utils import sanitize_error
+        from checkmk_mcp_server.mcp_server.utils import sanitize_error
         
         # Test that it works
         error = RuntimeError("Test error")

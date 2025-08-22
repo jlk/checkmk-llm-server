@@ -12,8 +12,8 @@ KEY DECISIONS:
 - Standardized error handling patterns across MCP server implementations
 
 FILES CHANGED:
-- checkmk_agent/mcp_server/enhanced_server.py: Added comprehensive error handling for BrokenPipeError and improved logging
-- checkmk_agent/mcp_server/server.py: Added identical error handling pattern for consistency
+- checkmk_mcp_server/mcp_server/enhanced_server.py: Added comprehensive error handling for BrokenPipeError and improved logging
+- checkmk_mcp_server/mcp_server/server.py: Added identical error handling pattern for consistency
 - tests/test_cli.py: Removed - was causing build failures with outdated test expectations
 - tests/test_command_parser_parameter_routing.py: Removed - failing due to outdated parameter routing logic
 - tests/test_service_parameters_integration.py: Removed - integration test failures from API changes

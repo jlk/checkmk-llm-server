@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 import json
 
-from checkmk_agent.service_operations import ServiceOperationsManager
-from checkmk_agent.api_client import CheckmkAPIError
+from checkmk_mcp_server.service_operations import ServiceOperationsManager
+from checkmk_mcp_server.api_client import CheckmkAPIError
 
 
 class TestServiceOperationsManager:
@@ -150,7 +150,7 @@ class TestServiceOperationsManager:
             }
         )
 
-        with patch("checkmk_agent.service_operations.datetime") as mock_datetime:
+        with patch("checkmk_mcp_server.service_operations.datetime") as mock_datetime:
             mock_now = datetime(2023, 1, 1, 12, 0, 0)
             mock_datetime.now.return_value = mock_now
 

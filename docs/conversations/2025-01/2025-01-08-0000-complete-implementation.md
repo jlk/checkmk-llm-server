@@ -1,7 +1,7 @@
-TITLE: Complete Checkmk LLM Agent Implementation with Comprehensive Testing
+TITLE: Complete Checkmk MCP Server Implementation with Comprehensive Testing
 DATE: 2025-01-08
 PARTICIPANTS: User, Claude
-SUMMARY: Completed full implementation of Checkmk LLM Agent including all core features, CLI interface, and comprehensive test suite. Project is now production-ready with 100+ test cases covering unit, integration, and end-to-end scenarios.
+SUMMARY: Completed full implementation of Checkmk MCP Server including all core features, CLI interface, and comprehensive test suite. Project is now production-ready with 100+ test cases covering unit, integration, and end-to-end scenarios.
 
 INITIAL PROMPT: lets add the unit and integration tests
 
@@ -71,4 +71,4 @@ FINAL STATUS:
 - Complete documentation and usage examples
 - Professional package structure with setup.py and requirements management
 
-The Checkmk LLM Agent is now a complete, well-tested, production-ready tool that successfully bridges the gap between natural language and Checkmk configuration management.
+The Checkmk MCP Server is now a complete, well-tested, production-ready tool that successfully bridges the gap between natural language and Checkmk configuration management.

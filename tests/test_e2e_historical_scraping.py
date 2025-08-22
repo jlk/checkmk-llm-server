@@ -8,9 +8,9 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
 from typing import List, Tuple, Union
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.config import AppConfig, CheckmkConfig
-from checkmk_agent.services.models.historical import (
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig
+from checkmk_mcp_server.services.models.historical import (
     HistoricalDataPoint,
     HistoricalDataResult,
     HistoricalDataRequest,
@@ -80,11 +80,11 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock the scraper creation
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
@@ -135,11 +135,11 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock the scraper creation
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             list_service_events = tool_handlers["list_service_events"]
@@ -184,11 +184,11 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock both scraper and REST API
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             with patch.object(server.metrics_service, 'get_metric_history') as mock_rest_api:
                 # Get the tool handler
                 tool_handlers = server._tool_handlers
@@ -214,7 +214,7 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Get the tool handler
@@ -240,11 +240,11 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock import error
-        with patch('checkmk_agent.services.historical_service.ScraperService', side_effect=ImportError("Scraper not available")):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', side_effect=ImportError("Scraper not available")):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
@@ -268,14 +268,14 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises error during execution
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.side_effect = Exception("Network timeout")
         
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
@@ -299,19 +299,19 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Mock scraper that raises ScrapingError
         mock_scraper = Mock()
         
         # Create a mock ScrapingError
-        with patch('checkmk_agent.services.web_scraping.ScrapingError') as mock_scraping_error_class:
+        with patch('checkmk_mcp_server.services.web_scraping.ScrapingError') as mock_scraping_error_class:
             scraping_error = Exception("Authentication failed")
             scraping_error.__class__.__name__ = "ScrapingError"
             mock_scraper.scrape_historical_data.side_effect = scraping_error
             
-            with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+            with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
                 # Get the tool handler
                 tool_handlers = server._tool_handlers
                 get_metric_history = tool_handlers["get_metric_history"]
@@ -335,10 +335,10 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
@@ -374,7 +374,7 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Create mock scraper with multi-metric data
@@ -389,7 +389,7 @@ class TestE2EHistoricalScraping:
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = multi_metric_data
         
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
@@ -419,14 +419,14 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Create mock scraper with empty data
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = []
         
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]
@@ -451,7 +451,7 @@ class TestE2EHistoricalScraping:
         # Initialize MCP server
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Create mock scraper with malformed data
@@ -465,7 +465,7 @@ class TestE2EHistoricalScraping:
         mock_scraper = Mock()
         mock_scraper.scrape_historical_data.return_value = malformed_data
         
-        with patch('checkmk_agent.services.historical_service.ScraperService', return_value=mock_scraper):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', return_value=mock_scraper):
             # Get the tool handler
             tool_handlers = server._tool_handlers
             get_metric_history = tool_handlers["get_metric_history"]

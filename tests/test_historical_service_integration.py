@@ -3,10 +3,10 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.config import AppConfig, CheckmkConfig
-from checkmk_agent.services.historical_service import HistoricalDataService, CachedHistoricalDataService
-from checkmk_agent.services.models.historical import HistoricalDataRequest
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig
+from checkmk_mcp_server.services.historical_service import HistoricalDataService, CachedHistoricalDataService
+from checkmk_mcp_server.services.models.historical import HistoricalDataRequest
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ class TestHistoricalServiceIntegration:
         """Test that historical service is properly registered in MCP server."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Verify historical service is initialized
@@ -67,7 +67,7 @@ class TestHistoricalServiceIntegration:
         """Test historical service initialization with configuration values."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Verify service configuration
@@ -81,7 +81,7 @@ class TestHistoricalServiceIntegration:
         """Test service registry lookup for historical service."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Test service lookup by name
@@ -98,7 +98,7 @@ class TestHistoricalServiceIntegration:
         """Test that historical service has caching capabilities."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         historical_service = server.historical_service
@@ -117,7 +117,7 @@ class TestHistoricalServiceIntegration:
         """Test that historical service implements scraper factory pattern."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         historical_service = server.historical_service
@@ -126,7 +126,7 @@ class TestHistoricalServiceIntegration:
         assert hasattr(historical_service, '_create_scraper_instance')
         
         # Test factory method with mock scraper
-        with patch('checkmk_agent.services.historical_service.ScraperService') as mock_scraper_class:
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService') as mock_scraper_class:
             mock_scraper = Mock()
             mock_scraper_class.return_value = mock_scraper
             
@@ -139,13 +139,13 @@ class TestHistoricalServiceIntegration:
         """Test historical service error handling patterns."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         historical_service = server.historical_service
         
         # Test handling when scraper import fails
-        with patch('checkmk_agent.services.historical_service.ScraperService', side_effect=ImportError("Scraper not available")):
+        with patch('checkmk_mcp_server.services.historical_service.ScraperService', side_effect=ImportError("Scraper not available")):
             with pytest.raises(ImportError, match="Failed to import CheckmkHistoricalScraper"):
                 historical_service._create_scraper_instance()
 
@@ -154,7 +154,7 @@ class TestHistoricalServiceIntegration:
         """Test historical data request model integration."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         # Test that request model validation works
@@ -175,7 +175,7 @@ class TestHistoricalServiceIntegration:
         """Test that CachedHistoricalDataService properly inherits from both classes."""
         server = CheckmkMCPServer(mock_config)
 
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             await server.initialize()
 
         historical_service = server.historical_service
@@ -195,7 +195,7 @@ class TestHistoricalServiceIntegration:
         """Test that historical service is initialized in correct order."""
         server = CheckmkMCPServer(mock_config)
         
-        with patch("checkmk_agent.api_client.CheckmkClient") as mock_client_class:
+        with patch("checkmk_mcp_server.api_client.CheckmkClient") as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
             
@@ -223,7 +223,7 @@ class TestHistoricalServiceIntegration:
         config.checkmk = mock_checkmk_config
         # No historical_data attribute
         
-        with patch("checkmk_agent.async_api_client.AsyncCheckmkClient"):
+        with patch("checkmk_mcp_server.async_api_client.AsyncCheckmkClient"):
             service = CachedHistoricalDataService(Mock(), config)
             
             # Should use defaults

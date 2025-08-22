@@ -11,9 +11,9 @@ import pytest_asyncio
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig, HistoricalDataConfig
-from checkmk_agent.services.models.historical import (
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig, HistoricalDataConfig
+from checkmk_mcp_server.services.models.historical import (
     HistoricalDataRequest,
     HistoricalDataResult,
     HistoricalDataPoint,

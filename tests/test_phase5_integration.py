@@ -84,8 +84,8 @@ class Phase5IntegrationTester:
         test_name = "import_and_instantiation"
         try:
             # Test import
-            from checkmk_agent.mcp_server import CheckmkMCPServer
-            from checkmk_agent.mcp_server.container import ServiceContainer
+            from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+            from checkmk_mcp_server.mcp_server.container import ServiceContainer
             
             # Test basic instantiation with mock config
             mock_config = self.create_mock_config()
@@ -128,8 +128,8 @@ class Phase5IntegrationTester:
             # Mock the CheckmkClient and AsyncCheckmkClient
             from unittest.mock import patch
             
-            with patch('checkmk_agent.mcp_server.container.CheckmkClient') as mock_sync_client, \
-                 patch('checkmk_agent.mcp_server.container.AsyncCheckmkClient') as mock_async_client:
+            with patch('checkmk_mcp_server.mcp_server.container.CheckmkClient') as mock_sync_client, \
+                 patch('checkmk_mcp_server.mcp_server.container.AsyncCheckmkClient') as mock_async_client:
                 
                 # Initialize container
                 await self.server.container.initialize()
@@ -341,7 +341,7 @@ class Phase5IntegrationTester:
         test_name = "backward_compatibility"
         try:
             # Test that the main import still works
-            from checkmk_agent.mcp_server import CheckmkMCPServer as BackwardCompatServer
+            from checkmk_mcp_server.mcp_server import CheckmkMCPServer as BackwardCompatServer
             
             # Test that it's the same class
             assert BackwardCompatServer == type(self.server), "Backward compatibility import should work"

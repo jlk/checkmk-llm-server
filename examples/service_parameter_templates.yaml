@@ -1,4 +1,4 @@
-# Service Parameter Templates and Presets for Checkmk LLM Agent
+# Service Parameter Templates and Presets for Checkmk MCP Server
 
 # Common CPU monitoring templates
 cpu_templates:
@@ -327,23 +327,23 @@ application_examples:
   production_host_setup:
     command: "Apply production environment template to server01"
     steps:
-      - "checkmk-agent services params set server01 'CPU utilization' --warning 80 --critical 90"
-      - "checkmk-agent services params set server01 'Memory usage' --warning 80 --critical 90"
-      - "checkmk-agent services params set server01 'Filesystem /' --warning 80 --critical 90"
+      - "checkmk-mcp-server services params set server01 'CPU utilization' --warning 80 --critical 90"
+      - "checkmk-mcp-server services params set server01 'Memory usage' --warning 80 --critical 90"
+      - "checkmk-mcp-server services params set server01 'Filesystem /' --warning 80 --critical 90"
     
   # Apply database server template
   database_host_setup:
     command: "Apply database server template to db01"
     steps:
-      - "checkmk-agent services params set db01 'CPU utilization' --warning 80 --critical 95"
-      - "checkmk-agent services params set db01 'Memory usage' --warning 85 --critical 92"
-      - "checkmk-agent services params set db01 'Filesystem /data' --warning 90 --critical 95"
+      - "checkmk-mcp-server services params set db01 'CPU utilization' --warning 80 --critical 95"
+      - "checkmk-mcp-server services params set db01 'Memory usage' --warning 85 --critical 92"
+      - "checkmk-mcp-server services params set db01 'Filesystem /data' --warning 90 --critical 95"
     
   # Quick single service override
   single_service_override:
     command: "Override CPU thresholds for high-performance server"
     steps:
-      - "checkmk-agent services params set perf01 'CPU utilization' --warning 85 --critical 95 --comment 'High-performance server adjustment'"
+      - "checkmk-mcp-server services params set perf01 'CPU utilization' --warning 85 --critical 95 --comment 'High-performance server adjustment'"
 
 # Natural language command examples
 natural_language_examples:

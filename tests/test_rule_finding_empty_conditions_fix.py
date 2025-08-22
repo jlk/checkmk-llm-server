@@ -13,8 +13,8 @@ import pytest
 from unittest.mock import Mock, AsyncMock
 from typing import Dict, Any, List
 
-from checkmk_agent.services.parameter_service import ParameterService, RuleSearchFilter
-from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig
+from checkmk_mcp_server.services.parameter_service import ParameterService, RuleSearchFilter
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig
 
 
 class TestRuleFindingEmptyConditionsFix:

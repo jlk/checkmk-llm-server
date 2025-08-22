@@ -1,16 +1,16 @@
 # Project Status
 
-This document provides an overview of the current status across all components of the Checkmk LLM Agent project.
+This document provides an overview of the current status across all components of the Checkmk MCP Server project.
 
 ## Overall Project Status: ✅ FULLY OPERATIONAL - COMPREHENSIVE PARAMETER MANAGEMENT
 
 **Last Updated**: 2025-08-22
 
-The Checkmk LLM Agent is a complete, production-ready implementation providing natural language interface to Checkmk monitoring systems through both CLI and unified MCP server integration. Now features comprehensive service parameter management with specialized handlers for temperature, database, network, and custom monitoring services.
+The Checkmk MCP Server is a complete, production-ready implementation providing natural language interface to Checkmk monitoring systems through both CLI and unified MCP server integration. Now features comprehensive service parameter management with specialized handlers for temperature, database, network, and custom monitoring services.
 
 ## Core Components
 
-### 🟢 API Client (`checkmk_agent/api_client.py`)
+### 🟢 API Client (`checkmk_mcp_server/api_client.py`)
 **Status**: ✅ Complete and Stable
 - Full Checkmk REST API integration
 - Comprehensive error handling with retry logic
@@ -18,7 +18,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - Robust authentication and rate limiting
 - Async operations support
 
-### 🟢 CLI Interface (`checkmk_agent/cli.py`)
+### 🟢 CLI Interface (`checkmk_mcp_server/cli.py`)
 **Status**: ✅ Complete and Enhanced
 - Interactive and non-interactive modes
 - Natural language command processing
@@ -27,7 +27,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - Advanced filtering and sorting options
 - Context-aware help system
 
-### 🟢 Host Operations (`checkmk_agent/host_operations.py`)
+### 🟢 Host Operations (`checkmk_mcp_server/host_operations.py`)
 **Status**: ✅ Complete and Stable
 - Full CRUD operations for host management
 - Host discovery and configuration
@@ -35,7 +35,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - Problem categorization and urgency scoring
 - Natural language query support
 
-### 🟢 Service Operations (`checkmk_agent/service_operations.py`)
+### 🟢 Service Operations (`checkmk_mcp_server/service_operations.py`)
 **Status**: ✅ Complete and Stable
 - Service status monitoring and management
 - Service discovery automation
@@ -43,7 +43,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - Comprehensive service statistics
 - Integration with host operations
 
-### 🟢 Status Service (`checkmk_agent/services/status_service.py`)
+### 🟢 Status Service (`checkmk_mcp_server/services/status_service.py`)
 **Status**: ✅ Complete and Enhanced
 - Rich health dashboards with grades (A+ through F)
 - Advanced problem categorization and analysis
@@ -52,7 +52,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - Infrastructure summary capabilities
 - All methods implemented and functional
 
-### 🟢 Interactive Mode (`checkmk_agent/interactive/`)
+### 🟢 Interactive Mode (`checkmk_mcp_server/interactive/`)
 **Status**: ✅ Complete and Enhanced
 - Advanced command parsing with fuzzy matching
 - Tab completion for commands and parameters
@@ -61,7 +61,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - Rich UI formatting and progress indicators
 - Session context tracking
 
-### 🟢 Service Parameter Management (`checkmk_agent/services/parameter_service.py`)
+### 🟢 Service Parameter Management (`checkmk_mcp_server/services/parameter_service.py`)
 **Status**: ✅ Complete and Production-Ready - COMPREHENSIVE SYSTEM
 
 #### Core Parameter Management
@@ -72,7 +72,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - ✅ **Bulk Operations**: Mass parameter updates with validation, error handling, and progress tracking
 - ✅ **Performance Optimization**: Handler caching (5,000+ ops/sec), efficient bulk processing (2,000+ ops/sec)
 
-#### Specialized Parameter Handlers (`checkmk_agent/services/handlers/`)
+#### Specialized Parameter Handlers (`checkmk_mcp_server/services/handlers/`)
 - ✅ **Temperature Handler**: Hardware-specific profiles (CPU: 75°C, ambient: 40°C, disk: 50°C) with trend monitoring
 - ✅ **Database Handler**: Oracle/MySQL/PostgreSQL/MongoDB parameter management with connection validation
 - ✅ **Network Handler**: HTTP/HTTPS/TCP/DNS monitoring with SSL certificate validation
@@ -82,7 +82,7 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 ### 🟢 MCP Server Integration
 **Status**: ✅ Complete and Production-Ready - FULLY REFACTORED MODULAR ARCHITECTURE
 
-#### Refactored MCP Server (`checkmk_agent/mcp_server/server.py`)
+#### Refactored MCP Server (`checkmk_mcp_server/mcp_server/server.py`)
 - ✅ **Major Architecture Refactoring Complete (2025-08-20)**: Transformed monolithic 4,449-line server into modular 457-line server (93% code reduction)
 - ✅ **Modular Tool Organization**: 37 tools organized into 8 focused categories (host, service, monitoring, parameters, business, events, metrics, advanced)
 - ✅ **Service Container Implementation**: Centralized dependency injection system with configuration registry and protocol handlers
@@ -158,14 +158,14 @@ The Checkmk LLM Agent is a complete, production-ready implementation providing n
 - Worked around MCP SDK v1.12.0 CallToolResult construction bug
 - Verified full functionality with Claude integration and accurate monitoring data
 
-### 🟢 LLM Integration (`checkmk_agent/llm_client.py`)
+### 🟢 LLM Integration (`checkmk_mcp_server/llm_client.py`)
 **Status**: ✅ Complete and Stable
 - Natural language processing for commands
 - Context-aware response generation
 - Integration with all operation modules
 - Support for conversational queries
 
-### 🟢 Configuration Management (`checkmk_agent/config.py`)
+### 🟢 Configuration Management (`checkmk_mcp_server/config.py`)
 **Status**: ✅ Complete and Stable
 - YAML-based configuration system
 - Environment-specific settings
@@ -287,4 +287,4 @@ All dependencies are current and stable versions.
 
 ---
 
-**Summary**: The Checkmk LLM Agent project is in excellent condition with comprehensive service parameter management capabilities and all major components fully functional. The recent implementation of specialized parameter handlers and enhanced MCP tools provides enterprise-grade parameter management for all service types including temperature monitoring, making it a complete monitoring solution with intelligent automation.
+**Summary**: The Checkmk MCP Server project is in excellent condition with comprehensive service parameter management capabilities and all major components fully functional. The recent implementation of specialized parameter handlers and enhanced MCP tools provides enterprise-grade parameter management for all service types including temperature monitoring, making it a complete monitoring solution with intelligent automation.

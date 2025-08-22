@@ -1,11 +1,11 @@
-# Current Context - Checkmk LLM Agent
+# Current Context - Checkmk MCP Server
 
 ## Current Date
 2025-08-09
 
 ## Current State
 
-The Checkmk LLM Agent is **FULLY OPERATIONAL** with all core features implemented and extensively tested. The system provides natural language control of Checkmk monitoring infrastructure through AI-powered automation.
+The Checkmk MCP Server is **FULLY OPERATIONAL** with all core features implemented and extensively tested. The system provides natural language control of Checkmk monitoring infrastructure through AI-powered automation.
 
 ## Recent Changes
 
@@ -81,9 +81,9 @@ The Checkmk LLM Agent is **FULLY OPERATIONAL** with all core features implemente
 - `.kilocode/rules/memory-bank/context.md` - Current state (this file)
 
 ### Core Implementation
-- `checkmk_agent/context_vars.py` - Request ID context management
-- `checkmk_agent/logging_utils.py` - Enhanced logging with request IDs
-- `checkmk_agent/mcp_server/server.py` - 47 MCP tools with tracing
+- `checkmk_mcp_server/context_vars.py` - Request ID context management
+- `checkmk_mcp_server/logging_utils.py` - Enhanced logging with request IDs
+- `checkmk_mcp_server/mcp_server/server.py` - 47 MCP tools with tracing
 
 ### Test Files
 - `tests/test_request_id.py` - Request ID unit tests

@@ -14,10 +14,10 @@ KEY DECISIONS:
 - Added comprehensive rule management: list, create, delete, get, move operations
 
 FILES CHANGED:
-- checkmk_agent/api_client.py: Added CreateRuleRequest, MoveRuleRequest models and 5 rule API methods (list_rules, create_rule, get_rule, delete_rule, move_rule)
-- checkmk_agent/llm_client.py: Extended HostOperation enum with rule operations, updated OpenAI/Anthropic prompts, added rule response formatting
-- checkmk_agent/host_operations.py: Added 5 rule operation handler methods integrated with existing workflow
-- checkmk_agent/cli.py: Added complete rules command group with list, create, delete, get, move subcommands
+- checkmk_mcp_server/api_client.py: Added CreateRuleRequest, MoveRuleRequest models and 5 rule API methods (list_rules, create_rule, get_rule, delete_rule, move_rule)
+- checkmk_mcp_server/llm_client.py: Extended HostOperation enum with rule operations, updated OpenAI/Anthropic prompts, added rule response formatting
+- checkmk_mcp_server/host_operations.py: Added 5 rule operation handler methods integrated with existing workflow
+- checkmk_mcp_server/cli.py: Added complete rules command group with list, create, delete, get, move subcommands
 
 ## CONVERSATION DETAILS
 

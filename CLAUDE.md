@@ -6,11 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Checkmk LLM Agent** project designed to integrate with Checkmk's REST API using Large Language Models. The project enables natural language interactions with Checkmk monitoring systems through AI-powered automation.
+This is a **Checkmk MCP Server** project designed to integrate with Checkmk's REST API using Large Language Models. The project enables natural language interactions with Checkmk monitoring systems through AI-powered automation.
 
 ## Current State
 
-The project is a **FULLY OPERATIONAL** Checkmk LLM Agent implementation with:
+The project is a **FULLY OPERATIONAL** Checkmk MCP Server implementation with:
 - Complete Checkmk REST API OpenAPI specification (`checkmk-rest-openapi.yaml`)
 - Host management operations (CRUD)
 - Rule management operations (CRUD)
@@ -130,7 +130,7 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 
 # Run agent
-python checkmk_agent.py
+python checkmk_mcp_server.py
 ```
 
 ## Architecture Considerations
@@ -155,10 +155,10 @@ python checkmk_agent.py
 
 ```
 checkmk-rest-openapi.yaml     # Complete Checkmk REST API specification (21k+ lines)
-checkmk_agent.code-workspace  # VS Code workspace configuration
+checkmk_mcp_server.code-workspace  # VS Code workspace configuration
 .claude/settings.local.json   # Claude Code permissions
 
-checkmk_agent/
+checkmk_mcp_server/
 ├── __init__.py
 ├── api_client.py             # Core API client with service operations
 ├── cli.py                    # Enhanced CLI interface with interactive mode
@@ -229,7 +229,7 @@ examples/
 
 The project includes comprehensive MCP (Model Context Protocol) server integration for seamless Claude AI integration:
 
-### Enhanced MCP Server (`checkmk_agent/mcp_server/server.py`)
+### Enhanced MCP Server (`checkmk_mcp_server/mcp_server/server.py`)
 - **40 Tools Exposed**: Complete coverage of all Checkmk operations with advanced features and comprehensive parameter management
 - **Status**: ✅ Fully Functional - Successfully tested with Claude
 - **Core Features**: Host operations, service management, status monitoring, problem analysis

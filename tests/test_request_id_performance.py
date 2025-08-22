@@ -10,7 +10,7 @@ import os
 from typing import List, Tuple
 from unittest.mock import Mock, patch
 
-from checkmk_agent.utils.request_context import (
+from checkmk_mcp_server.utils.request_context import (
     generate_request_id,
     set_request_id,
     get_request_id,
@@ -18,12 +18,12 @@ from checkmk_agent.utils.request_context import (
     ensure_request_id,
     REQUEST_ID_CONTEXT,
 )
-from checkmk_agent.middleware.request_tracking import (
+from checkmk_mcp_server.middleware.request_tracking import (
     track_request,
     RequestTrackingMiddleware,
     with_request_tracking,
 )
-from checkmk_agent.logging_utils import setup_logging, RequestIDFormatter
+from checkmk_mcp_server.logging_utils import setup_logging, RequestIDFormatter
 
 
 class PerformanceMetrics:

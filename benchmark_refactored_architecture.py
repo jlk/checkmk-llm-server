@@ -17,8 +17,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from checkmk_agent.mcp_server import CheckmkMCPServer
-from checkmk_agent.config import AppConfig
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.config import AppConfig
 
 
 def create_mock_config():
@@ -40,7 +40,7 @@ async def benchmark_server_initialization():
     initialization_times = []
     
     # Warm up
-    with patch("checkmk_agent.api_client.CheckmkClient"):
+    with patch("checkmk_mcp_server.api_client.CheckmkClient"):
         server = CheckmkMCPServer(config)
         await server.initialize()
         await server.shutdown()
@@ -49,7 +49,7 @@ async def benchmark_server_initialization():
     for i in range(5):
         start_time = time.perf_counter()
         
-        with patch("checkmk_agent.api_client.CheckmkClient"):
+        with patch("checkmk_mcp_server.api_client.CheckmkClient"):
             server = CheckmkMCPServer(config)
             await server.initialize()
             
@@ -83,7 +83,7 @@ async def benchmark_tool_access():
     
     config = create_mock_config()
     
-    with patch("checkmk_agent.api_client.CheckmkClient"):
+    with patch("checkmk_mcp_server.api_client.CheckmkClient"):
         server = CheckmkMCPServer(config)
         await server.initialize()
         
@@ -143,7 +143,7 @@ async def benchmark_memory_usage():
     initial_snapshot = tracemalloc.take_snapshot()
     
     # Create and initialize server
-    with patch("checkmk_agent.api_client.CheckmkClient"):
+    with patch("checkmk_mcp_server.api_client.CheckmkClient"):
         server = CheckmkMCPServer(config)
         await server.initialize()
         

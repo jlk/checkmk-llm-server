@@ -14,10 +14,10 @@ KEY DECISIONS:
 - Removed broken tool registration modules and outdated MCP integration tests
 
 FILES CHANGED:
-- checkmk_agent/mcp_server/server.py: Fixed tool registration, added JSON serialization, implemented CallToolResult workaround
-- checkmk_agent/mcp_server/enhanced_server.py: Same fixes as basic server for 18 total tools (14 standard + 4 advanced)
-- checkmk_agent/services/status_service.py: Added 6 missing methods (get_critical_problems, get_performance_metrics, analyze_host_health, get_host_problems, get_infrastructure_summary, get_problem_trends)
-- checkmk_agent/mcp_server/tools/ (DELETED): Removed entire directory with broken tool registration code
+- checkmk_mcp_server/mcp_server/server.py: Fixed tool registration, added JSON serialization, implemented CallToolResult workaround
+- checkmk_mcp_server/mcp_server/enhanced_server.py: Same fixes as basic server for 18 total tools (14 standard + 4 advanced)
+- checkmk_mcp_server/services/status_service.py: Added 6 missing methods (get_critical_problems, get_performance_metrics, analyze_host_health, get_host_problems, get_infrastructure_summary, get_problem_trends)
+- checkmk_mcp_server/mcp_server/tools/ (DELETED): Removed entire directory with broken tool registration code
 - tests/test_mcp_integration.py (DELETED): Removed tests written for non-existent MCP SDK API
 
 TECHNICAL ISSUES RESOLVED:

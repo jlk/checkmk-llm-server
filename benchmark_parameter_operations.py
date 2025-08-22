@@ -23,11 +23,11 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 
-from checkmk_agent.services.parameter_service import ParameterService
-from checkmk_agent.services.handlers import get_handler_registry
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.config import Config
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_mcp_server.services.parameter_service import ParameterService
+from checkmk_mcp_server.services.handlers import get_handler_registry
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.config import Config
+from checkmk_mcp_server.mcp_server.server import CheckmkMCPServer
 
 
 class ParameterBenchmark:

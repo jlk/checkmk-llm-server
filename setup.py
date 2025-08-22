@@ -1,4 +1,4 @@
-"""Setup script for Checkmk LLM Agent."""
+"""Setup script for Checkmk MCP Server."""
 
 from setuptools import setup, find_packages
 import os
@@ -9,7 +9,7 @@ def read_readme():
     if os.path.exists(readme_path):
         with open(readme_path, 'r', encoding='utf-8') as f:
             return f.read()
-    return "Checkmk LLM Agent - Natural language interface for Checkmk"
+    return "Checkmk MCP Server - Model Context Protocol server for Checkmk monitoring"
 
 # Read requirements
 def read_requirements():
@@ -18,14 +18,14 @@ def read_requirements():
         return [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
 setup(
-    name='checkmk-llm-agent',
+    name='checkmk-mcp-server',
     version='0.1.0',
-    description='LLM-powered agent for Checkmk configuration management',
+    description='MCP (Model Context Protocol) server for Checkmk monitoring integration',
     long_description=read_readme(),
     long_description_content_type='text/markdown',
-    author='Checkmk LLM Agent Team',
+    author='Checkmk MCP Server Team',
     author_email='dev@example.com',
-    url='https://github.com/your-org/checkmk-llm-agent',
+    url='https://github.com/your-org/checkmk-mcp-server',
     
     packages=find_packages(),
     python_requires='>=3.8',
@@ -52,7 +52,7 @@ setup(
     
     entry_points={
         'console_scripts': [
-            'checkmk-agent=checkmk_agent.cli:cli',
+            'checkmk-mcp-server=checkmk_mcp_server.cli:cli',
         ],
     },
     
@@ -70,12 +70,12 @@ setup(
         'Programming Language :: Python :: 3.12',
     ],
     
-    keywords='checkmk monitoring llm ai automation',
+    keywords='checkmk monitoring mcp model-context-protocol ai automation',
     
     project_urls={
-        'Bug Reports': 'https://github.com/your-org/checkmk-llm-agent/issues',
-        'Source': 'https://github.com/your-org/checkmk-llm-agent',
-        'Documentation': 'https://github.com/your-org/checkmk-llm-agent/blob/main/README.md',
+        'Bug Reports': 'https://github.com/your-org/checkmk-mcp-server/issues',
+        'Source': 'https://github.com/your-org/checkmk-mcp-server',
+        'Documentation': 'https://github.com/your-org/checkmk-mcp-server/blob/main/README.md',
     },
     
     include_package_data=True,

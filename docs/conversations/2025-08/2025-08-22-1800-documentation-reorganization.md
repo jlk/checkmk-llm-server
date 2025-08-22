@@ -1,7 +1,7 @@
 TITLE: Documentation Reorganization for Open Source Release
 DATE: 2025-08-22
 PARTICIPANTS: User, Claude Code (Technical Documentation Writer)
-SUMMARY: Major documentation reorganization to prepare Checkmk LLM Agent for public GitHub release with streamlined README, comprehensive docs structure, and MIT license
+SUMMARY: Major documentation reorganization to prepare Checkmk MCP Server for public GitHub release with streamlined README, comprehensive docs structure, and MIT license
 
 INITIAL PROMPT: ok. The documentation on this project needs organization and cleanup - from the readme to the docs folder. Use the technical doc writer subagent to review the docs and re-organize them and bring clarity. This will be an open-source project that is publicly visible on GitHub, so the readme needs to show why someone would want to use the project, what features it has currently, and how to get started. It's fine to link to deeper docs past the readme.
 

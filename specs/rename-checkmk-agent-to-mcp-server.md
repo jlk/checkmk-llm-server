@@ -1,7 +1,7 @@
-# Rename Project: checkmk_agent to checkmk_mcp_server
+# Rename Project: checkmk_mcp_server to checkmk_mcp_server
 
 ## Overview
-This specification outlines the systematic renaming of the project from `checkmk_agent` to `checkmk_mcp_server` to better reflect its primary purpose as an MCP (Model Context Protocol) server for Checkmk monitoring.
+This specification outlines the systematic renaming of the project from `checkmk_mcp_server` to `checkmk_mcp_server` to better reflect its primary purpose as an MCP (Model Context Protocol) server for Checkmk monitoring.
 
 ## Impact Analysis
 - **Python files to modify**: 186 files
@@ -20,16 +20,16 @@ import re
 from pathlib import Path
 
 def update_python_imports(root_dir):
-    """Update all Python imports from checkmk_agent to checkmk_mcp_server"""
+    """Update all Python imports from checkmk_mcp_server to checkmk_mcp_server"""
     for py_file in Path(root_dir).rglob('*.py'):
         with open(py_file, 'r') as f:
             content = f.read()
         
         # Update import statements
         patterns = [
-            (r'from checkmk_agent', 'from checkmk_mcp_server'),
-            (r'import checkmk_agent', 'import checkmk_mcp_server'),
-            (r'checkmk_agent\.', 'checkmk_mcp_server.')
+            (r'from checkmk_mcp_server', 'from checkmk_mcp_server'),
+            (r'import checkmk_mcp_server', 'import checkmk_mcp_server'),
+            (r'checkmk_mcp_server\.', 'checkmk_mcp_server.')
         ]
         
         modified = False
@@ -61,9 +61,9 @@ def update_documentation(root_dir):
             content = f.read()
         
         patterns = [
-            (r'checkmk-agent', 'checkmk-mcp-server'),
-            (r'checkmk_agent', 'checkmk_mcp_server'),
-            (r'checkmk-llm-agent', 'checkmk-mcp-server')
+            (r'checkmk-mcp-server', 'checkmk-mcp-server'),
+            (r'checkmk_mcp_server', 'checkmk_mcp_server'),
+            (r'checkmk-mcp-server', 'checkmk-mcp-server')
         ]
         
         modified = False
@@ -89,7 +89,7 @@ from pathlib import Path
 
 def validate_no_old_references():
     """Validate that no old references remain"""
-    patterns = ['checkmk_agent', 'checkmk-agent', 'checkmk-llm-agent']
+    patterns = ['checkmk_mcp_server', 'checkmk-mcp-server', 'checkmk-mcp-server']
     exclude_dirs = ['__pycache__', '.git', '.pytest_cache', 'node_modules']
     
     for pattern in patterns:
@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
 ### Import Statement Updates
 - **Relative imports**: Update all `from .` and `from ..` statements that reference renamed modules
-- **Absolute imports**: Change `from checkmk_agent.module` to `from checkmk_mcp_server.module`
+- **Absolute imports**: Change `from checkmk_mcp_server.module` to `from checkmk_mcp_server.module`
 - **Dynamic imports**: Update any `importlib` or `__import__` calls
 - **String-based imports**: Check for module names in strings (test mocks, configuration)
 
@@ -131,26 +131,26 @@ if __name__ == '__main__':
 ## Todo List
 
 ### Phase 1: Directory and Package Structure
-- [ ] Rename main package directory from `checkmk_agent/` to `checkmk_mcp_server/`
-- [ ] Rename workspace file from `checkmk_agent.code-workspace` to `checkmk_mcp_server.code-workspace`
-- [ ] Update workspace file internal references
+- [x] Rename main package directory from `checkmk_mcp_server/` to `checkmk_mcp_server/`
+- [x] Rename workspace file from `checkmk_mcp_server.code-workspace` to `checkmk_mcp_server.code-workspace`
+- [x] Update workspace file internal references
 
 ### Phase 2: Core Python Package Updates
-- [ ] Run automated import update script on all 186 Python files
-- [ ] Rename main package directory from `checkmk_agent/` to `checkmk_mcp_server/`
-- [ ] Update `setup.py` package configuration
-- [ ] Update entry point scripts (`mcp_checkmk_server.py`, `checkmk_cli_mcp.py`)
-- [ ] Verify all internal imports work correctly
+- [x] Run automated import update script on all 186 Python files
+- [x] Rename main package directory from `checkmk_mcp_server/` to `checkmk_mcp_server/`
+- [x] Update `setup.py` package configuration
+- [x] Update entry point scripts (`mcp_checkmk_server.py`, `checkmk_cli_mcp.py`)
+- [x] Verify all internal imports work correctly
 
 ### Phase 3: Documentation Updates
-- [ ] Run automated documentation update script on all 86 Markdown files
-- [ ] Update main `README.md` project title and installation instructions
-- [ ] Update `CLAUDE.md` project references and file structure
-- [ ] Update core documentation files in `docs/` directory
-- [ ] Review conversation logs in `docs/conversations/` for any needed updates
+- [x] Run automated documentation update script on all 86 Markdown files
+- [x] Update main `README.md` project title and installation instructions
+- [x] Update `CLAUDE.md` project references and file structure
+- [x] Update core documentation files in `docs/` directory
+- [x] Review conversation logs in `docs/conversations/` for any needed updates
 
 ### Phase 4: Configuration and Examples
-- [ ] Update workspace file from `checkmk_agent.code-workspace` to `checkmk_mcp_server.code-workspace`
+- [ ] Update workspace file from `checkmk_mcp_server.code-workspace` to `checkmk_mcp_server.code-workspace`
 - [ ] Update configuration files (`.env.example`, `pytest.ini`, etc.)
 - [ ] Update all example files and configurations
 - [ ] Update any CI/CD configuration files
@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
 ```bash
 # Validate no old references remain
-rg "checkmk_agent|checkmk-agent|checkmk-llm-agent" --type py --type md
+rg "checkmk_mcp_server|checkmk-mcp-server|checkmk-mcp-server" --type py --type md
 
 # Check Python import syntax
 find . -name "*.py" -exec python -m py_compile {} \;
@@ -225,7 +225,7 @@ python mcp_checkmk_server.py --version
 
 Users will need to:
 1. Update their Claude Desktop configuration to use `checkmk-mcp-server` command
-2. Update any scripts using the old `checkmk-agent` command
+2. Update any scripts using the old `checkmk-mcp-server` command
 3. Reinstall the package with the new name
 4. Update any imports if they're using this as a library
 
@@ -233,7 +233,7 @@ Users will need to:
 
 If issues arise:
 1. Git revert all commits related to the rename
-2. Restore original `checkmk_agent/` directory name
+2. Restore original `checkmk_mcp_server/` directory name
 3. Restore original setup.py configuration
 4. Clean and rebuild environment
 5. Verify original functionality is restored
@@ -247,7 +247,16 @@ If issues arise:
 
 ## Completion Status
 
-**Started**: [Date]  
+**Started**: 2025-08-22  
+**Branch**: feature/rename-to-mcp-server  
+**Current Status**: Safety procedures completed, ready for Phase 1  
+
+**Pre-rename State**:
+- Main package: `checkmk_mcp_server/` (191 files)
+- Tests pass with basic import functionality
+- Git branch created: feature/rename-to-mcp-server
+- All changes committed to main branch
+
 **Completed**: [Date]  
 **Issues Encountered**: [List any problems]  
 **Resolution**: [How issues were resolved]

@@ -113,7 +113,7 @@ The current `server.py` is 4449 lines - a monolithic file that violates SOLID pr
 
 ## File Structure After Refactoring
 ```
-checkmk_agent/mcp_server/
+checkmk_mcp_server/mcp_server/
 ├── __init__.py
 ├── server.py                    # Main orchestration (~200 lines)
 ├── tools/
@@ -150,11 +150,11 @@ checkmk_agent/mcp_server/
 ### **Critical Files** (Must be updated)
 
 #### **Entry Point** (`mcp_checkmk_server.py`)
-- **Current**: `from checkmk_agent.mcp_server import CheckmkMCPServer`
+- **Current**: `from checkmk_mcp_server.mcp_server import CheckmkMCPServer`
 - **Update Required**: Import path will remain the same (maintained via `__init__.py`)
 - **Changes**: None required if `__init__.py` properly exports the refactored class
 
-#### **Package Init** (`checkmk_agent/mcp_server/__init__.py`)
+#### **Package Init** (`checkmk_mcp_server/mcp_server/__init__.py`)
 - **Current**: Exports `CheckmkMCPServer` from `server.py`
 - **Update Required**: May need to export from new orchestration module
 - **Changes**: Update import paths to maintain backward compatibility
@@ -176,7 +176,7 @@ All test files importing `CheckmkMCPServer` will need import path updates:
 ### **Supporting Files** (Should be updated)
 
 #### **Documentation Updates**
-- `checkmk_agent/mcp_server/README.md` - Update architecture description
+- `checkmk_mcp_server/mcp_server/README.md` - Update architecture description
 - `README.md` - Update MCP server section with new architecture
 - `IMPLEMENTATION_SUMMARY.md` - Add refactoring notes
 - `docs/ADVANCED_FEATURES.md` - Update MCP server references
@@ -244,10 +244,10 @@ All test files importing `CheckmkMCPServer` will need import path updates:
 Maintain these import paths during and after refactoring:
 ```python
 # This should continue to work
-from checkmk_agent.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
 
 # This should also continue to work  
-from checkmk_agent.mcp_server.server import CheckmkMCPServer
+from checkmk_mcp_server.mcp_server.server import CheckmkMCPServer
 ```
 
 #### **API Compatibility**
@@ -349,17 +349,17 @@ from checkmk_agent.mcp_server.server import CheckmkMCPServer
 Track files created/modified during refactoring:
 
 #### **New Files Created** (40 files)
-- `checkmk_agent/mcp_server/tools/__init__.py`
-- `checkmk_agent/mcp_server/handlers/__init__.py`
-- `checkmk_agent/mcp_server/handlers/registry.py` *(Phase 2)*
-- `checkmk_agent/mcp_server/handlers/protocol.py` *(Phase 2)*
-- `checkmk_agent/mcp_server/utils/__init__.py`
-- `checkmk_agent/mcp_server/utils/serialization.py`
-- `checkmk_agent/mcp_server/utils/errors.py`
-- `checkmk_agent/mcp_server/validation/__init__.py`
-- `checkmk_agent/mcp_server/config/__init__.py`
-- `checkmk_agent/mcp_server/config/tool_definitions.py`
-- `checkmk_agent/mcp_server/config/registry.py` *(Phase 2)*
+- `checkmk_mcp_server/mcp_server/tools/__init__.py`
+- `checkmk_mcp_server/mcp_server/handlers/__init__.py`
+- `checkmk_mcp_server/mcp_server/handlers/registry.py` *(Phase 2)*
+- `checkmk_mcp_server/mcp_server/handlers/protocol.py` *(Phase 2)*
+- `checkmk_mcp_server/mcp_server/utils/__init__.py`
+- `checkmk_mcp_server/mcp_server/utils/serialization.py`
+- `checkmk_mcp_server/mcp_server/utils/errors.py`
+- `checkmk_mcp_server/mcp_server/validation/__init__.py`
+- `checkmk_mcp_server/mcp_server/config/__init__.py`
+- `checkmk_mcp_server/mcp_server/config/tool_definitions.py`
+- `checkmk_mcp_server/mcp_server/config/registry.py` *(Phase 2)*
 - `tests/test_mcp_utils_serialization.py`
 - `tests/test_mcp_utils_errors.py`
 - `tests/test_mcp_config_tool_definitions.py`
@@ -368,31 +368,31 @@ Track files created/modified during refactoring:
 - `tests/test_mcp_handlers_protocol.py` *(Phase 2)*
 - `tests/test_mcp_config_registry.py` *(Phase 2)*
 - `tests/test_mcp_phase2_integration.py` *(Phase 2)*
-- `checkmk_agent/mcp_server/prompts/__init__.py` *(Phase 3)*
-- `checkmk_agent/mcp_server/prompts/definitions.py` *(Phase 3)*
-- `checkmk_agent/mcp_server/prompts/handlers.py` *(Phase 3)*
-- `checkmk_agent/mcp_server/prompts/validators.py` *(Phase 3)*
+- `checkmk_mcp_server/mcp_server/prompts/__init__.py` *(Phase 3)*
+- `checkmk_mcp_server/mcp_server/prompts/definitions.py` *(Phase 3)*
+- `checkmk_mcp_server/mcp_server/prompts/handlers.py` *(Phase 3)*
+- `checkmk_mcp_server/mcp_server/prompts/validators.py` *(Phase 3)*
 - `tests/test_mcp_prompts_phase3.py` *(Phase 3)*
 - `tests/test_mcp_prompts_integration.py` *(Phase 3)*
-- `checkmk_agent/mcp_server/tools/host/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/host/tools.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/service/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/service/tools.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/monitoring/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/monitoring/tools.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/parameters/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/parameters/tools.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/events/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/events/tools.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/metrics/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/metrics/tools.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/business/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/business/tools.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/advanced/__init__.py` *(Phase 4)*
-- `checkmk_agent/mcp_server/tools/advanced/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/host/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/host/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/service/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/service/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/monitoring/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/monitoring/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/parameters/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/parameters/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/events/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/events/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/metrics/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/metrics/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/business/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/business/tools.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/advanced/__init__.py` *(Phase 4)*
+- `checkmk_mcp_server/mcp_server/tools/advanced/tools.py` *(Phase 4)*
 
 #### **Existing Files Modified** (1 file)
-- `checkmk_agent/mcp_server/__init__.py` - Added backward compatibility imports
+- `checkmk_mcp_server/mcp_server/__init__.py` - Added backward compatibility imports
 
 #### **Test Files Updated** (15/15 files) ✅
 - [x] `tests/test_mcp_server_tools.py` ✅
@@ -417,7 +417,7 @@ Note: Files not requiring updates:
 - `benchmark_parameter_operations.py` - Not a test file (benchmark script)
 
 #### **Documentation Updated** (0/6 files)
-- [ ] `checkmk_agent/mcp_server/README.md`
+- [ ] `checkmk_mcp_server/mcp_server/README.md`
 - [ ] `README.md`
 - [ ] `IMPLEMENTATION_SUMMARY.md`
 - [ ] `docs/ADVANCED_FEATURES.md`
@@ -1047,11 +1047,11 @@ Track quality checkpoints for each phase:
 #### **Import Compatibility Validation** 
 - **Existing Patterns**: All work without modification
   ```python
-  from checkmk_agent.mcp_server import CheckmkMCPServer  # ✅ Works
+  from checkmk_mcp_server.mcp_server import CheckmkMCPServer  # ✅ Works
   ```
 - **New Patterns**: Available for future optimization
   ```python
-  from checkmk_agent.mcp_server.utils import safe_json_dumps  # ✅ Works
+  from checkmk_mcp_server.mcp_server.utils import safe_json_dumps  # ✅ Works
   ```
 
 #### **Performance Impact**
@@ -1264,7 +1264,7 @@ The refactored MCP server architecture is production-ready with:
 
 #### **Task 31: Update Test Imports** ✅ COMPLETED
 - **Updated**: 15 test files using automated script (`scripts/update_test_imports.py`)
-- **Pattern Changed**: `from checkmk_agent.mcp_server.server import CheckmkMCPServer` → `from checkmk_agent.mcp_server import CheckmkMCPServer`
+- **Pattern Changed**: `from checkmk_mcp_server.mcp_server.server import CheckmkMCPServer` → `from checkmk_mcp_server.mcp_server import CheckmkMCPServer`
 - **Validation**: All updated imports tested and working correctly
 - **Test Status**: Core test files passing with new import paths
 

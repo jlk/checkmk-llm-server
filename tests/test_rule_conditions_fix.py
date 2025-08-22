@@ -13,9 +13,9 @@ import json
 from unittest.mock import patch, MagicMock, call
 from typing import Dict, Any
 
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError
-from checkmk_agent.config import CheckmkConfig
-from checkmk_agent.services.parameter_service import ParameterService
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError
+from checkmk_mcp_server.config import CheckmkConfig
+from checkmk_mcp_server.services.parameter_service import ParameterService
 
 
 class TestRuleConditionsFix:
@@ -36,22 +36,22 @@ class TestRuleConditionsFix:
     @pytest.fixture
     def client(self, config):
         """Create CheckmkClient instance."""
-        with patch("checkmk_agent.api_client.requests.Session"), patch(
-            "checkmk_agent.api_client.logging.getLogger"
+        with patch("checkmk_mcp_server.api_client.requests.Session"), patch(
+            "checkmk_mcp_server.api_client.logging.getLogger"
         ):
             return CheckmkClient(config)
 
     @pytest.fixture
     def parameter_service(self, client, config):
         """Create ParameterService instance."""
-        from checkmk_agent.async_api_client import AsyncCheckmkClient
-        from checkmk_agent.config import AppConfig, LLMConfig
+        from checkmk_mcp_server.async_api_client import AsyncCheckmkClient
+        from checkmk_mcp_server.config import AppConfig, LLMConfig
 
         llm_config = LLMConfig()
         app_config = AppConfig(checkmk=config, llm=llm_config)
         async_client = AsyncCheckmkClient(client)
 
-        with patch("checkmk_agent.services.parameter_service.logging.getLogger"):
+        with patch("checkmk_mcp_server.services.parameter_service.logging.getLogger"):
             return ParameterService(async_client, app_config)
 
     def test_create_rule_conditions_format_correct(self, client):

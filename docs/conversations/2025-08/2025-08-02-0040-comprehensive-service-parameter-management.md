@@ -14,10 +14,10 @@ KEY DECISIONS:
 - Used subagents extensively for complex implementation tasks
 
 FILES CHANGED:
-- checkmk_agent/services/parameter_service.py - Enhanced with dynamic discovery, validation, and handler integration
-- checkmk_agent/mcp_server/server.py - Added 12 new parameter management MCP tools
-- checkmk_agent/async_api_client.py - Fixed missing methods and parameter signatures
-- checkmk_agent/services/handlers/ - Created complete handler system with 4 specialized handlers
+- checkmk_mcp_server/services/parameter_service.py - Enhanced with dynamic discovery, validation, and handler integration
+- checkmk_mcp_server/mcp_server/server.py - Added 12 new parameter management MCP tools
+- checkmk_mcp_server/async_api_client.py - Fixed missing methods and parameter signatures
+- checkmk_mcp_server/services/handlers/ - Created complete handler system with 4 specialized handlers
 - tests/ - Added 5 comprehensive test modules with 100% pass rate
 - docs/PARAMETER_MANAGEMENT_GUIDE.md - Created 731-line comprehensive guide
 - examples/parameter_management/ - Added practical implementation examples

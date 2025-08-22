@@ -16,7 +16,7 @@ The `checkmk_scraper.py` file is a **4,900-line monolithic script** that violate
 - **1 Exception Class**: `ScrapingError` (lines 67-122)
 - **1 Main Class**: `CheckmkHistoricalScraper` (lines 123-4765) with ~100 methods
 - **1 CLI Interface**: Click-based CLI (lines 4769-4900)
-- **Dependencies**: BeautifulSoup4, lxml, requests, existing checkmk_agent modules
+- **Dependencies**: BeautifulSoup4, lxml, requests, existing checkmk_mcp_server modules
 
 ### Key Functionality Areas
 1. **Authentication & Session Management** (~200 lines)
@@ -34,14 +34,14 @@ The `checkmk_scraper.py` file is a **4,900-line monolithic script** that violate
 - **Single Responsibility**: Each module handles one specific aspect of scraping
 - **Dependency Injection**: Services are injected rather than tightly coupled
 - **Factory Pattern**: Create specialized scrapers based on requirements
-- **Service Layer Integration**: Fits into existing `checkmk_agent/services/` structure
+- **Service Layer Integration**: Fits into existing `checkmk_mcp_server/services/` structure
 - **Type Safety**: Maintain comprehensive type annotations
 - **Error Handling**: Preserve existing robust error handling
 
 ### Modular Structure
 
 #### 1. Web Scraping Service Package
-**Base Directory**: `checkmk_agent/services/web_scraping/`
+**Base Directory**: `checkmk_mcp_server/services/web_scraping/`
 
 ```
 web_scraping/
@@ -65,7 +65,7 @@ web_scraping/
 - **Configuration**: Integrate with existing config patterns
 
 #### 3. CLI Integration
-- **Historical Commands**: New command group in `checkmk_agent/commands/`
+- **Historical Commands**: New command group in `checkmk_mcp_server/commands/`
 - **Main CLI**: Add to existing CLI structure
 - **Backward Compatibility**: Maintain existing interfaces
 
@@ -107,7 +107,7 @@ __all__ = ['ScrapingError', 'ScraperService', 'AuthHandler', ...]
 - `validate_session()` - Check session validity
 - `refresh_session()` - Refresh expired sessions
 - `_handle_login_flow()` - Process login forms
-**Dependencies**: requests, checkmk_agent.config
+**Dependencies**: requests, checkmk_mcp_server.config
 
 ### 4. HTML Parser Manager (`parsers/html_parser.py`)
 **Purpose**: HTML parsing with fallback detection and validation
@@ -165,7 +165,7 @@ __all__ = ['ScrapingError', 'ScraperService', 'AuthHandler', ...]
 ## Integration Points
 
 ### 1. Historical Service Enhancement
-**File**: `checkmk_agent/services/historical_service.py`
+**File**: `checkmk_mcp_server/services/historical_service.py`
 **Changes**:
 ```python
 # Replace import
@@ -183,7 +183,7 @@ class HistoricalService:
 ```
 
 ### 2. CLI Command Integration
-**File**: `checkmk_agent/commands/historical_commands.py`
+**File**: `checkmk_mcp_server/commands/historical_commands.py`
 ```python
 import click
 from ..services.historical_service import HistoricalService
@@ -203,7 +203,7 @@ def scrape(period, host, service, method):
     # Implementation using historical service
 ```
 
-**File**: `checkmk_agent/cli.py`
+**File**: `checkmk_mcp_server/cli.py`
 ```python
 from .commands.historical_commands import historical
 
@@ -212,7 +212,7 @@ cli.add_command(historical)
 ```
 
 ### 3. MCP Server Tool Integration
-**File**: `checkmk_agent/mcp_server/tools/monitoring/tools.py`
+**File**: `checkmk_mcp_server/mcp_server/tools/monitoring/tools.py`
 ```python
 # Add new scraping tools
 self._tools["scrape_historical_data"] = Tool(
@@ -240,7 +240,7 @@ self._tools["scrape_historical_data"] = Tool(
 ### Phase 1: Infrastructure Setup (1-2 days)
 1. **Create Directory Structure**
    ```bash
-   mkdir -p checkmk_agent/services/web_scraping/{parsers,extractors}
+   mkdir -p checkmk_mcp_server/services/web_scraping/{parsers,extractors}
    ```
 
 2. **Create Base Files**
@@ -631,15 +631,15 @@ This refactoring plan transforms the monolithic scraper into a well-structured, 
 ### 2. Integration Points Analysis
 
 #### Direct Dependencies Found
-- **Primary Integration**: `checkmk_agent/services/historical_service.py`
+- **Primary Integration**: `checkmk_mcp_server/services/historical_service.py`
   - Lines 88: `from checkmk_scraper import CheckmkHistoricalScraper`
   - Lines 407: `from checkmk_scraper import ScrapingError`
   - Used in `_create_scraper_instance()` method
 
 #### MCP Server Integration
-- **Service Container**: `checkmk_agent/mcp_server/container.py`
+- **Service Container**: `checkmk_mcp_server/mcp_server/container.py`
   - Line 65: `HistoricalDataService` instantiation uses scraper indirectly
-- **Tools Integration**: `checkmk_agent/mcp_server/tools/metrics/tools.py`
+- **Tools Integration**: `checkmk_mcp_server/mcp_server/tools/metrics/tools.py`
   - Historical service dependency for scraping data source
   - Tool: `get_metric_history` supports scraper mode
 
@@ -653,8 +653,8 @@ This refactoring plan transforms the monolithic scraper into a well-structured, 
 
 #### CLI Integration
 - **Standalone Script**: Current scraper operates as independent CLI tool
-- **No Integration**: Not integrated with main `checkmk_agent/cli.py`
-- **Configuration**: Uses existing `checkmk_agent.config` system
+- **No Integration**: Not integrated with main `checkmk_mcp_server/cli.py`
+- **Configuration**: Uses existing `checkmk_mcp_server.config` system
 
 ### 3. Development Environment Setup
 
@@ -826,17 +826,17 @@ This refactoring plan transforms the monolithic scraper into a well-structured, 
 Track files created during refactoring:
 
 #### **New Files Created** (0 files)
-- [ ] `checkmk_agent/services/web_scraping/__init__.py`
-- [ ] `checkmk_agent/services/web_scraping/scraper_service.py`
-- [ ] `checkmk_agent/services/web_scraping/auth_handler.py`
-- [ ] `checkmk_agent/services/web_scraping/factory.py`
-- [ ] `checkmk_agent/services/web_scraping/parsers/__init__.py`
-- [ ] `checkmk_agent/services/web_scraping/parsers/html_parser.py`
-- [ ] `checkmk_agent/services/web_scraping/extractors/__init__.py`
-- [ ] `checkmk_agent/services/web_scraping/extractors/graph_extractor.py`
-- [ ] `checkmk_agent/services/web_scraping/extractors/table_extractor.py`
-- [ ] `checkmk_agent/services/web_scraping/extractors/ajax_extractor.py`
-- [ ] `checkmk_agent/commands/historical_commands.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/__init__.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/scraper_service.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/auth_handler.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/factory.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/parsers/__init__.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/parsers/html_parser.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/extractors/__init__.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/extractors/graph_extractor.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/extractors/table_extractor.py`
+- [ ] `checkmk_mcp_server/services/web_scraping/extractors/ajax_extractor.py`
+- [ ] `checkmk_mcp_server/commands/historical_commands.py`
 
 #### **Test Files Created** (0 files)
 - [ ] `tests/test_web_scraping_service.py`
@@ -848,9 +848,9 @@ Track files created during refactoring:
 - [ ] `tests/test_historical_commands.py`
 
 #### **Existing Files Modified** (0 files)
-- [ ] `checkmk_agent/services/historical_service.py`
-- [ ] `checkmk_agent/cli.py`
-- [ ] `checkmk_agent/mcp_server/tools/monitoring/tools.py`
+- [ ] `checkmk_mcp_server/services/historical_service.py`
+- [ ] `checkmk_mcp_server/cli.py`
+- [ ] `checkmk_mcp_server/mcp_server/tools/monitoring/tools.py`
 - [ ] `README.md`
 - [ ] `.serena/memories/codebase_structure.md`
 
@@ -923,7 +923,7 @@ After analysis of the current implementation, the refactoring **successfully cre
 ### **Phase 6 Tasks** (8 tasks)
 
 #### **Task 50: Fix Critical Import** ⚡ URGENT
-- [ ] **File**: `checkmk_agent/services/historical_service.py`
+- [ ] **File**: `checkmk_mcp_server/services/historical_service.py`
 - [ ] **Change**: Line 20: Replace `from checkmk_scraper import CheckmkHistoricalScraper`
 - [ ] **With**: `from .web_scraping.scraper_service import ScraperService`
 - [ ] **Validation**: Ensure import works without errors
@@ -981,8 +981,8 @@ After analysis of the current implementation, the refactoring **successfully cre
 Create this test to verify completion:
 ```python
 # test_phase6_validation.py
-from checkmk_agent.services.historical_service import HistoricalDataService
-from checkmk_agent.config import load_config
+from checkmk_mcp_server.services.historical_service import HistoricalDataService
+from checkmk_mcp_server.config import load_config
 
 def test_new_scraper_integration():
     """Test that new modular scraper integrates properly."""

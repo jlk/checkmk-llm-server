@@ -16,12 +16,12 @@ from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from click.testing import CliRunner
 import requests_mock
 
-from checkmk_agent.api_client import CheckmkClient
-from checkmk_agent.host_operations import HostOperationsManager
-from checkmk_agent.services.host_service import HostService
-from checkmk_agent.config import CheckmkConfig, LLMConfig, AppConfig
-from checkmk_agent.cli import cli
-from checkmk_agent.mcp_server import CheckmkMCPServer
+from checkmk_mcp_server.api_client import CheckmkClient
+from checkmk_mcp_server.host_operations import HostOperationsManager
+from checkmk_mcp_server.services.host_service import HostService
+from checkmk_mcp_server.config import CheckmkConfig, LLMConfig, AppConfig
+from checkmk_mcp_server.cli import cli
+from checkmk_mcp_server.mcp_server import CheckmkMCPServer
 
 
 @pytest.fixture

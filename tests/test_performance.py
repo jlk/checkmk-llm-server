@@ -6,11 +6,11 @@ import time
 import statistics
 from unittest.mock import AsyncMock, Mock
 
-from checkmk_agent.services.streaming import StreamingHostService
-from checkmk_agent.services.cache import LRUCache, CachedHostService
-from checkmk_agent.services.batch import BatchProcessor
-from checkmk_agent.services.metrics import get_metrics_collector
-from checkmk_agent.config import AppConfig
+from checkmk_mcp_server.services.streaming import StreamingHostService
+from checkmk_mcp_server.services.cache import LRUCache, CachedHostService
+from checkmk_mcp_server.services.batch import BatchProcessor
+from checkmk_mcp_server.services.metrics import get_metrics_collector
+from checkmk_mcp_server.config import AppConfig
 
 
 @pytest.fixture

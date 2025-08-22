@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide helps resolve common issues when setting up and using the Checkmk LLM Agent.
+This guide helps resolve common issues when setting up and using the Checkmk MCP Server.
 
 ## Quick Diagnosis
 
@@ -13,9 +13,9 @@ python mcp_checkmk_server.py --config config.yaml
 python mcp_checkmk_server.py
 
 # You should see:
-# INFO:checkmk_agent.mcp_server:Starting Checkmk MCP Server
-# INFO:checkmk_agent.mcp_server:Registered 37 monitoring tools
-# INFO:checkmk_agent.mcp_server:MCP server ready for connections
+# INFO:checkmk_mcp_server.mcp_server:Starting Checkmk MCP Server
+# INFO:checkmk_mcp_server.mcp_server:Registered 37 monitoring tools
+# INFO:checkmk_mcp_server.mcp_server:MCP server ready for connections
 ```
 
 ### Can You Connect to Checkmk?
@@ -25,8 +25,8 @@ curl -k https://your-checkmk-server/check_mk/api/1.0/version
 
 # Test through the agent (YAML config)
 python -c "
-from checkmk_agent.config import load_config
-from checkmk_agent.api_client import CheckmkAPIClient
+from checkmk_mcp_server.config import load_config
+from checkmk_mcp_server.api_client import CheckmkAPIClient
 config = load_config('config.yaml')
 client = CheckmkAPIClient(config)
 print(client.get_version())
@@ -34,8 +34,8 @@ print(client.get_version())
 
 # Test through the agent (environment variables)
 python -c "
-from checkmk_agent.config import load_config
-from checkmk_agent.api_client import CheckmkAPIClient
+from checkmk_mcp_server.config import load_config
+from checkmk_mcp_server.api_client import CheckmkAPIClient
 config = load_config()  # Auto-loads from environment
 client = CheckmkAPIClient(config)
 print(client.get_version())
@@ -360,7 +360,7 @@ pip install -r requirements.txt
 3. **Alternative: Use direct CLI**:
 ```bash
 # Instead of MCP client
-python -m checkmk_agent.cli --config config.yaml hosts list
+python -m checkmk_mcp_server.cli --config config.yaml hosts list
 ```
 
 ### Claude Desktop Connection Issues
@@ -541,8 +541,8 @@ python mcp_checkmk_server.py --config config.yaml
 
 **Test API client**:
 ```python
-from checkmk_agent.api_client import CheckmkAPIClient
-from checkmk_agent.config import load_config
+from checkmk_mcp_server.api_client import CheckmkAPIClient
+from checkmk_mcp_server.config import load_config
 
 config = load_config('config.yaml')
 client = CheckmkAPIClient(config)
@@ -582,7 +582,7 @@ lsof | grep python | wc -l
 
 ## Common Error Messages
 
-### "ModuleNotFoundError: No module named 'checkmk_agent'"
+### "ModuleNotFoundError: No module named 'checkmk_mcp_server'"
 
 **Solution**: Ensure you're in the correct directory and virtual environment is activated:
 ```bash
@@ -643,7 +643,7 @@ cat config.yaml | sed 's/password:.*/password: [REDACTED]/'
    - Enable debug logging
    - Include relevant log entries (remove sensitive data)
 
-The Checkmk LLM Agent community is ready to help!
+The Checkmk MCP Server community is ready to help!
 
 ## Related Documentation
 

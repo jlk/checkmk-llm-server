@@ -1,6 +1,6 @@
-# Common Tasks - Checkmk LLM Agent
+# Common Tasks - Checkmk MCP Server
 
-This document contains step-by-step instructions for common repetitive tasks in the Checkmk LLM Agent project.
+This document contains step-by-step instructions for common repetitive tasks in the Checkmk MCP Server project.
 
 ## Add New Parameter Handler
 
@@ -8,9 +8,9 @@ This document contains step-by-step instructions for common repetitive tasks in 
 **Purpose:** Add support for a new service type with specialized parameter handling
 
 **Files to modify:**
-- `/checkmk_agent/services/handlers/new_handler.py` - Create new handler file
-- `/checkmk_agent/services/handlers/__init__.py` - Register the handler
-- `/checkmk_agent/services/parameter_service.py` - Update handler registry
+- `/checkmk_mcp_server/services/handlers/new_handler.py` - Create new handler file
+- `/checkmk_mcp_server/services/handlers/__init__.py` - Register the handler
+- `/checkmk_mcp_server/services/parameter_service.py` - Update handler registry
 - `/tests/test_handlers/test_new_handler.py` - Add test coverage
 - `/docs/handlers.md` - Document the new handler
 
@@ -45,7 +45,7 @@ This document contains step-by-step instructions for common repetitive tasks in 
 **Purpose:** Expose new functionality through MCP protocol
 
 **Files to modify:**
-- `/checkmk_agent/mcp_server/server.py` - Add tool definition and handler
+- `/checkmk_mcp_server/mcp_server/server.py` - Add tool definition and handler
 - `/tests/test_mcp_server.py` - Add test for new tool
 - `/README.md` - Update tool count and documentation
 
@@ -97,7 +97,7 @@ This document contains step-by-step instructions for common repetitive tasks in 
 
 **Files to check:**
 - `/mcp_checkmk_server.py` - Entry point
-- `/checkmk_agent/mcp_server/server.py` - Tool implementations
+- `/checkmk_mcp_server/mcp_server/server.py` - Tool implementations
 - `/logs/mcp_server.log` - Server logs
 - `~/.claude/claude_desktop_config.json` - Claude configuration
 
@@ -149,7 +149,7 @@ This document contains step-by-step instructions for common repetitive tasks in 
    ```
 2. Run with coverage:
    ```bash
-   pytest --cov=checkmk_agent --cov-report=html
+   pytest --cov=checkmk_mcp_server --cov-report=html
    ```
 3. Run specific test file:
    ```bash
@@ -176,10 +176,10 @@ This document contains step-by-step instructions for common repetitive tasks in 
 **Purpose:** Add new service management functionality
 
 **Files to modify:**
-- `/checkmk_agent/api_client.py` - API method
-- `/checkmk_agent/service_operations.py` - Business logic
-- `/checkmk_agent/cli.py` - CLI command
-- `/checkmk_agent/mcp_server/server.py` - MCP tool
+- `/checkmk_mcp_server/api_client.py` - API method
+- `/checkmk_mcp_server/service_operations.py` - Business logic
+- `/checkmk_mcp_server/cli.py` - CLI command
+- `/checkmk_mcp_server/mcp_server/server.py` - MCP tool
 - `/tests/test_service_operations.py` - Tests
 
 **Steps:**
@@ -206,9 +206,9 @@ This document contains step-by-step instructions for common repetitive tasks in 
 **Purpose:** Improve response times and resource usage
 
 **Files to monitor:**
-- `/checkmk_agent/services/cache_service.py` - Caching logic
-- `/checkmk_agent/services/batch_service.py` - Batch operations
-- `/checkmk_agent/services/streaming_service.py` - Large datasets
+- `/checkmk_mcp_server/services/cache_service.py` - Caching logic
+- `/checkmk_mcp_server/services/batch_service.py` - Batch operations
+- `/checkmk_mcp_server/services/streaming_service.py` - Large datasets
 
 **Steps:**
 1. Profile code to find bottlenecks:
@@ -248,7 +248,7 @@ This document contains step-by-step instructions for common repetitive tasks in 
 
 **Files to check:**
 - `/checkmk-rest-openapi.yaml` - API specification
-- `/checkmk_agent/api_client.py` - API methods
+- `/checkmk_mcp_server/api_client.py` - API methods
 - All test files
 
 **Steps:**
@@ -275,7 +275,7 @@ This document contains step-by-step instructions for common repetitive tasks in 
 
 **Files to check:**
 - `/.env` - Credentials
-- `/checkmk_agent/api_client.py` - Auth implementation
+- `/checkmk_mcp_server/api_client.py` - Auth implementation
 - Server logs
 
 **Steps:**

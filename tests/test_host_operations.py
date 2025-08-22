@@ -4,10 +4,10 @@ import pytest
 from unittest.mock import Mock, patch
 from io import StringIO
 
-from checkmk_agent.host_operations import HostOperationsManager
-from checkmk_agent.api_client import CheckmkClient, CheckmkAPIError
-from checkmk_agent.llm_client import LLMClient, ParsedCommand, HostOperation
-from checkmk_agent.config import AppConfig, CheckmkConfig, LLMConfig
+from checkmk_mcp_server.host_operations import HostOperationsManager
+from checkmk_mcp_server.api_client import CheckmkClient, CheckmkAPIError
+from checkmk_mcp_server.llm_client import LLMClient, ParsedCommand, HostOperation
+from checkmk_mcp_server.config import AppConfig, CheckmkConfig, LLMConfig
 
 
 @pytest.fixture

@@ -9,7 +9,7 @@ extraction and validates tool schema consistency.
 import pytest
 from typing import Dict, Any
 
-from checkmk_agent.mcp_server.config.tool_definitions import (
+from checkmk_mcp_server.mcp_server.config.tool_definitions import (
     ALL_TOOL_SCHEMAS,
     TOOL_CATEGORIES,
     HOST_TOOLS_SCHEMAS,
@@ -243,7 +243,7 @@ class TestBackwardCompatibility:
     
     def test_imports_work_from_config_package(self):
         """Test that imports work from the config package."""
-        from checkmk_agent.mcp_server.config import (
+        from checkmk_mcp_server.mcp_server.config import (
             ALL_TOOL_SCHEMAS,
             TOOL_CATEGORIES,
             validate_tool_definitions,

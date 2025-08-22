@@ -14,10 +14,10 @@ KEY DECISIONS:
 - Created host-specific problem categorization and urgency scoring system
 
 FILES CHANGED:
-- checkmk_agent/service_status.py: Added get_host_status_dashboard() method with comprehensive host analysis, problem categorization, maintenance recommendations, and 15+ new helper methods
-- checkmk_agent/interactive/ui_manager.py: Added format_host_status_dashboard() with rich visual formatting, health bars, color-coded indicators, and trend displays
-- checkmk_agent/interactive/command_parser.py: Enhanced natural language patterns for host queries, added contextual conversation tracking, fuzzy hostname matching, and fixed parameter extraction logic
-- checkmk_agent/cli.py: Extended status host command with 8 new filtering options (--problems-only, --critical-only, --category, --sort-by, --compact, --no-ok-services, --limit, --dashboard) and added helper functions for service filtering and sorting
+- checkmk_mcp_server/service_status.py: Added get_host_status_dashboard() method with comprehensive host analysis, problem categorization, maintenance recommendations, and 15+ new helper methods
+- checkmk_mcp_server/interactive/ui_manager.py: Added format_host_status_dashboard() with rich visual formatting, health bars, color-coded indicators, and trend displays
+- checkmk_mcp_server/interactive/command_parser.py: Enhanced natural language patterns for host queries, added contextual conversation tracking, fuzzy hostname matching, and fixed parameter extraction logic
+- checkmk_mcp_server/cli.py: Extended status host command with 8 new filtering options (--problems-only, --critical-only, --category, --sort-by, --compact, --no-ok-services, --limit, --dashboard) and added helper functions for service filtering and sorting
 - README.md: Updated examples to show enhanced natural language capabilities and new filtering options
 
 TECHNICAL ACHIEVEMENTS:

@@ -1,8 +1,8 @@
-# Product Vision - Checkmk LLM Agent
+# Product Vision - Checkmk MCP Server
 
 ## What This Product Is
 
-The Checkmk LLM Agent is an AI-powered monitoring automation system that acts as an intelligent bridge between natural language interactions and Checkmk's comprehensive REST API. It enables IT operations teams to manage complex infrastructure monitoring through conversational interfaces, eliminating the technical barrier between monitoring teams and advanced Checkmk features.
+The Checkmk MCP Server is an AI-powered monitoring automation system that acts as an intelligent bridge between natural language interactions and Checkmk's comprehensive REST API. It enables IT operations teams to manage complex infrastructure monitoring through conversational interfaces, eliminating the technical barrier between monitoring teams and advanced Checkmk features.
 
 ## Core Value Proposition
 
@@ -185,7 +185,7 @@ System: [Displays before/after comparison with affected services]
 
 ## Differentiation
 
-Unlike traditional monitoring interfaces that require deep technical knowledge, the Checkmk LLM Agent:
+Unlike traditional monitoring interfaces that require deep technical knowledge, the Checkmk MCP Server:
 - Understands natural language and context
 - Provides intelligent recommendations
 - Handles complex operations transparently

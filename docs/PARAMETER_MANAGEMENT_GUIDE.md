@@ -1,6 +1,6 @@
 # Comprehensive Parameter Management Guide
 
-This guide provides detailed information about the advanced parameter management system implemented in the Checkmk LLM Agent, including specialized parameter handlers, intelligent defaults, and best practices.
+This guide provides detailed information about the advanced parameter management system implemented in the Checkmk MCP Server, including specialized parameter handlers, intelligent defaults, and best practices.
 
 ## Overview
 
@@ -692,8 +692,8 @@ Enable debug mode for detailed logging:
 
 ```python
 import logging
-logging.getLogger("checkmk_agent.services.handlers").setLevel(logging.DEBUG)
-logging.getLogger("checkmk_agent.services.parameter_service").setLevel(logging.DEBUG)
+logging.getLogger("checkmk_mcp_server.services.handlers").setLevel(logging.DEBUG)
+logging.getLogger("checkmk_mcp_server.services.parameter_service").setLevel(logging.DEBUG)
 ```
 
 ## Examples

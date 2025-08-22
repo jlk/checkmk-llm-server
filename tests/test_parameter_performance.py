@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from unittest.mock import Mock, AsyncMock
 
-from checkmk_agent.services.handlers import (
+from checkmk_mcp_server.services.handlers import (
     get_handler_registry,
     HandlerRegistry,
     TemperatureParameterHandler,
@@ -24,8 +24,8 @@ from checkmk_agent.services.handlers import (
     DatabaseParameterHandler,
     NetworkServiceParameterHandler,
 )
-from checkmk_agent.services.handlers.base import BaseParameterHandler, HandlerResult
-from checkmk_agent.services.parameter_service import ParameterService
+from checkmk_mcp_server.services.handlers.base import BaseParameterHandler, HandlerResult
+from checkmk_mcp_server.services.parameter_service import ParameterService
 
 
 class PerformanceMetrics:

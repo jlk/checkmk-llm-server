@@ -12,8 +12,8 @@ KEY DECISIONS:
 - Improved recovery.py with proper Pydantic configuration and field validation
 
 FILES CHANGED:
-- checkmk_agent/api_client.py - Fixed type annotations, async client implementation, and data structure handling
-- checkmk_agent/recovery.py - Enhanced with proper Pydantic configuration and field validation
+- checkmk_mcp_server/api_client.py - Fixed type annotations, async client implementation, and data structure handling
+- checkmk_mcp_server/recovery.py - Enhanced with proper Pydantic configuration and field validation
 - Multiple files - Cleaned up unused imports and variables, improved type safety
 
 TECHNICAL DETAILS:
