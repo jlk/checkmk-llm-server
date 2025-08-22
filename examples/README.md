@@ -8,18 +8,11 @@ The Checkmk LLM Agent supports multiple configuration file formats:
 
 ### YAML (Recommended)
 - **Files**: `config.yaml`, `config.yml`
-- **Example**: `config.yaml.example`
 - **Best for**: Human-readable configuration, comments, complex nested structures
 
-### TOML
-- **Files**: `config.toml`
-- **Example**: `config.toml.example`
-- **Best for**: Python projects, simple key-value pairs
-
-### JSON
-- **Files**: `config.json`
-- **Example**: `config.json.example`
-- **Best for**: Programmatic configuration, CI/CD systems
+### Environment Variables
+- **File**: `.env` (see `.env.example` in root directory)
+- **Best for**: Secrets management, Docker deployments, CI/CD pipelines
 
 ## Environment-Specific Configurations
 
@@ -100,15 +93,21 @@ checkmk-agent --config production.yaml hosts list
 
 1. Copy an example file:
    ```bash
-   cp config.yaml.example config.yaml
+   # For YAML configuration
+   cp examples/configs/development.yaml config.yaml
+   
+   # For environment variables
+   cp .env.example .env
    ```
 
 2. Edit with your settings:
    ```bash
    editor config.yaml
+   # or
+   editor .env
    ```
 
 3. Test the configuration:
    ```bash
-   checkmk-agent test
+   python -m checkmk_agent.cli test-connection
    ```
