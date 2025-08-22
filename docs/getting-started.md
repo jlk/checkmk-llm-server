@@ -52,13 +52,32 @@ pip install -r requirements.txt
 
 ## Step 2: Configure Checkmk Connection
 
-### 2.1 Create Configuration File
+### 2.1 Choose Your Configuration Method
+
+**CHOOSE ONE CONFIGURATION METHOD - Do not use both together:**
+
+| Configuration Method | Best For | When to Use |
+|---------------------|----------|-------------|
+| **🔧 YAML Configuration** | Most users, new users | Development, complex setups, need comments |
+| **⚙️ Environment Variables** | Production, containers | Docker, CI/CD, secret management systems |
+
+#### Quick Decision Guide:
+- **New to this project?** → Use YAML Configuration
+- **Deploying with Docker/Kubernetes?** → Use Environment Variables  
+- **Need advanced features (caching, batching)?** → Use YAML Configuration
+- **Using external secret management?** → Use Environment Variables
+
+**⚠️ Important**: Using both methods creates confusion. Environment variables always override YAML settings when both exist.
+
+### 2.2 Method A: YAML Configuration File (Recommended for Most Users)
+
+#### Create Configuration File
 ```bash
 # Copy the example configuration
 cp examples/configs/development.yaml config.yaml
 ```
 
-### 2.2 Edit Configuration
+#### Edit Configuration
 Open `config.yaml` in your preferred editor:
 
 ```yaml
@@ -85,7 +104,38 @@ advanced_features:
     rate_limit: 50
 ```
 
-### 2.3 Checkmk User Setup
+### 2.3 Method B: Environment Variables (Production/Containers)
+
+#### Create Environment File
+```bash
+# Copy the example environment file
+cp .env.example .env
+```
+
+#### Edit Environment Variables
+Open `.env` in your preferred editor:
+
+```bash
+# Checkmk Configuration
+CHECKMK_SERVER_URL=https://your-checkmk-server.com
+CHECKMK_USERNAME=automation_user
+CHECKMK_PASSWORD=your_secure_password
+CHECKMK_SITE=mysite
+
+# LLM Configuration (optional)
+OPENAI_API_KEY=sk-your-openai-api-key
+# Or use Anthropic:
+# ANTHROPIC_API_KEY=your-anthropic-api-key
+
+# Advanced settings (optional)
+MAX_RETRIES=3
+REQUEST_TIMEOUT=30
+LOG_LEVEL=INFO
+```
+
+**⚠️ Limitation**: Advanced features like caching, batch processing, and UI customization require YAML configuration. Environment variables only support basic Checkmk connection settings.
+
+### 2.4 Checkmk User Setup
 
 Create an automation user in Checkmk with these permissions:
 - **General**: Read access to monitoring data
@@ -98,7 +148,7 @@ In Checkmk Web UI:
 3. Set a secure password
 4. Note the username and password for configuration
 
-### 2.4 Test Connection
+### 2.5 Test Connection
 ```bash
 # Test your configuration
 python -c "
@@ -265,8 +315,10 @@ Try these natural language queries in your AI client:
 
 ## Step 6: Advanced Configuration
 
-### 6.1 Environment Variables
-For production deployments, use environment variables:
+### 6.1 Alternative Configuration Examples
+
+#### Using Environment Variables in Production
+If you chose environment variables (Method B), here's how to use them in production:
 
 ```bash
 # .env file
@@ -274,11 +326,45 @@ CHECKMK_SERVER_URL=https://your-checkmk-server.com
 CHECKMK_USERNAME=automation_user
 CHECKMK_PASSWORD=your_secure_password
 CHECKMK_SITE=production
+```
 
-# Load environment variables
-source .env
+Or set directly in shell (good for containers)
+```bash
+export CHECKMK_SERVER_URL=https://your-checkmk-server.com
+export CHECKMK_USERNAME=automation_user
+export CHECKMK_PASSWORD=your_secure_password
+export CHECKMK_SITE=production
+```
+
+After either way, call
+```bash
 python mcp_checkmk_server.py
 ```
+#### Hybrid Approach: YAML + Environment Variable Overrides (Advanced)
+For advanced users who need complex configuration but want environment-based secrets:
+
+```yaml
+# config.yaml - Non-sensitive settings with placeholders
+checkmk:
+  server_url: "https://staging-server.com"  # Will be overridden by env var
+  username: "automation_user"               # Will be overridden by env var
+  # password: leave empty, use env var only
+  site: "production"
+
+advanced_features:
+  caching:
+    max_size: 10000
+    default_ttl: 600
+```
+
+```bash
+# Set only sensitive values as environment variables
+export CHECKMK_SERVER_URL=https://production-server.com
+export CHECKMK_PASSWORD=secure_production_password
+python mcp_checkmk_server.py --config config.yaml
+```
+
+**Use this approach when**: You need advanced YAML features but want secure credential management.
 
 ### 6.2 Production Configuration
 For production environments, adjust these settings in `config.yaml`:

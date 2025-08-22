@@ -48,15 +48,24 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-2. **Configure**:
+2. **Configure** (choose ONE method):
 ```bash
+# Option A: YAML config (recommended for most users)
 cp examples/configs/development.yaml config.yaml
 # Edit config.yaml with your Checkmk server details
+
+# Option B: Environment variables (better for production/containers)
+cp .env.example .env
+# Edit .env with your Checkmk server details
 ```
 
 3. **Run MCP Server**:
 ```bash
+# With YAML config
 python mcp_checkmk_server.py --config config.yaml
+
+# With environment variables
+python mcp_checkmk_server.py
 ```
 
 4. **Connect your AI client** (see detailed setup in [Getting Started Guide](docs/getting-started.md))

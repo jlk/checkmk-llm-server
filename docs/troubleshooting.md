@@ -6,8 +6,11 @@ This guide helps resolve common issues when setting up and using the Checkmk LLM
 
 ### Is the MCP Server Running?
 ```bash
-# Check if the server starts without errors
+# With YAML configuration
 python mcp_checkmk_server.py --config config.yaml
+
+# With environment variables
+python mcp_checkmk_server.py
 
 # You should see:
 # INFO:checkmk_agent.mcp_server:Starting Checkmk MCP Server
@@ -20,11 +23,20 @@ python mcp_checkmk_server.py --config config.yaml
 # Test direct API access
 curl -k https://your-checkmk-server/check_mk/api/1.0/version
 
-# Test through the agent
+# Test through the agent (YAML config)
 python -c "
 from checkmk_agent.config import load_config
 from checkmk_agent.api_client import CheckmkAPIClient
 config = load_config('config.yaml')
+client = CheckmkAPIClient(config)
+print(client.get_version())
+"
+
+# Test through the agent (environment variables)
+python -c "
+from checkmk_agent.config import load_config
+from checkmk_agent.api_client import CheckmkAPIClient
+config = load_config()  # Auto-loads from environment
 client = CheckmkAPIClient(config)
 print(client.get_version())
 "
@@ -122,21 +134,39 @@ which python  # Should show venv path
 
 **Error**: `FileNotFoundError: config.yaml not found`
 
-**Solutions**:
+**For YAML Configuration**:
 ```bash
 # Check file exists
 ls -la config.yaml
 
+# Copy from example
+cp examples/configs/development.yaml config.yaml
+
 # Use absolute path
 python mcp_checkmk_server.py --config /full/path/to/config.yaml
+```
 
-# Check current directory
-pwd
+**For Environment Variables**:
+```bash
+# Check .env file exists
+ls -la .env
+
+# Copy from example
+cp .env.example .env
+
+# Or set environment variables directly
+export CHECKMK_SERVER_URL="https://your-server.com"
+export CHECKMK_USERNAME="your_user"  
+export CHECKMK_PASSWORD="your_password"
+export CHECKMK_SITE="your_site"
+
+# Run without config file
+python mcp_checkmk_server.py
 ```
 
 ### Invalid Configuration Format
 
-**Error**: `yaml.scanner.ScannerError` or similar YAML errors
+**Error**: `yaml.scanner.ScannerError` or similar YAML errors (YAML configuration only)
 
 **Solution**:
 ```bash
@@ -156,6 +186,29 @@ password: P@ssw0rd!  # ! has special meaning in YAML
 
 # Right:
 password: "P@ssw0rd!"
+```
+
+### Environment Variables Not Loaded
+
+**Error**: Configuration values not being read despite setting environment variables
+
+**Solutions**:
+```bash
+# Verify environment variables are set
+env | grep CHECKMK_
+
+# Check for typos in variable names (case-sensitive)
+echo $CHECKMK_SERVER_URL
+echo $CHECKMK_USERNAME
+
+# Ensure .env file is in the correct directory
+ls -la .env
+
+# Source .env file manually if needed
+source .env
+
+# Check that no config.yaml exists (env vars have lower priority)
+ls -la config.yaml
 ```
 
 ### Checkmk Connection Issues
