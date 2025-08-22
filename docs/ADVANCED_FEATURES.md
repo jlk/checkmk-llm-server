@@ -4,12 +4,11 @@ This document provides comprehensive guidance on the advanced features implement
 
 ## Overview
 
-The Checkmk LLM Agent includes several advanced features designed for enterprise-scale deployments:
+The Checkmk LLM Agent includes several advanced features designed for larger deployments:
 
 - **Streaming Support** - Handle large datasets efficiently
 - **Caching Layer** - Improve performance with intelligent caching
 - **Batch Operations** - Process multiple operations efficiently
-- **Performance Monitoring** - Real-time metrics and monitoring
 - **Advanced Error Recovery** - Circuit breakers, retries, and fallbacks
 - **Specialized Parameter Handlers** - Intelligent parameter management for different service types
 
@@ -205,84 +204,6 @@ class HostService(BatchOperationsMixin, BaseService):
 - **Configuration Updates**: Update multiple items simultaneously
 - **Data Migration**: Migrate large datasets between systems
 - **Bulk Operations**: Any operation involving multiple items
-
-## Performance Monitoring
-
-### Purpose
-Comprehensive performance monitoring provides visibility into system behavior, identifies bottlenecks, and enables data-driven optimization.
-
-### Key Components
-
-#### MetricsCollector
-```python
-from checkmk_agent.services.metrics import get_metrics_collector
-
-collector = get_metrics_collector()
-
-# Record timing
-await collector.record_timing("api_call", 0.150)
-
-# Count events
-await collector.increment_counter("hosts_created")
-
-# Set gauge values
-await collector.set_gauge("active_connections", 25)
-
-# Get statistics
-stats = await collector.get_stats()
-print(f"Request rate: {stats['request_rate_per_second']:.1f}/sec")
-```
-
-#### @timed Decorator
-```python
-from checkmk_agent.services.metrics import timed
-
-class HostService:
-    @timed(metric_name="host_operations.list")
-    async def list_hosts(self, **kwargs):
-        # Method execution time automatically recorded
-        return await self.api_client.list_hosts(**kwargs)
-```
-
-#### Context Manager
-```python
-from checkmk_agent.services.metrics import timed_context
-
-async def complex_operation():
-    async with timed_context("data_processing"):
-        # All code in this block is timed
-        data = await fetch_data()
-        processed = await process_data(data)
-        return processed
-```
-
-#### MetricsMixin
-```python
-class MyService(MetricsMixin, BaseService):
-    async def operation_with_metrics(self):
-        start_time = time.time()
-        try:
-            result = await self.api_call()
-            duration = time.time() - start_time
-            await self.record_operation("api_call", duration, success=True)
-            return result
-        except Exception as e:
-            duration = time.time() - start_time
-            await self.record_operation("api_call", duration, success=False)
-            raise
-```
-
-### Metrics Types
-- **Timing**: Method execution times with percentiles
-- **Counters**: Event counts (requests, errors, successes)
-- **Gauges**: Current values (connections, queue sizes)
-- **Statistics**: Hit rates, throughput, error rates
-
-### Performance Insights
-- **P95/P99 Response Times**: Identify slow operations
-- **Error Rates**: Monitor system health
-- **Throughput**: Measure system capacity
-- **Cache Efficiency**: Optimize caching strategies
 
 ## Advanced Error Recovery
 

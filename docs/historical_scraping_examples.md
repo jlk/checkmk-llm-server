@@ -1,6 +1,6 @@
 # Historical Data Scraping Usage Examples
 
-This document provides comprehensive examples of using the historical data scraping functionality in the Checkmk LLM Agent. The scraper provides enhanced data parsing capabilities and dual data source support for historical metrics and events.
+This document provides examples of using the historical data scraping functionality in the Checkmk LLM Agent. The scraper provides enhanced data parsing capabilities and dual data source support for historical metrics and events.
 
 ## Table of Contents
 
@@ -693,4 +693,4 @@ result = await get_metric_history(
 is_complete = check_data_completeness(result, 24)
 ```
 
-This comprehensive guide covers all aspects of using the historical data scraping functionality, from basic configuration to advanced troubleshooting techniques. The examples demonstrate both programmatic usage and natural language interactions through MCP integration.
+This guide covers all aspects of using the historical data scraping functionality, from basic configuration to advanced troubleshooting techniques. The examples demonstrate both programmatic usage and natural language interactions through MCP integration.

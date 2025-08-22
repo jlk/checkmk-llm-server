@@ -1,71 +1,79 @@
-# Checkmk LLM Agent Usage Examples
+# Usage Examples and Common Workflows
 
-This guide provides comprehensive examples of using the Checkmk LLM Agent with the new features introduced in Checkmk 2.4.
+This guide provides practical examples of using the Checkmk LLM Agent for real-world monitoring scenarios. Examples show both natural language queries (for AI clients) and CLI commands.
 
-## Table of Contents
-- [Event Console Examples](#event-console-examples)
-- [Metrics and Performance Data Examples](#metrics-and-performance-data-examples)
-- [Business Intelligence Examples](#business-intelligence-examples)
-- [Enhanced Acknowledgment Examples](#enhanced-acknowledgment-examples)
-- [System Information Examples](#system-information-examples)
+## Quick Reference
 
-## Event Console Examples
+| Scenario | Natural Language Query | CLI Command |
+|----------|----------------------|-------------|
+| Check system health | "Show me overall infrastructure health" | `status overview` |
+| Find critical problems | "What critical issues do I have?" | `status critical` |
+| Host information | "List hosts matching 'web*'" | `hosts list --search web*` |
+| Service status | "Show services for server01" | `services list server01` |
+| Acknowledge problem | "Ack CPU load on server01 for 2 hours" | `services acknowledge server01 "CPU load" --hours 2` |
+| Schedule maintenance | "Create 4-hour downtime for DB maintenance" | `services downtime prod-db "MySQL" --hours 4` |
 
-The Event Console provides access to service event history and log management.
+## Common Monitoring Scenarios
 
-### View Service Event History
+### Daily Health Check
 
+**Scenario**: Start your day by checking infrastructure health
+
+**Natural Language**: 
+> "Give me a health summary of my infrastructure"
+
+**CLI Command**:
 ```bash
-# CLI command
-python -m checkmk_agent.cli services events server01 "CPU utilization"
-
-# Natural language in interactive mode
-"Show me the event history for CPU utilization on server01"
-"What events occurred for the disk space service on server01?"
+python checkmk_cli_mcp.py status overview
 ```
 
-### List All Events for a Host
+**What you get**:
+- Overall system status
+- Count of hosts/services by state
+- Recent critical/warning issues
+- Business service impact
 
-```bash
-# CLI command
-python -m checkmk_agent.cli events list --host server01
+### Incident Response
 
-# Natural language
-"Show me all events for server01"
-"What happened on server01 in the last 24 hours?"
-```
+**Scenario**: Alerts are firing, need to understand scope and impact
 
-### Get Recent Critical Events
+**Step 1 - Assess Impact**:
+> "Show me all critical problems and their business impact"
 
-```bash
-# CLI command
-python -m checkmk_agent.cli events critical --limit 20
+**Step 2 - Identify Affected Systems**:
+> "List all hosts with critical services"
 
-# Natural language
-"Show me the recent critical events"
-"What critical issues occurred recently?"
-```
+**Step 3 - Check Event History**:
+> "Show me events for server01 in the last 2 hours"
 
-### Acknowledge Events
+**Step 4 - Acknowledge Issues**:
+> "Acknowledge all critical issues with comment 'Incident #12345 - investigating'"
 
-```bash
-# CLI command
-python -m checkmk_agent.cli events acknowledge EVENT123 "Working on it"
+### Performance Investigation
 
-# Natural language
-"Acknowledge event EVENT123 with comment 'Working on it'"
-```
+**Scenario**: Users report slow application performance
 
-### Search Events
+**Check Web Servers**:
+> "Show me CPU and memory metrics for all web servers over the last 4 hours"
 
-```bash
-# CLI command
-python -m checkmk_agent.cli events search "disk full" --state critical
+**Check Database Performance**:
+> "What's the database connection and response time trend for the last 24 hours?"
 
-# Natural language
-"Search for critical events containing 'disk full'"
-"Find all events about disk space issues"
-```
+**Check Network**:
+> "Show me network utilization for the web farm"
+
+### Maintenance Window Planning
+
+**Scenario**: Planning maintenance for database cluster
+
+**Step 1 - Check Dependencies**:
+> "What services depend on the database servers?"
+
+**Step 2 - Create Downtime**:
+> "Create a 4-hour maintenance window for all database services starting at 2 AM"
+
+**Step 3 - Verify Downtime**:
+> "Show me scheduled downtimes for tomorrow"
 
 ## Metrics and Performance Data Examples
 
@@ -216,70 +224,70 @@ python -m checkmk_agent.cli system info
 }
 ```
 
-## Advanced Usage Patterns
+## Tips for Effective Usage
 
-### Combining Features for Incident Response
+### Natural Language Best Practices
 
+**Be Specific**:
+- Good: "Show CPU metrics for web-server-01 for the last 4 hours"
+- Less effective: "Show me some metrics"
+
+**Use Context**:
+- "Check disk space on database servers" (uses logical grouping)
+- "Find all critical problems related to storage" (uses problem correlation)
+
+**Combine Operations**:
+- "Show critical problems, then acknowledge them with comment 'Investigating'"
+- "Create maintenance window and notify team about scheduled downtime"
+
+### CLI Usage Tips
+
+**Use Aliases**:
 ```bash
-# 1. Check business impact
-python -m checkmk_agent.cli bi status
-
-# 2. Find affected services
-python -m checkmk_agent.cli status critical
-
-# 3. Check event history for root cause
-python -m checkmk_agent.cli events list --host problem-server --state critical
-
-# 4. Review performance metrics
-python -m checkmk_agent.cli services metrics problem-server "CPU utilization" --hours 6
-
-# 5. Acknowledge with expiration
-python -m checkmk_agent.cli services acknowledge problem-server "CPU load" \
-  --comment "Investigating high load, ETA 2 hours" \
-  --expire "$(date -u -d '+2 hours' '+%Y-%m-%dT%H:%M:%S')"
+# Create helpful aliases
+alias cmk-status='python checkmk_cli_mcp.py status overview'
+alias cmk-critical='python checkmk_cli_mcp.py status critical'
+alias cmk-hosts='python checkmk_cli_mcp.py hosts list'
 ```
 
-### Natural Language Workflow
-
-In interactive mode or via Claude/LLM:
-
-```
-User: "Show me what's wrong with the web services"
-Agent: [Shows BI aggregation status for web services]
-
-User: "Which specific servers are affected?"
-Agent: [Lists critical services on web servers]
-
-User: "Show me the CPU history for web-server-01"
-Agent: [Displays CPU metrics graph for last 24 hours]
-
-User: "Check for any disk-related events on that server"
-Agent: [Shows Event Console entries for disk events]
-
-User: "Acknowledge the CPU issue for 2 hours while we investigate"
-Agent: [Creates acknowledgment with 2-hour expiration]
+**Batch Scripts**:
+```bash
+#!/bin/bash
+# Daily health check script
+echo "Infrastructure Health Report - $(date)"
+python checkmk_cli_mcp.py status overview
+python checkmk_cli_mcp.py status problems --limit 10
 ```
 
-## MCP Tool Reference
+**Use Configuration Files**:
+```bash
+# Different environments
+python checkmk_cli_mcp.py --config prod.yaml hosts list
+python checkmk_cli_mcp.py --config test.yaml hosts list
+```
 
-When using the MCP server with Claude or other LLMs, these tools are available:
+### Performance Optimization
 
-### Event Console Tools
-- `list_service_events` - Get event history for a specific service
-- `list_host_events` - Get all events for a host
-- `get_recent_critical_events` - List recent critical events
-- `acknowledge_event` - Acknowledge an event
-- `search_events` - Search events by text
+**Use Filtering**:
+- "Show only critical problems" (reduces data processing)
+- "List hosts matching 'web*'" (targeted queries)
 
-### Metrics Tools
-- `get_service_metrics` - Get performance graphs for a service
-- `get_metric_history` - Get historical data for a specific metric
+**Leverage Caching**:
+- Repeated queries are automatically cached
+- Use "refresh" keyword to bypass cache when needed
 
-### Business Intelligence Tools
-- `get_business_status_summary` - Get business-level status overview
-- `get_critical_business_services` - List critical business services
+**Batch Operations**:
+- "Acknowledge all warnings on web servers" (single operation vs. multiple)
 
-### System Tools
-- `get_system_info` - Get Checkmk version and system information
+For detailed setup instructions, see the [Getting Started Guide](getting-started.md).  
+For architecture details, see the [Architecture Guide](architecture.md).  
+For troubleshooting, see the [Troubleshooting Guide](troubleshooting.md).
 
-All tools support natural language queries when used through an LLM interface.
+## Need More Help?
+
+- **[Getting Started Guide](getting-started.md)** - Complete setup walkthrough
+- **[Architecture Guide](architecture.md)** - Technical implementation details  
+- **[Advanced Features](ADVANCED_FEATURES.md)** - Streaming, caching, batch operations
+- **[Troubleshooting Guide](troubleshooting.md)** - Common issues and solutions
+
+For questions not covered in the documentation, check the [GitHub issues](../../issues) or create a new issue.
