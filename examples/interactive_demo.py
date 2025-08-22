@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Demonstration of the enhanced interactive mode features."""
+"""Demonstration of the interactive mode features."""
 
 import sys
 import os
@@ -8,8 +8,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from checkmk_agent.interactive import ReadlineHandler, CommandParser, HelpSystem, TabCompleter, UIManager
 
 def demonstrate_help_system():
-    """Demonstrate the enhanced help system."""
-    print("🔧 Enhanced Help System Demo")
+    """Demonstrate the help system."""
+    print("🔧 Help System Demo")
     print("=" * 50)
     
     help_system = HelpSystem()
@@ -32,8 +32,8 @@ def demonstrate_help_system():
     print(help_system.search_help("service"))
 
 def demonstrate_command_parser():
-    """Demonstrate the enhanced command parser."""
-    print("\n🔧 Enhanced Command Parser Demo")
+    """Demonstrate the command parser."""
+    print("\n🔧 Command Parser Demo")
     print("=" * 50)
     
     parser = CommandParser()
@@ -121,7 +121,7 @@ def demonstrate_readline_handler():
     print(f"\nHistory: {handler.get_history()}")
 
 if __name__ == "__main__":
-    print("🎉 Enhanced Interactive Mode - Feature Demonstration")
+    print("🎉 Interactive Mode - Feature Demonstration")
     print("=" * 70)
     
     demonstrate_help_system()
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     demonstrate_ui_manager()
     demonstrate_readline_handler()
     
-    print("\n🎉 Demo complete! Try the enhanced interactive mode with:")
+    print("\n🎉 Demo complete! Try the interactive mode with:")
     print("   python -m checkmk_agent.cli interactive")
     print("\nNew features you can try:")
     print("   • Type '?' for help")

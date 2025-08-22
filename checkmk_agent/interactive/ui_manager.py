@@ -1,4 +1,4 @@
-"""UI management for enhanced interactive mode."""
+"""UI management for interactive mode."""
 
 import sys
 from typing import Optional, List, Dict, Any
@@ -113,14 +113,8 @@ class UIManager:
     def print_welcome(self) -> None:
         """Print welcome message for interactive mode."""
         welcome_text = """
-🤖 Checkmk LLM Agent - Enhanced Interactive Mode
+🤖 Checkmk LLM Agent - Interactive Mode
 {'=' * 50}
-
-🚀 New Features:
-  • Enhanced help system - Type '?' for help
-  • Command history - Use Up/Down arrows
-  • Tab completion - Press Tab to autocomplete
-  • Fuzzy command matching - Typos are handled gracefully
 
 💡 Quick Start:
   • ?                    - Show help

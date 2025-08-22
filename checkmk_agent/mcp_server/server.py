@@ -1,4 +1,4 @@
-"""Enhanced MCP Server implementation with modular architecture.
+"""MCP Server implementation with modular architecture.
 
 This is the main orchestration module that integrates all extracted components
 including tools, prompts, handlers, and services in a clean, maintainable way.
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 class CheckmkMCPServer:
-    """Enhanced Checkmk MCP Server with modular architecture.
+    """Checkmk MCP Server with modular architecture.
     
     This server orchestrates all components including:
     - Service container for dependency injection
@@ -85,7 +85,7 @@ class CheckmkMCPServer:
         self._initialized = False
 
     async def initialize(self) -> None:
-        """Initialize the enhanced MCP server and all components."""
+        """Initialize the MCP server and all components."""
         if self._initialized:
             return
             
@@ -109,12 +109,12 @@ class CheckmkMCPServer:
             prompt_count = len(self.protocol_handlers._prompts)
             
             logger.info(
-                f"Enhanced Checkmk MCP Server initialized successfully with "
+                f"Checkmk MCP Server initialized successfully with "
                 f"{tool_count} tools and {prompt_count} prompts"
             )
             
         except Exception as e:
-            logger.exception("Failed to initialize enhanced MCP server")
+            logger.exception("Failed to initialize MCP server")
             raise RuntimeError(f"Initialization failed: {str(e)}")
 
     def _initialize_tool_categories(self) -> None:
@@ -293,7 +293,7 @@ class CheckmkMCPServer:
             raise RuntimeError(f"MCP handler registration failed: {str(e)}")
 
     async def run(self, transport_type: str = "stdio") -> None:
-        """Run the enhanced MCP server with the specified transport.
+        """Run the MCP server with the specified transport.
         
         Args:
             transport_type: Transport type to use (default: "stdio")

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Checkmk Enhanced MCP Server Entry Point
+Checkmk MCP Server Entry Point
 
-This script starts the enhanced Checkmk MCP server with advanced features:
+This script starts the Checkmk MCP server with advanced features:
 - Streaming support for large datasets
 - Caching layer for improved performance  
 - Batch operations for bulk processing
@@ -10,7 +10,7 @@ This script starts the enhanced Checkmk MCP server with advanced features:
 - Advanced error recovery and resilience
 
 Usage:
-    python mcp_checkmk_enhanced_server.py [--config CONFIG_FILE] [--log-level LEVEL]
+    python mcp_checkmk_server.py [--config CONFIG_FILE] [--log-level LEVEL]
 
 The server will run on stdio by default for MCP client integration.
 """
@@ -45,7 +45,7 @@ def setup_logging(log_level: str = "INFO"):
 
 
 async def main():
-    """Main entry point for the Enhanced Checkmk MCP server."""
+    """Main entry point for the Checkmk MCP server."""
     parser = argparse.ArgumentParser(description="Checkmk MCP Server")
     parser.add_argument(
         "--config", "-c",

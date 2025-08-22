@@ -1,4 +1,4 @@
-"""Enhanced command parsing with fuzzy matching and intent detection."""
+"""Command parsing with fuzzy matching and intent detection."""
 
 import re
 import difflib
@@ -38,7 +38,7 @@ class CommandIntent:
 
 
 class CommandParser:
-    """Enhanced command parser with fuzzy matching and intent detection."""
+    """Command parser with fuzzy matching and intent detection."""
 
     def __init__(self):
         """Initialize the command parser."""
@@ -304,7 +304,7 @@ class CommandParser:
         # Check for action patterns
         text = " ".join(tokens)
 
-        # Enhanced status query patterns (but avoid interfering with compound commands)
+        # status query patterns (but avoid interfering with compound commands)
         status_query_patterns = [
             r"(?:how\s+is|what\'s\s+wrong\s+with|health\s+of|status\s+of)",
             r"(?:how\'s\s+)?\w+\s+(?:doing|performing|working)",
@@ -402,7 +402,7 @@ class CommandParser:
         if host_match:
             parameters["host_name"] = host_match.group(1)
 
-        # Extract host names from status queries - enhanced patterns
+        # Extract host names from status queries - patterns
         # Exclude action words that shouldn't be treated as hostnames
         action_words = {
             "show",
@@ -613,7 +613,7 @@ class CommandParser:
                 ]
             )
 
-        # Enhanced suggestions based on natural language patterns
+        # Suggestions based on natural language patterns
         if any(
             word in text for word in ["how", "health", "status", "doing", "working"]
         ):
@@ -637,7 +637,7 @@ class CommandParser:
                 ]
             )
 
-        return suggestions[:7]  # Increased limit for enhanced suggestions
+        return suggestions[:7]  # Increased limit for suggestions
 
     def _is_service_keyword(self, word: str) -> bool:
         """Check if a word is likely a service-related keyword rather than a hostname."""
@@ -772,7 +772,7 @@ class CommandParser:
                 "issues",
             ]
 
-            # Enhanced host status detection patterns - but avoid matching service commands
+            # Host status detection patterns - but avoid matching service commands
             host_status_patterns = [
                 r"(?:how\s+is|what\'s\s+wrong\s+with|health\s+of|status\s+of)\s+\w+",
                 r"\w+\s+(?:health|status|problems|issues|doing|running)",

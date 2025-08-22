@@ -64,7 +64,7 @@ class ServiceContainer:
             self._services['bi_service'] = BIService(async_client, self.config)
             self._services['historical_service'] = CachedHistoricalDataService(async_client, self.config)
             
-            # Initialize enhanced services
+            # Initialize services
             self._services['streaming_host_service'] = StreamingHostService(async_client, self.config)
             self._services['streaming_service_service'] = StreamingServiceService(async_client, self.config)
             self._services['cached_host_service'] = CachedHostService(async_client, self.config)

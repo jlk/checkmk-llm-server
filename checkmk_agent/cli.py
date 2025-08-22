@@ -157,7 +157,7 @@ def test(ctx):
 @click.pass_context
 @track_request(operation_name="CLI Interactive Mode")
 def interactive(ctx):
-    """Start enhanced interactive mode for natural language commands."""
+    """Start interactive mode for natural language commands."""
     request_id = ctx.obj.get("request_id", generate_request_id())
     set_request_id(request_id)
 
@@ -178,7 +178,7 @@ def interactive(ctx):
         )
         sys.exit(1)
 
-    # Initialize enhanced interactive components
+    # Initialize interactive components
     from .interactive import (
         ReadlineHandler,
         CommandParser,
