@@ -129,13 +129,7 @@ async def main():
         logger.info(f"Checkmk URL: {config.checkmk.server_url}")
         logger.info(f"Transport: {args.transport}")
         
-        # Log core features (always available)
-        logger.info("Core Features:")
-        logger.info("  - ✓ Complete host and service management (28 tools)")
-        logger.info("  - ✓ Event Console and metrics integration")
-        logger.info("  - ✓ Business Intelligence and system info")
-        
-        # Log advanced features only if enabled
+         # Log advanced features only if enabled
         advanced_features = []
         if args.enable_streaming:
             advanced_features.append("  - ✓ Streaming support for large datasets")
@@ -145,16 +139,10 @@ async def main():
             advanced_features.append("  - ✓ Performance monitoring and metrics collection")
         
         if advanced_features:
-            logger.info("Advanced Features Enabled:")
+            logger.info("Features Enabled:")
             for feature in advanced_features:
                 logger.info(feature)
-        else:
-            logger.info("Advanced Features: Disabled (use --enable-* flags to enable)")
-        
-        # Always available features
-        logger.info("  - ✓ Batch operations for bulk processing")
-        logger.info("  - ✓ Advanced error recovery and resilience")
-        
+
         # Create and initialize the server with feature flags
         server = CheckmkMCPServer(config)
         _server_instance = server
