@@ -58,12 +58,48 @@ _server_instance = None
 
 def setup_signal_handlers():
     """Setup signal handlers for graceful shutdown."""
-    global _shutdown_event
+    global _shutdown_event, _server_instance
+    
+    # Track if we've already received a signal
+    received_signal = False
     
     def signal_handler(signum, frame):
         """Handle shutdown signals gracefully."""
-        if _shutdown_event:
-            _shutdown_event.set()
+        nonlocal received_signal
+        
+        signal_name = signal.Signals(signum).name
+        
+        if not received_signal:
+            received_signal = True
+            # Silent shutdown - no print statements that could interfere with stdio
+            
+            # Set shutdown event for graceful shutdown
+            if _shutdown_event and not _shutdown_event.is_set():
+                _shutdown_event.set()
+            
+            # For immediate shutdown when event loop is not running or blocked
+            # Schedule a task to exit cleanly rather than raising KeyboardInterrupt
+            try:
+                # Try to get the current event loop
+                loop = asyncio.get_running_loop()
+                if loop and not loop.is_closed():
+                    # Schedule graceful shutdown through the event loop
+                    def set_shutdown():
+                        if _shutdown_event and not _shutdown_event.is_set():
+                            _shutdown_event.set()
+                    loop.call_soon_threadsafe(set_shutdown)
+                    return
+            except RuntimeError:
+                # No running event loop, will handle below
+                pass
+                
+            # If no event loop is running, exit immediately but cleanly
+            if signum == signal.SIGINT:
+                # Exit cleanly without traceback
+                sys.exit(0)
+        else:
+            # Second signal - force immediate exit
+            sys.exit(1)
     
     # Handle common termination signals
     signal.signal(signal.SIGINT, signal_handler)
@@ -110,8 +146,31 @@ async def main():
         action="store_true",
         help="Enable performance monitoring and metrics collection"
     )
+    parser.add_argument(
+        "--force-mcp",
+        action="store_true",
+        help="Force MCP server mode even when run in terminal"
+    )
     
     args = parser.parse_args()
+    
+    # Check if this is being run manually in a terminal
+    if sys.stdin.isatty() and sys.stdout.isatty() and not args.force_mcp:
+        print("╭─────────────────────────────────────────────────────────────────╮")
+        print("│                      Checkmk MCP Server                        │")
+        print("╰─────────────────────────────────────────────────────────────────╯")
+        print()
+        print("This is an MCP (Model Context Protocol) server designed to be")
+        print("called by AI clients like Claude Desktop, not run manually.")
+        print()
+        print("For interactive use, try:")
+        print("  python checkmk_cli_mcp.py interactive")
+        print()
+        print("For MCP client setup, see:")
+        print("  docs/getting-started.md")
+        print()
+        print("To force MCP server mode anyway, use: --force-mcp")
+        sys.exit(0)
     
     # Setup logging
     setup_logging(args.log_level)
@@ -147,10 +206,13 @@ async def main():
         server = CheckmkMCPServer(config)
         _server_instance = server
         
-        # Set advanced feature flags (server implementation can use these)
-        server.enable_caching = args.enable_caching
-        server.enable_streaming = args.enable_streaming  
-        server.enable_metrics = args.enable_metrics
+        # Advanced feature flags can be passed during initialization if needed
+        # For now, these are available as command-line arguments for future use
+        # feature_config = {
+        #     'caching': args.enable_caching,
+        #     'streaming': args.enable_streaming,
+        #     'metrics': args.enable_metrics
+        # }
         
         await server.initialize()
         
@@ -158,13 +220,6 @@ async def main():
         
         # Ensure stdio streams are properly configured for MCP communication
         if args.transport == "stdio":
-            # Force stdout/stdin to be unbuffered for reliable MCP communication
-            import io
-            if hasattr(sys.stdout, 'reconfigure'):
-                sys.stdout.reconfigure(line_buffering=False)
-            if hasattr(sys.stdin, 'reconfigure'):
-                sys.stdin.reconfigure()
-            
             # Flush any remaining output to stderr before starting MCP
             sys.stderr.flush()
         
@@ -177,12 +232,23 @@ async def main():
         except asyncio.CancelledError:
             # Task was cancelled - normal during shutdown
             logger.debug("Server task cancelled")
+        except Exception as e:
+            # Check if this is a connection error hidden in an exception group
+            if ("Broken pipe" in str(e) or "Connection reset" in str(e) or 
+                "BrokenResourceError" in str(e) or "ExceptionGroup" in str(type(e).__name__)):
+                logger.debug(f"Connection error during shutdown: {e}")
+            else:
+                raise
         
     except KeyboardInterrupt:
-        logger.info("Received interrupt signal, shutting down...")
+        # This is now handled by signal handler, but keep as final backstop
+        # Exit silently without additional logging
+        pass
     except Exception as e:
         # Only log as fatal error if it's not a connection/pipe issue
-        if isinstance(e, (BrokenPipeError, ConnectionResetError)):
+        if (isinstance(e, (BrokenPipeError, ConnectionResetError)) or
+            "Broken pipe" in str(e) or "Connection reset" in str(e) or 
+            "BrokenResourceError" in str(e) or "ExceptionGroup" in str(type(e).__name__)):
             logger.debug(f"Connection error during startup: {e}")
         else:
             logger.exception("Fatal error in MCP server")
@@ -193,9 +259,14 @@ async def main():
             try:
                 await _server_instance.shutdown()
             except Exception:
-                # Suppress shutdown errors
+                # Suppress shutdown errors - already shutting down
                 pass
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        # Final catch for any KeyboardInterrupt that escapes signal handling
+        # Exit silently without traceback
+        sys.exit(0)

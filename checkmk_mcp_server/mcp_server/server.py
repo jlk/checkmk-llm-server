@@ -368,12 +368,14 @@ Always approach problems with the mindset of maintaining high availability and m
                                 
                         # If shutdown was requested, cancel server task
                         if shutdown_task in done:
-                            logger.info("Shutdown requested, stopping server...")
+                            logger.debug("Shutdown requested, stopping server...")
                             if not server_task.done():
                                 server_task.cancel()
                                 try:
-                                    await server_task
-                                except asyncio.CancelledError:
+                                    # Give server task a brief moment to cancel gracefully
+                                    await asyncio.wait_for(server_task, timeout=1.0)
+                                except (asyncio.CancelledError, asyncio.TimeoutError):
+                                    # Expected - task was cancelled or timed out
                                     pass
                     else:
                         # No shutdown event, just wait for server
@@ -382,12 +384,14 @@ Always approach problems with the mindset of maintaining high availability and m
             except (BrokenPipeError, ConnectionResetError) as e:
                 # Client disconnected - this is normal during shutdown
                 logger.debug(f"Client connection closed: {e}")
-                raise
+                # Don't re-raise - this is expected when client disconnects
+                return
             except Exception as e:
-                # Handle other transport errors gracefully
-                if "Broken pipe" in str(e) or "Connection reset" in str(e):
+                # Handle other transport errors gracefully  
+                if "Broken pipe" in str(e) or "Connection reset" in str(e) or "BrokenResourceError" in str(e):
                     logger.debug(f"Transport connection closed: {e}")
-                    raise BrokenPipeError("Client disconnected")
+                    # Don't re-raise - this is expected when client disconnects
+                    return
                 else:
                     logger.exception("Unexpected error in stdio transport")
                     raise
