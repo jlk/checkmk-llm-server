@@ -19,6 +19,8 @@ import sys
 import asyncio
 import logging
 import argparse
+import signal
+import warnings
 from pathlib import Path
 
 # Add the project root to Python path
@@ -42,10 +44,39 @@ def setup_logging(log_level: str = "INFO"):
     for handler in root_logger.handlers:
         if hasattr(handler, 'stream') and handler.stream != sys.stderr:
             handler.stream = sys.stderr
+    
+    # Suppress common shutdown-related warnings and pipe errors
+    warnings.filterwarnings("ignore", category=ResourceWarning)
+    # Suppress broken pipe errors during normal shutdown
+    logging.getLogger("mcp.server.stdio").setLevel(logging.CRITICAL)
+    logging.getLogger("anyio").setLevel(logging.WARNING)
 
+
+# Global shutdown flag and server reference for signal handling
+_shutdown_event = None
+_server_instance = None
+
+def setup_signal_handlers():
+    """Setup signal handlers for graceful shutdown."""
+    global _shutdown_event
+    
+    def signal_handler(signum, frame):
+        """Handle shutdown signals gracefully."""
+        if _shutdown_event:
+            _shutdown_event.set()
+    
+    # Handle common termination signals
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # On Unix systems, handle SIGHUP as well
+    if hasattr(signal, 'SIGHUP'):
+        signal.signal(signal.SIGHUP, signal_handler)
 
 async def main():
     """Main entry point for the Checkmk MCP server."""
+    global _shutdown_event, _server_instance
+    
     parser = argparse.ArgumentParser(description="Checkmk MCP Server")
     parser.add_argument(
         "--config", "-c",
@@ -86,6 +117,10 @@ async def main():
     setup_logging(args.log_level)
     logger = logging.getLogger(__name__)
     
+    # Setup signal handlers and shutdown event
+    _shutdown_event = asyncio.Event()
+    setup_signal_handlers()
+    
     try:
         # Load configuration
         config = load_config(args.config)
@@ -122,6 +157,7 @@ async def main():
         
         # Create and initialize the server with feature flags
         server = CheckmkMCPServer(config)
+        _server_instance = server
         
         # Set advanced feature flags (server implementation can use these)
         server.enable_caching = args.enable_caching
@@ -144,14 +180,33 @@ async def main():
             # Flush any remaining output to stderr before starting MCP
             sys.stderr.flush()
         
-        # Run the server
-        await server.run(transport_type=args.transport)
+        # Run the server with graceful shutdown handling
+        try:
+            await server.run(transport_type=args.transport, shutdown_event=_shutdown_event)
+        except (BrokenPipeError, ConnectionResetError):
+            # Client disconnected - this is normal, don't log as error
+            logger.debug("Client disconnected")
+        except asyncio.CancelledError:
+            # Task was cancelled - normal during shutdown
+            logger.debug("Server task cancelled")
         
     except KeyboardInterrupt:
         logger.info("Received interrupt signal, shutting down...")
-    except Exception:
-        logger.exception("Fatal error in MCP server")
-        sys.exit(1)
+    except Exception as e:
+        # Only log as fatal error if it's not a connection/pipe issue
+        if isinstance(e, (BrokenPipeError, ConnectionResetError)):
+            logger.debug(f"Connection error during startup: {e}")
+        else:
+            logger.exception("Fatal error in MCP server")
+            sys.exit(1)
+    finally:
+        # Ensure clean shutdown
+        if _server_instance:
+            try:
+                await _server_instance.shutdown()
+            except Exception:
+                # Suppress shutdown errors
+                pass
 
 
 if __name__ == "__main__":

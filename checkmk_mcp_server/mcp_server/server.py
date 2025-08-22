@@ -5,6 +5,7 @@ including tools, prompts, handlers, and services in a clean, maintainable way.
 """
 
 import logging
+import asyncio
 from typing import Dict, Any, List, Optional
 
 from mcp.server import Server
@@ -292,11 +293,12 @@ class CheckmkMCPServer:
             logger.exception("Failed to register MCP handlers")
             raise RuntimeError(f"MCP handler registration failed: {str(e)}")
 
-    async def run(self, transport_type: str = "stdio") -> None:
+    async def run(self, transport_type: str = "stdio", shutdown_event: Optional[asyncio.Event] = None) -> None:
         """Run the MCP server with the specified transport.
         
         Args:
             transport_type: Transport type to use (default: "stdio")
+            shutdown_event: Optional event to signal shutdown
         """
         if not self._initialized:
             await self.initialize()
@@ -304,19 +306,22 @@ class CheckmkMCPServer:
         if transport_type == "stdio":
             # For stdio transport (most common for MCP)
             from mcp.server.stdio import stdio_server
-
-            async with stdio_server() as (read_stream, write_stream):
-                await self.server.run(
-                    read_stream,
-                    write_stream,
-                    InitializationOptions(
-                        server_name="checkmk-mcp-server",
-                        server_version="1.0.0",
-                        capabilities=self.server.get_capabilities(
-                            notification_options=NotificationOptions(),
-                            experimental_capabilities={},
-                        ),
-                        instructions="""You are an experienced Senior Network Operations Engineer with 15+ years of expertise in infrastructure monitoring and management. Your role is to provide expert guidance on Checkmk monitoring operations.
+            
+            try:
+                async with stdio_server() as (read_stream, write_stream):
+                    # Create server run task
+                    server_task = asyncio.create_task(
+                        self.server.run(
+                            read_stream,
+                            write_stream,
+                            InitializationOptions(
+                                server_name="checkmk-mcp-server",
+                                server_version="1.0.0",
+                                capabilities=self.server.get_capabilities(
+                                    notification_options=NotificationOptions(),
+                                    experimental_capabilities={},
+                                ),
+                                instructions="""You are an experienced Senior Network Operations Engineer with 15+ years of expertise in infrastructure monitoring and management. Your role is to provide expert guidance on Checkmk monitoring operations.
 
 Your expertise includes:
 - Deep knowledge of network protocols (TCP/IP, SNMP, ICMP, HTTP/HTTPS)
@@ -341,14 +346,62 @@ When analyzing monitoring data:
 - Prioritize issues based on business impact and SLA requirements
 
 Always approach problems with the mindset of maintaining high availability and minimizing MTTR (Mean Time To Repair).""",
-                    ),
-                )
+                            ),
+                        )
+                    )
+                    
+                    if shutdown_event:
+                        # Wait for either server completion or shutdown signal
+                        shutdown_task = asyncio.create_task(shutdown_event.wait())
+                        done, pending = await asyncio.wait(
+                            [server_task, shutdown_task],
+                            return_when=asyncio.FIRST_COMPLETED
+                        )
+                        
+                        # Cancel any pending tasks
+                        for task in pending:
+                            task.cancel()
+                            try:
+                                await task
+                            except asyncio.CancelledError:
+                                pass
+                                
+                        # If shutdown was requested, cancel server task
+                        if shutdown_task in done:
+                            logger.info("Shutdown requested, stopping server...")
+                            if not server_task.done():
+                                server_task.cancel()
+                                try:
+                                    await server_task
+                                except asyncio.CancelledError:
+                                    pass
+                    else:
+                        # No shutdown event, just wait for server
+                        await server_task
+                        
+            except (BrokenPipeError, ConnectionResetError) as e:
+                # Client disconnected - this is normal during shutdown
+                logger.debug(f"Client connection closed: {e}")
+                raise
+            except Exception as e:
+                # Handle other transport errors gracefully
+                if "Broken pipe" in str(e) or "Connection reset" in str(e):
+                    logger.debug(f"Transport connection closed: {e}")
+                    raise BrokenPipeError("Client disconnected")
+                else:
+                    logger.exception("Unexpected error in stdio transport")
+                    raise
         else:
             raise ValueError(f"Unsupported transport type: {transport_type}")
 
     async def shutdown(self) -> None:
         """Shutdown the server and cleanup resources."""
+        if not self._initialized:
+            return
+            
         try:
+            logger.debug("Starting MCP server shutdown...")
+            
             # Shutdown service container
             await self.container.shutdown()
             
@@ -358,11 +411,11 @@ Always approach problems with the mindset of maintaining high availability and m
             
             self._initialized = False
             
-            logger.info("MCP server shutdown completed")
+            logger.debug("MCP server shutdown completed")
             
         except Exception as e:
-            logger.exception("Error during server shutdown")
-            raise RuntimeError(f"Server shutdown failed: {str(e)}")
+            # Don't raise exceptions during shutdown, just log as debug
+            logger.debug(f"Error during server shutdown: {e}")
 
     # Backward compatibility properties for legacy tests
     @property
