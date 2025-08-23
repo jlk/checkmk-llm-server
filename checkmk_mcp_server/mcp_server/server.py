@@ -6,6 +6,8 @@ including tools, prompts, handlers, and services in a clean, maintainable way.
 
 import logging
 import asyncio
+import contextlib
+import sys
 from typing import Dict, Any, List, Optional
 
 from mcp.server import Server
@@ -293,6 +295,93 @@ class CheckmkMCPServer:
             logger.exception("Failed to register MCP handlers")
             raise RuntimeError(f"MCP handler registration failed: {str(e)}")
 
+    def _is_client_disconnect_error(self, exception: Exception) -> bool:
+        """Check if an exception represents a client disconnect.
+        
+        Args:
+            exception: Exception to check
+            
+        Returns:
+            True if this is a client disconnect error
+        """
+        # Direct pipe/connection errors
+        if isinstance(exception, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+            return True
+            
+        # String-based detection for wrapped errors
+        error_str = str(exception)
+        error_indicators = [
+            "Broken pipe", "Connection reset", "Connection aborted",
+            "BrokenResourceError", "ClosedResourceError", 
+            "[Errno 32]", "[Errno 104]"
+        ]
+        
+        return any(indicator in error_str for indicator in error_indicators)
+    
+    def _extract_client_disconnect_from_group(self, exception_group) -> bool:
+        """Extract and check if ExceptionGroup contains client disconnect errors.
+        
+        Args:
+            exception_group: ExceptionGroup to analyze
+            
+        Returns:
+            True if all exceptions in the group are client disconnect errors
+        """
+        try:
+            # Handle both ExceptionGroup and BaseExceptionGroup
+            if hasattr(exception_group, 'exceptions'):
+                exceptions = exception_group.exceptions
+            else:
+                # Fallback for other exception group types
+                return False
+                
+            # Check if all exceptions are client disconnects
+            if not exceptions:
+                return False
+                
+            for exc in exceptions:
+                # Handle nested exception groups recursively
+                if isinstance(exc, (ExceptionGroup, BaseExceptionGroup)):
+                    if not self._extract_client_disconnect_from_group(exc):
+                        return False
+                elif not self._is_client_disconnect_error(exc):
+                    return False
+                    
+            return True
+            
+        except Exception:
+            # If we can't analyze the exception group, assume it's not a disconnect
+            return False
+
+    @contextlib.asynccontextmanager
+    async def _safe_stdio_server(self):
+        """Wrapper around MCP stdio_server that handles disconnect errors gracefully."""
+        from mcp.server.stdio import stdio_server
+        
+        try:
+            async with stdio_server() as streams:
+                yield streams
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            # Direct pipe errors - client disconnected
+            logger.debug("Client disconnected (direct pipe error)")
+            return
+        except (ExceptionGroup, BaseExceptionGroup) as eg:
+            # Handle ExceptionGroup from anyio task groups
+            if self._extract_client_disconnect_from_group(eg):
+                logger.debug("Client disconnected (via exception group)")
+                return
+            else:
+                # Re-raise if not all exceptions are client disconnects
+                raise
+        except Exception as e:
+            # Check if this is a disguised client disconnect
+            if self._is_client_disconnect_error(e):
+                logger.debug(f"Client disconnected (wrapped error): {type(e).__name__}")
+                return
+            else:
+                # Re-raise unexpected errors
+                raise
+
     async def run(self, transport_type: str = "stdio", shutdown_event: Optional[asyncio.Event] = None) -> None:
         """Run the MCP server with the specified transport.
         
@@ -304,24 +393,29 @@ class CheckmkMCPServer:
             await self.initialize()
 
         if transport_type == "stdio":
-            # For stdio transport (most common for MCP)
-            from mcp.server.stdio import stdio_server
-            
             try:
-                async with stdio_server() as (read_stream, write_stream):
-                    # Create server run task
-                    server_task = asyncio.create_task(
-                        self.server.run(
-                            read_stream,
-                            write_stream,
-                            InitializationOptions(
-                                server_name="checkmk-mcp-server",
-                                server_version="1.0.0",
-                                capabilities=self.server.get_capabilities(
-                                    notification_options=NotificationOptions(),
-                                    experimental_capabilities={},
-                                ),
-                                instructions="""You are an experienced Senior Network Operations Engineer with 15+ years of expertise in infrastructure monitoring and management. Your role is to provide expert guidance on Checkmk monitoring operations.
+                # Suppress stdout/stderr pipe errors that might leak during shutdown
+                with contextlib.redirect_stderr(contextlib.nullcontext(sys.stderr)):
+                    async with self._safe_stdio_server() as streams:
+                        if streams is None:
+                            # Client disconnected during setup
+                            return
+                            
+                        read_stream, write_stream = streams
+                        
+                        # Create server run task
+                        server_task = asyncio.create_task(
+                            self.server.run(
+                                read_stream,
+                                write_stream,
+                                InitializationOptions(
+                                    server_name="checkmk-mcp-server",
+                                    server_version="1.0.0",
+                                    capabilities=self.server.get_capabilities(
+                                        notification_options=NotificationOptions(),
+                                        experimental_capabilities={},
+                                    ),
+                                    instructions="""You are an experienced Senior Network Operations Engineer with 15+ years of expertise in infrastructure monitoring and management. Your role is to provide expert guidance on Checkmk monitoring operations.
 
 Your expertise includes:
 - Deep knowledge of network protocols (TCP/IP, SNMP, ICMP, HTTP/HTTPS)
@@ -346,51 +440,57 @@ When analyzing monitoring data:
 - Prioritize issues based on business impact and SLA requirements
 
 Always approach problems with the mindset of maintaining high availability and minimizing MTTR (Mean Time To Repair).""",
-                            ),
-                        )
-                    )
-                    
-                    if shutdown_event:
-                        # Wait for either server completion or shutdown signal
-                        shutdown_task = asyncio.create_task(shutdown_event.wait())
-                        done, pending = await asyncio.wait(
-                            [server_task, shutdown_task],
-                            return_when=asyncio.FIRST_COMPLETED
+                                ),
+                            )
                         )
                         
-                        # Cancel any pending tasks
-                        for task in pending:
-                            task.cancel()
-                            try:
-                                await task
-                            except asyncio.CancelledError:
-                                pass
-                                
-                        # If shutdown was requested, cancel server task
-                        if shutdown_task in done:
-                            logger.debug("Shutdown requested, stopping server...")
-                            if not server_task.done():
-                                server_task.cancel()
+                        if shutdown_event:
+                            # Wait for either server completion or shutdown signal
+                            shutdown_task = asyncio.create_task(shutdown_event.wait())
+                            done, pending = await asyncio.wait(
+                                [server_task, shutdown_task],
+                                return_when=asyncio.FIRST_COMPLETED
+                            )
+                            
+                            # Cancel any pending tasks
+                            for task in pending:
+                                task.cancel()
                                 try:
-                                    # Give server task a brief moment to cancel gracefully
-                                    await asyncio.wait_for(server_task, timeout=1.0)
-                                except (asyncio.CancelledError, asyncio.TimeoutError):
-                                    # Expected - task was cancelled or timed out
+                                    await task
+                                except asyncio.CancelledError:
                                     pass
-                    else:
-                        # No shutdown event, just wait for server
-                        await server_task
-                        
-            except (BrokenPipeError, ConnectionResetError) as e:
-                # Client disconnected - this is normal during shutdown
-                logger.debug(f"Client connection closed: {e}")
-                # Don't re-raise - this is expected when client disconnects
+                                    
+                            # If shutdown was requested, cancel server task
+                            if shutdown_task in done:
+                                logger.debug("Shutdown requested, stopping server...")
+                                if not server_task.done():
+                                    server_task.cancel()
+                                    try:
+                                        # Give server task a brief moment to cancel gracefully
+                                        await asyncio.wait_for(server_task, timeout=1.0)
+                                    except (asyncio.CancelledError, asyncio.TimeoutError):
+                                        # Expected - task was cancelled or timed out
+                                        pass
+                        else:
+                            # No shutdown event, just wait for server
+                            await server_task
+                            
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                # Final fallback for any direct pipe errors
+                logger.debug("Client disconnected (final fallback)")
                 return
+            except (ExceptionGroup, BaseExceptionGroup) as eg:
+                # Final fallback for exception groups
+                if self._extract_client_disconnect_from_group(eg):
+                    logger.debug("Client disconnected (final exception group fallback)")
+                    return
+                else:
+                    logger.exception("Unexpected exception group in stdio transport")
+                    raise
             except Exception as e:
-                # Handle other transport errors gracefully  
-                if "Broken pipe" in str(e) or "Connection reset" in str(e) or "BrokenResourceError" in str(e):
-                    logger.debug(f"Transport connection closed: {e}")
-                    # Don't re-raise - this is expected when client disconnects
+                # Final check for disguised client disconnects
+                if self._is_client_disconnect_error(e):
+                    logger.debug(f"Client disconnected (final fallback): {type(e).__name__}")
                     return
                 else:
                     logger.exception("Unexpected error in stdio transport")
