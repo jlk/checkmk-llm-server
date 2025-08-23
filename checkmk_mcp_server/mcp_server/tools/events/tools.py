@@ -49,7 +49,7 @@ class EventTools:
         # List service events tool
         self._tools["list_service_events"] = Tool(
             name="list_service_events",
-            description="Show event history for a specific service",
+            description="Display chronological event history for a specific service from the Event Console. When to use: Investigating service problem patterns, analyzing event frequency, troubleshooting recurring issues. Prerequisites: Service must exist and generate events. Best for: Root cause analysis, understanding event patterns, correlating service problems with system events.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -125,7 +125,7 @@ class EventTools:
         # List host events tool
         self._tools["list_host_events"] = Tool(
             name="list_host_events",
-            description="Show event history for a specific host",
+            description="Display all Event Console events for a specific host including external events from syslog, SNMP traps, and log files. When to use: Investigating host-level system events, analyzing external event patterns, correlating system logs with monitoring data. Prerequisites: Host must exist, Event Console must be configured for event collection. Note: Shows external events, not monitoring check results.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -195,7 +195,7 @@ class EventTools:
         # Get recent critical events tool
         self._tools["get_recent_critical_events"] = Tool(
             name="get_recent_critical_events",
-            description="Get recent critical events across all hosts",
+            description="Retrieve the most recent critical events from the Event Console across the entire infrastructure. When to use: Emergency response situations, getting immediate overview of critical system events, prioritizing incident response efforts. Prerequisites: Event Console must be configured for log processing. Best for: NOC dashboards, incident escalation, rapid problem identification.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -257,7 +257,7 @@ class EventTools:
         # Acknowledge event tool
         self._tools["acknowledge_event"] = Tool(
             name="acknowledge_event",
-            description="Acknowledge an event in the Event Console",
+            description="Mark an Event Console event as acknowledged to indicate it has been reviewed and is being handled. When to use: After investigating an event, when assigning event to team member, to stop event notifications during active resolution. Prerequisites: Event ID must exist in Event Console. Workflow: Review event details → acknowledge with descriptive comment → assign for resolution.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -305,7 +305,7 @@ class EventTools:
         # Search events tool
         self._tools["search_events"] = Tool(
             name="search_events",
-            description="Search events by text content",
+            description="Search Event Console events by text patterns, error messages, or keywords across all hosts and services. When to use: Finding specific error patterns, investigating related events across multiple systems, searching for known issues or symptoms. Prerequisites: Event Console must contain events, search terms should be specific. Best for: Root cause analysis, pattern recognition, cross-system event correlation.",
             inputSchema={
                 "type": "object",
                 "properties": {

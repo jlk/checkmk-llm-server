@@ -247,7 +247,7 @@ class AdvancedTools:
         # Clear cache tool
         self._tools["clear_cache"] = Tool(
             name="clear_cache",
-            description="Clear cache entries",
+            description="Clear specific cache entries or entire cache using pattern matching to resolve stale data issues and improve performance. When to use: After configuration changes, when experiencing stale data issues, troubleshooting performance problems, forced cache refresh needs. Prerequisites: Administrative privileges recommended. WARNING: May temporarily impact performance while caches rebuild. Use pattern parameter to target specific cache entries.",
             inputSchema={
                 "type": "object",
                 "properties": {

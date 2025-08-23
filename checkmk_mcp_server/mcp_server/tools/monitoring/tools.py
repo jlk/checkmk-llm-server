@@ -41,7 +41,7 @@ class MonitoringTools:
         # Get health dashboard tool
         self._tools["get_health_dashboard"] = Tool(
             name="get_health_dashboard",
-            description="Get comprehensive infrastructure health dashboard",
+            description="Get comprehensive infrastructure health dashboard with aggregated status metrics and key performance indicators. When to use: Getting overall system health overview, generating status reports, identifying infrastructure-wide trends or issues. Best for: Daily operational reviews, management reporting, identifying systemic problems across the monitoring environment.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -85,7 +85,7 @@ class MonitoringTools:
         # Get critical problems tool
         self._tools["get_critical_problems"] = Tool(
             name="get_critical_problems",
-            description="Get current critical problems requiring immediate attention",
+            description="Retrieve all critical issues requiring immediate attention, filtered by severity and category. When to use: Incident response, priority-based problem resolution, emergency escalation procedures. Prerequisites: None required, filters help narrow results. Workflow: Get critical problems → prioritize by business impact → acknowledge → assign to teams for resolution.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -135,7 +135,7 @@ class MonitoringTools:
         # Analyze host health tool
         self._tools["analyze_host_health"] = Tool(
             name="analyze_host_health",
-            description="Analyze the health of a specific host with recommendations",
+            description="Perform comprehensive health analysis for a specific host including service status, performance trends, and actionable recommendations. When to use: Investigating host-specific performance issues, preparing health reports for specific systems, proactive maintenance planning. Prerequisites: Host must exist and have monitoring data. Returns: Health score, problem analysis, and optimization recommendations.",
             inputSchema={
                 "type": "object",
                 "properties": {

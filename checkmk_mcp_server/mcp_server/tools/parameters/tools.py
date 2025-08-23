@@ -42,7 +42,7 @@ class ParameterTools:
         # Get effective parameters tool
         self._tools["get_effective_parameters"] = Tool(
             name="get_effective_parameters",
-            description="Get effective monitoring parameters for a service",
+            description="Retrieve the actual monitoring parameters applied to a service, including inherited rules and computed values. When to use: Before modifying service parameters, troubleshooting monitoring thresholds, or understanding current service configuration. Prerequisites: Service must exist and have completed discovery. Workflow: Use this first to understand current settings → then modify with set_service_parameters if needed.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -76,7 +76,7 @@ class ParameterTools:
         # Set service parameters tool
         self._tools["set_service_parameters"] = Tool(
             name="set_service_parameters",
-            description="Set monitoring parameters for a service",
+            description="Configure monitoring parameters for a service by creating or updating parameter rules. When to use: Adjusting monitoring thresholds (CPU, memory, disk, temperature), customizing check intervals, or setting service-specific limits. Prerequisites: Service must exist, validate parameters first with validate_service_parameters. Workflow: Get current parameters → validate new values → set parameters → activate changes.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -132,7 +132,7 @@ class ParameterTools:
         # Discover service ruleset tool
         self._tools["discover_service_ruleset"] = Tool(
             name="discover_service_ruleset",
-            description="Discover the appropriate parameter ruleset for any service type",
+            description="Automatically identify the correct parameter ruleset for a service type using intelligent pattern matching. When to use: Before setting parameters on unfamiliar service types, when unsure which ruleset applies to a service, or exploring available parameter options. Prerequisites: Service must exist in Checkmk. Workflow: Discover ruleset → get parameter schema → validate parameters → set parameters.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -178,7 +178,7 @@ class ParameterTools:
         # Get parameter schema tool
         self._tools["get_parameter_schema"] = Tool(
             name="get_parameter_schema",
-            description="Get parameter schema and definitions for a ruleset",
+            description="Retrieve the complete parameter schema, field definitions, and validation rules for a specific ruleset. When to use: Before creating parameter rules, understanding available options for a service type, or building parameter validation logic. Prerequisites: Ruleset name must be valid (use discover_service_ruleset to find it). Workflow: Discover ruleset → get schema → construct valid parameters.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -214,7 +214,7 @@ class ParameterTools:
         # Validate service parameters tool
         self._tools["validate_service_parameters"] = Tool(
             name="validate_service_parameters",
-            description="Validate parameters before setting them on a service",
+            description="Verify parameter values are valid before applying them to prevent configuration errors and API failures. When to use: Always validate parameters before calling set_service_parameters, when testing parameter configurations, or troubleshooting parameter-related errors. Prerequisites: Valid ruleset name and parameter object. Workflow: Prepare parameters → validate → fix any errors → set parameters.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -264,7 +264,7 @@ class ParameterTools:
         # Update parameter rule tool
         self._tools["update_parameter_rule"] = Tool(
             name="update_parameter_rule",
-            description="Update an existing parameter rule",
+            description="Modify an existing parameter rule by ID, preserving conditions and updating parameter values. When to use: Fine-tuning existing parameter rules, bulk parameter updates, or maintaining specific rule configurations. Prerequisites: Rule ID must exist (get from rule listing), validate new parameters first. Workflow: List rules to find ID → validate new parameters → update rule → activate changes.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -329,7 +329,7 @@ class ParameterTools:
         # Get service handler info tool
         self._tools["get_service_handler_info"] = Tool(
             name="get_service_handler_info",
-            description="Get information about specialized parameter handlers for a service",
+            description="Retrieve detailed information about available domain-specific parameter handlers for a service type. When to use: Understanding advanced parameter options for specialized services (temperature sensors, databases, network devices), accessing handler-specific validation and defaults. Prerequisites: Service must exist in Checkmk. Returns: Handler capabilities, supported parameters, and specialized features.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -368,7 +368,7 @@ class ParameterTools:
         # Get specialized defaults tool
         self._tools["get_specialized_defaults"] = Tool(
             name="get_specialized_defaults",
-            description="Get specialized default parameters using domain-specific handlers",
+            description="Generate intelligent default parameter values using domain-specific handlers that understand service context and best practices. When to use: Setting up parameters for specialized services (temperature monitoring, database checks, network devices), getting recommended starting values for complex services. Prerequisites: Service type must have specialized handler support. Returns: Optimized default parameters with contextual reasoning.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -416,7 +416,7 @@ class ParameterTools:
         # Validate with handler tool
         self._tools["validate_with_handler"] = Tool(
             name="validate_with_handler",
-            description="Use specialized handlers for parameter validation with domain-specific rules",
+            description="Perform advanced parameter validation using specialized domain handlers that understand service-specific requirements and constraints. When to use: Validating complex parameters for specialized services (temperature ranges, database connection strings, network thresholds), ensuring parameters follow domain best practices. Prerequisites: Parameters and service type, specialized handler must exist. Returns: Detailed validation with domain-specific suggestions.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -472,7 +472,7 @@ class ParameterTools:
         # Get parameter suggestions tool
         self._tools["get_parameter_suggestions"] = Tool(
             name="get_parameter_suggestions",
-            description="Get optimization suggestions for service parameters using specialized handlers",
+            description="Generate intelligent parameter optimization suggestions based on service type, current values, and domain expertise from specialized handlers. When to use: Optimizing existing monitoring configurations, troubleshooting false positives/negatives, improving monitoring accuracy for specialized services. Prerequisites: Service must exist, current parameters helpful but optional. Returns: Ranked optimization suggestions with reasoning.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -526,7 +526,7 @@ class ParameterTools:
         # List available handlers tool
         self._tools["list_parameter_handlers"] = Tool(
             name="list_parameter_handlers",
-            description="List all available specialized parameter handlers",
+            description="Display all available specialized parameter handlers with their capabilities and supported service types. When to use: Exploring advanced parameter management features, understanding which services have specialized support, planning parameter automation workflows. Prerequisites: None. Returns: Complete handler registry with service type mappings and feature descriptions.",
             inputSchema={"type": "object", "properties": {}, "required": []},
         )
 

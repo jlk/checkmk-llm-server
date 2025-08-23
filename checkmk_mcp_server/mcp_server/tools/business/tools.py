@@ -49,7 +49,7 @@ class BusinessTools:
         # Get business status summary tool
         self._tools["get_business_status_summary"] = Tool(
             name="get_business_status_summary",
-            description="Get business-level status summary from BI aggregations",
+            description="Retrieve high-level business service status aggregated from Business Intelligence (BI) rules and dependencies. When to use: Executive dashboards, business impact assessment, SLA reporting, understanding service dependencies' effect on business functions. Prerequisites: BI aggregations must be configured in Checkmk. Best for: Management reporting, business impact analysis, service dependency visualization.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -89,7 +89,7 @@ class BusinessTools:
         # Get critical business services tool
         self._tools["get_critical_business_services"] = Tool(
             name="get_critical_business_services",
-            description="Get list of critical business services from BI aggregations",
+            description="Identify and list business services currently in critical state based on BI aggregation rules and service dependencies. When to use: Emergency response prioritization, business continuity planning, escalation procedures, identifying services with highest business impact. Prerequisites: BI aggregations must be configured with business service definitions. Best for: Incident prioritization, business impact assessment, critical service identification.",
             inputSchema={"type": "object", "properties": {}},
         )
 

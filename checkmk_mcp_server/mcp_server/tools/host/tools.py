@@ -44,7 +44,7 @@ class HostTools:
         # List hosts tool
         self._tools["list_hosts"] = Tool(
             name="list_hosts",
-            description="List hosts from Checkmk with filtering options",
+            description="List hosts from Checkmk with filtering options. When to use: First step in host discovery, troubleshooting connectivity issues, or getting an overview of infrastructure. Use this when you need to find specific hosts or get a filtered list of hosts for further operations.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -119,7 +119,7 @@ class HostTools:
         # Create host tool
         self._tools["create_host"] = Tool(
             name="create_host",
-            description="Create a new host in Checkmk",
+            description="Create a new host in Checkmk for monitoring. When to use: Adding new infrastructure to monitoring, after physically deploying new servers or network devices. Prerequisites: Host must be reachable from Checkmk server, appropriate folder permissions required. Workflow: Create host → run service discovery → activate changes.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -175,7 +175,7 @@ class HostTools:
         # Get host tool
         self._tools["get_host"] = Tool(
             name="get_host",
-            description="Get detailed information about a specific host",
+            description="Get detailed configuration and status information about a specific host. When to use: Investigating host-specific issues, reviewing host configuration before making changes, or checking host attributes and labels. Prerequisites: Host name must exist in Checkmk.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -223,7 +223,7 @@ class HostTools:
         # Update host tool
         self._tools["update_host"] = Tool(
             name="update_host",
-            description="Update an existing host",
+            description="Modify configuration of an existing host including IP address, folder location, attributes, and labels. When to use: Host has moved to different network segment, changing host attributes, or relocating host to different folder. Prerequisites: Host must exist, appropriate permissions for target folder. Workflow: Get current host info → make changes → activate changes.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -277,7 +277,7 @@ class HostTools:
         # Delete host tool
         self._tools["delete_host"] = Tool(
             name="delete_host",
-            description="Delete a host from Checkmk",
+            description="Remove a host completely from Checkmk monitoring. When to use: Hardware decommissioned, server permanently offline, or cleaning up test/temporary hosts. WARNING: This removes all historical data and cannot be undone. Prerequisites: Confirm host is no longer needed, backup historical data if required.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -311,7 +311,7 @@ class HostTools:
         # List host services tool
         self._tools["list_host_services"] = Tool(
             name="list_host_services",
-            description="List all services for a specific host",
+            description="List all monitored services for a specific host with current status. When to use: Investigating host-specific service problems, getting overview of services on a particular host, or before making service-level changes. Prerequisites: Host must exist and have completed service discovery.",
             inputSchema={
                 "type": "object",
                 "properties": {

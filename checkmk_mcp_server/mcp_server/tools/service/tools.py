@@ -121,7 +121,7 @@ class ServiceTools:
         # Acknowledge service problem tool
         self._tools["acknowledge_service_problem"] = Tool(
             name="acknowledge_service_problem",
-            description="Acknowledge a service problem",
+            description="Acknowledge a service problem to suppress notifications and indicate issue is known. When to use: After identifying the root cause of a service problem, during planned maintenance, or to stop alert noise while working on a fix. Prerequisites: Service must be in WARNING/CRITICAL state. Workflow: Identify problem → acknowledge with descriptive comment → work on resolution → problem automatically clears when fixed.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -196,7 +196,7 @@ class ServiceTools:
         # Create service downtime tool
         self._tools["create_service_downtime"] = Tool(
             name="create_service_downtime",
-            description="Create downtime for a service",
+            description="Schedule planned downtime for a service to suppress notifications during maintenance windows. When to use: Before planned maintenance, system updates, or expected service unavailability. Prerequisites: Service must exist in Checkmk. Workflow: Schedule downtime before maintenance → perform maintenance → downtime automatically expires or can be cancelled early.",
             inputSchema={
                 "type": "object",
                 "properties": {

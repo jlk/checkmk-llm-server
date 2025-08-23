@@ -1,0 +1,152 @@
+{
+  "summary": {
+    "total_tools_analyzed": 37,
+    "categories": [
+      "host",
+      "service",
+      "monitoring",
+      "parameters",
+      "events",
+      "metrics",
+      "business",
+      "advanced"
+    ],
+    "total_issues": 33,
+    "issue_categories": [
+      "parameter_naming",
+      "missing_when_to_use",
+      "missing_workflow_context",
+      "vague_descriptions",
+      "missing_param_descriptions"
+    ]
+  },
+  "tools_by_category": {
+    "host": {
+      "count": 6,
+      "tool_names": [
+        "list_hosts",
+        "create_host",
+        "get_host",
+        "update_host",
+        "delete_host",
+        "list_host_services"
+      ]
+    },
+    "service": {
+      "count": 3,
+      "tool_names": [
+        "list_all_services",
+        "acknowledge_service_problem",
+        "create_service_downtime"
+      ]
+    },
+    "monitoring": {
+      "count": 3,
+      "tool_names": [
+        "get_health_dashboard",
+        "get_critical_problems",
+        "analyze_host_health"
+      ]
+    },
+    "parameters": {
+      "count": 11,
+      "tool_names": [
+        "get_effective_parameters",
+        "set_service_parameters",
+        "discover_service_ruleset",
+        "get_parameter_schema",
+        "validate_service_parameters",
+        "update_parameter_rule",
+        "get_service_handler_info",
+        "get_specialized_defaults",
+        "validate_with_handler",
+        "get_parameter_suggestions",
+        "list_parameter_handlers"
+      ]
+    },
+    "events": {
+      "count": 5,
+      "tool_names": [
+        "list_service_events",
+        "list_host_events",
+        "get_recent_critical_events",
+        "acknowledge_event",
+        "search_events"
+      ]
+    },
+    "metrics": {
+      "count": 2,
+      "tool_names": [
+        "get_service_metrics",
+        "get_metric_history"
+      ]
+    },
+    "business": {
+      "count": 2,
+      "tool_names": [
+        "get_business_status_summary",
+        "get_critical_business_services"
+      ]
+    },
+    "advanced": {
+      "count": 5,
+      "tool_names": [
+        "get_system_info",
+        "stream_hosts",
+        "batch_create_hosts",
+        "get_server_metrics",
+        "clear_cache"
+      ]
+    }
+  },
+  "issues": {
+    "parameter_naming": [
+      "monitoring.get_health_dashboard: Uses ['include_services'] instead of 'service_name'",
+      "advanced.batch_create_hosts: Uses ['hosts_data'] instead of 'host_name'"
+    ],
+    "missing_when_to_use": [
+      "service.list_all_services: Missing 'When to Use' guidance",
+      "advanced.get_system_info: Missing 'When to Use' guidance",
+      "advanced.stream_hosts: Missing 'When to Use' guidance",
+      "advanced.batch_create_hosts: Missing 'When to Use' guidance",
+      "advanced.get_server_metrics: Missing 'When to Use' guidance"
+    ],
+    "missing_workflow_context": [
+      "service.list_all_services: Complex tool missing workflow context",
+      "parameters.get_service_handler_info: Complex tool missing workflow context",
+      "parameters.get_specialized_defaults: Complex tool missing workflow context",
+      "parameters.validate_with_handler: Complex tool missing workflow context",
+      "parameters.get_parameter_suggestions: Complex tool missing workflow context"
+    ],
+    "vague_descriptions": [
+      "monitoring.get_health_dashboard: Description uses vague language",
+      "parameters.get_service_handler_info: Description uses vague language",
+      "parameters.get_specialized_defaults: Description uses vague language",
+      "parameters.validate_with_handler: Description uses vague language",
+      "parameters.get_parameter_suggestions: Description uses vague language",
+      "parameters.list_parameter_handlers: Description uses vague language",
+      "events.acknowledge_event: Description uses vague language",
+      "business.get_business_status_summary: Description uses vague language"
+    ],
+    "missing_param_descriptions": [
+      "monitoring.get_critical_problems: Parameter 'properties' missing description",
+      "monitoring.get_critical_problems: Parameter 'severity_filter' missing description",
+      "monitoring.get_critical_problems: Parameter 'items' missing description",
+      "parameters.list_parameter_handlers: Parameter 'properties' missing description",
+      "business.get_business_status_summary: Parameter 'properties' missing description",
+      "business.get_business_status_summary: Parameter 'filter_groups' missing description",
+      "business.get_business_status_summary: Parameter 'items' missing description",
+      "business.get_critical_business_services: Parameter 'properties' missing description",
+      "advanced.get_system_info: Parameter 'properties' missing description",
+      "advanced.batch_create_hosts: Parameter 'properties' missing description",
+      "advanced.batch_create_hosts: Parameter 'hosts_data' missing description",
+      "advanced.batch_create_hosts: Parameter 'items' missing description",
+      "advanced.get_server_metrics: Parameter 'properties' missing description"
+    ]
+  },
+  "recommendations": [
+    "PRIORITY 1: Standardize parameter naming - Use 'host_name' and 'service_name' consistently",
+    "PRIORITY 3: Add 'When to Use' guidance to tool descriptions for better LLM selection",
+    "PRIORITY 4: Add workflow context to complex parameter and service tools"
+  ]
+}

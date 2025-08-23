@@ -46,7 +46,7 @@ class MetricsTools:
         # Get service metrics tool
         self._tools["get_service_metrics"] = Tool(
             name="get_service_metrics",
-            description="Get performance metrics/graphs for a service",
+            description="Retrieve historical performance metrics and graph data for a specific service over a defined time period. When to use: Analyzing performance trends, investigating service slowdowns, capacity planning, creating performance reports. Prerequisites: Service must exist and collect performance data (CPU, memory, disk, network metrics). Best for: Performance analysis, trend identification, baseline establishment.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -133,7 +133,7 @@ class MetricsTools:
         # Get metric history tool
         self._tools["get_metric_history"] = Tool(
             name="get_metric_history",
-            description="Get historical data for a specific metric. Supports both REST API and web scraping data sources for comprehensive historical data retrieval.",
+            description="Retrieve detailed historical data for a specific performance metric with multiple data source options including REST API and intelligent web scraping. When to use: Deep-diving into specific metric trends, analyzing metric behavior over extended periods, comparing metric values across different time ranges. Prerequisites: Metric ID must be known (enable 'Show internal IDs' in Checkmk UI), service must collect the specified metric. Best for: Detailed performance analysis, historical trend analysis, anomaly investigation.",
             inputSchema={
                 "type": "object",
                 "properties": {
