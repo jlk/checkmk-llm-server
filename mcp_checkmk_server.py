@@ -276,7 +276,7 @@ async def main():
     # Check if this is being run manually in a terminal
     if sys.stdin.isatty() and sys.stdout.isatty() and not args.force_mcp:
         print("╭─────────────────────────────────────────────────────────────────╮")
-        print("│                      Checkmk MCP Server                        │")
+        print("│                      Checkmk MCP Server                         │")
         print("╰─────────────────────────────────────────────────────────────────╯")
         print()
         print("This is an MCP (Model Context Protocol) server designed to be")
