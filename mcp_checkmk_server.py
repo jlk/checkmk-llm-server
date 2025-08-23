@@ -128,9 +128,23 @@ def setup_logging(log_level: str = "INFO"):
     
     # Ensure all handlers output to stderr to avoid interfering with stdio MCP transport
     root_logger = logging.getLogger()
-    for handler in root_logger.handlers:
-        if hasattr(handler, 'stream') and handler.stream != sys.stderr:
-            handler.stream = sys.stderr
+    handlers_to_replace = []
+    for handler in root_logger.handlers[:]:  # Use slice to iterate over a copy
+        if isinstance(handler, logging.StreamHandler) and hasattr(handler, 'stream'):
+            if handler.stream not in (sys.stderr, sys.__stderr__):
+                handlers_to_replace.append(handler)
+    
+    # Replace handlers that don't use stderr
+    for old_handler in handlers_to_replace:
+        # Create new handler with same formatter but using stderr
+        new_handler = logging.StreamHandler(sys.stderr)
+        new_handler.setLevel(old_handler.level)
+        if old_handler.formatter:
+            new_handler.setFormatter(old_handler.formatter)
+        
+        # Replace the old handler
+        root_logger.removeHandler(old_handler)
+        root_logger.addHandler(new_handler)
     
     # Suppress common shutdown-related warnings and pipe errors
     warnings.filterwarnings("ignore", category=ResourceWarning)

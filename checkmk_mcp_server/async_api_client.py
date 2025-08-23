@@ -1,19 +1,20 @@
 """Async wrapper for Checkmk REST API client to support service layer."""
 
 import asyncio
-import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable, Awaitable, TypeVar
 from functools import wraps
 
-from .api_client import CheckmkClient, CheckmkAPIError
+from .api_client import CheckmkClient
 
 
-def async_wrapper(method_name):
+T = TypeVar('T')
+
+def async_wrapper(method_name: str) -> Callable[[Callable[..., T]], Callable[..., Awaitable[T]]]:
     """Decorator to convert synchronous methods to async."""
 
-    def decorator(func):
+    def decorator(func: Callable[..., T]) -> Callable[..., Awaitable[T]]:
         @wraps(func)
-        async def async_method(self, *args, **kwargs):
+        async def async_method(self, *args, **kwargs) -> T:
             # Get the actual method from the sync client
             sync_method = getattr(self.sync_client, method_name)
             # Run the sync method in a thread pool to avoid blocking
@@ -44,7 +45,7 @@ class AsyncCheckmkClient:
         self, effective_attributes: bool = False
     ) -> List[Dict[str, Any]]:
         """List all hosts."""
-        pass
+        ...
 
     @async_wrapper("create_host")
     async def create_host(
@@ -56,29 +57,29 @@ class AsyncCheckmkClient:
         **kwargs,
     ) -> Dict[str, Any]:
         """Create a new host."""
-        pass
+        ...
 
     @async_wrapper("get_host")
     async def get_host(
         self, host_name: str, effective_attributes: bool = False
     ) -> Dict[str, Any]:
         """Get host details."""
-        pass
+        ...
 
     @async_wrapper("get_host_folder")
     async def get_host_folder(self, host_name: str) -> str:
         """Get the folder path where a host is located."""
-        pass
+        ...
 
     @async_wrapper("update_host")
     async def update_host(self, host_name: str, **kwargs) -> Dict[str, Any]:
         """Update host configuration."""
-        pass
+        ...
 
     @async_wrapper("delete_host")
     async def delete_host(self, host_name: str) -> None:
         """Delete a host."""
-        pass
+        ...
 
     # bulk_create_hosts exists in sync client
     @async_wrapper("bulk_create_hosts")
@@ -86,7 +87,7 @@ class AsyncCheckmkClient:
         self, hosts_data: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """Create multiple hosts in bulk."""
-        pass
+        ...
 
     # get_host_status doesn't exist in sync client, implement as fallback
     async def get_host_status(self, host_name: str) -> Dict[str, Any]:
@@ -111,14 +112,14 @@ class AsyncCheckmkClient:
     @async_wrapper("list_host_services")
     async def list_host_services(self, host_name: str) -> List[Dict[str, Any]]:
         """List services for a specific host."""
-        pass
+        ...
 
     @async_wrapper("list_all_services")
     async def list_all_services(
         self, host_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """List all services with optional host filter."""
-        pass
+        ...
 
     @async_wrapper("list_host_services_with_monitoring_data")
     async def list_host_services_with_monitoring_data(
@@ -129,7 +130,7 @@ class AsyncCheckmkClient:
         columns: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """List services for a host with monitoring data (state, output, etc.)."""
-        pass
+        ...
 
     @async_wrapper("list_all_services_with_monitoring_data")
     async def list_all_services_with_monitoring_data(
@@ -140,14 +141,14 @@ class AsyncCheckmkClient:
         columns: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """List all services with monitoring data (state, output, etc.)."""
-        pass
+        ...
 
     @async_wrapper("get_service_status")
     async def get_service_status(
         self, host_name: str, service_name: str
     ) -> Dict[str, Any]:
         """Get detailed service status."""
-        pass
+        ...
 
     @async_wrapper("acknowledge_service_problems")
     async def acknowledge_service_problems(
@@ -161,42 +162,42 @@ class AsyncCheckmkClient:
         expire_on: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Acknowledge service problems."""
-        pass
+        ...
 
     @async_wrapper("create_service_downtime")
     async def create_service_downtime(self, **kwargs) -> Dict[str, Any]:
         """Create service downtime."""
-        pass
+        ...
 
     @async_wrapper("start_service_discovery")
     async def start_service_discovery(
         self, host_name: str, mode: str = "refresh"
     ) -> Dict[str, Any]:
         """Start service discovery on a host."""
-        pass
+        ...
 
     # Status monitoring operations
     @async_wrapper("get_service_health_summary")
     async def get_service_health_summary(self) -> Dict[str, Any]:
         """Get overall service health summary."""
-        pass
+        ...
 
     @async_wrapper("list_problem_services")
     async def list_problem_services(
         self, host_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """List services with problems."""
-        pass
+        ...
 
     @async_wrapper("get_acknowledged_services")
     async def get_acknowledged_services(self) -> List[Dict[str, Any]]:
         """Get list of acknowledged services."""
-        pass
+        ...
 
     @async_wrapper("get_services_in_downtime")
     async def get_services_in_downtime(self) -> List[Dict[str, Any]]:
         """Get list of services in downtime."""
-        pass
+        ...
 
     # This method doesn't exist in the sync client, let's implement it
     async def get_hosts_with_services(
@@ -207,7 +208,7 @@ class AsyncCheckmkClient:
         hosts = await self.list_hosts()
         result = []
 
-        for host in hosts:
+        for host in hosts:  # type: ignore[misc]
             host_name = host.get("id", "")
             if host_filter and host_filter not in host_name:
                 continue
@@ -228,14 +229,14 @@ class AsyncCheckmkClient:
         self, host_name: str, service_name: str, ruleset: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get effective parameters for a service."""
-        pass
+        ...
 
     @async_wrapper("get_service_effective_parameters")
     async def get_service_effective_parameters(
         self, host_name: str, service_name: str
     ) -> Dict[str, Any]:
         """Get effective parameters for a service using Checkmk's service discovery data."""
-        pass
+        ...
 
     @async_wrapper("create_service_parameter_rule")
     async def create_service_parameter_rule(
@@ -248,7 +249,7 @@ class AsyncCheckmkClient:
         description: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a service parameter rule."""
-        pass
+        ...
 
     @async_wrapper("update_service_parameter_rule")
     async def update_service_parameter_rule(
@@ -258,7 +259,7 @@ class AsyncCheckmkClient:
         description: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Update an existing service parameter rule."""
-        pass
+        ...
 
     @async_wrapper("find_service_parameter_rules")
     async def find_service_parameter_rules(
@@ -268,37 +269,37 @@ class AsyncCheckmkClient:
         ruleset_name: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Find parameter rules that affect a specific service."""
-        pass
+        ...
 
     @async_wrapper("create_rule")
     async def create_rule(self, **kwargs) -> Dict[str, Any]:
         """Create a parameter rule."""
-        pass
+        ...
 
     @async_wrapper("list_rules")
     async def list_rules(self, ruleset_name: str) -> List[Dict[str, Any]]:
         """List rules for a specific ruleset."""
-        pass
+        ...
 
     @async_wrapper("list_rulesets")
     async def list_rulesets(self) -> List[Dict[str, Any]]:
         """List available rulesets."""
-        pass
+        ...
 
     @async_wrapper("get_ruleset_info")
     async def get_ruleset_info(self, ruleset_name: str) -> Dict[str, Any]:
         """Get detailed information about a specific ruleset."""
-        pass
+        ...
 
     @async_wrapper("get_rule")
     async def get_rule(self, rule_id: str) -> Dict[str, Any]:
         """Get configuration details for a specific rule."""
-        pass
+        ...
 
     @async_wrapper("delete_rule")
     async def delete_rule(self, rule_id: str) -> None:
         """Delete a specific rule."""
-        pass
+        ...
 
     @async_wrapper("move_rule")
     async def move_rule(
@@ -310,14 +311,14 @@ class AsyncCheckmkClient:
         etag: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Move a rule to a new position."""
-        pass
+        ...
 
     @async_wrapper("search_rules_by_host_service")
     async def search_rules_by_host_service(
         self, host_name: str, service_name: str
     ) -> List[Dict[str, Any]]:
         """Search for rules that might affect a specific host/service combination."""
-        pass
+        ...
 
     # Event Console operations
     @async_wrapper("list_events")
@@ -331,14 +332,14 @@ class AsyncCheckmkClient:
         site_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """List Event Console events with optional filtering."""
-        pass
+        ...
 
     @async_wrapper("get_event")
     async def get_event(
         self, event_id: str, site_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get specific event by ID."""
-        pass
+        ...
 
     @async_wrapper("acknowledge_event")
     async def acknowledge_event(
@@ -349,7 +350,7 @@ class AsyncCheckmkClient:
         site_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Acknowledge an event in the Event Console."""
-        pass
+        ...
 
     @async_wrapper("change_event_state")
     async def change_event_state(
@@ -360,7 +361,7 @@ class AsyncCheckmkClient:
         site_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Change the state of an event."""
-        pass
+        ...
 
     @async_wrapper("delete_events")
     async def delete_events(
@@ -370,7 +371,7 @@ class AsyncCheckmkClient:
         site_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Delete events from the Event Console."""
-        pass
+        ...
 
     # Metrics operations
     @async_wrapper("get_metric_data")
@@ -385,7 +386,7 @@ class AsyncCheckmkClient:
         site: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get metric or graph data from Checkmk."""
-        pass
+        ...
 
     @async_wrapper("get_single_metric")
     async def get_single_metric(
@@ -398,7 +399,7 @@ class AsyncCheckmkClient:
         site: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get data for a single metric."""
-        pass
+        ...
 
     @async_wrapper("get_predefined_graph")
     async def get_predefined_graph(
@@ -411,7 +412,7 @@ class AsyncCheckmkClient:
         site: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get data for a predefined graph containing multiple metrics."""
-        pass
+        ...
 
     # Business Intelligence operations
     @async_wrapper("get_bi_aggregation_states")
@@ -421,18 +422,18 @@ class AsyncCheckmkClient:
         filter_groups: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Get current state of BI aggregations."""
-        pass
+        ...
 
     @async_wrapper("list_bi_packs")
     async def list_bi_packs(self) -> Dict[str, Any]:
         """List all available BI packs."""
-        pass
+        ...
 
     # System Information operations
     @async_wrapper("get_version_info")
     async def get_version_info(self) -> Dict[str, Any]:
         """Get Checkmk version information."""
-        pass
+        ...
 
     # Helper methods that delegate to sync client without wrapping
     async def test_connection(self) -> bool:
@@ -461,9 +462,13 @@ class AsyncCheckmkClient:
         Returns:
             Dict containing activation result information
         """
-        return await asyncio.to_thread(
-            self.sync_client.activate_changes,
-            sites=sites,
-            force_foreign_changes=force_foreign_changes,
-            redirect=redirect,
+        # Run the sync method in a thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, 
+            lambda: self.sync_client.activate_changes(
+                sites=sites,
+                force_foreign_changes=force_foreign_changes,
+                redirect=redirect,
+            )
         )
