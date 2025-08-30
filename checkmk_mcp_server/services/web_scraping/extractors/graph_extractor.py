@@ -8,6 +8,7 @@ for historical monitoring data retrieval.
 import re
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional, Union
 
@@ -337,7 +338,7 @@ class GraphExtractor:
         """Extract data from JavaScript content using multiple patterns."""
         extracted_data = []
         
-        # Pattern 1: Time-series data arrays
+        # Pattern 1: Time-series data arrays (with proper timestamps)
         patterns = [
             r'data\s*:\s*\[\s*(\[[^\]]+\](?:\s*,\s*\[[^\]]+\])*)\s*\]',
             r'points\s*:\s*\[\s*(\[[^\]]+\](?:\s*,\s*\[[^\]]+\])*)\s*\]',
@@ -363,13 +364,19 @@ class GraphExtractor:
                 except (ValueError, TypeError):
                     continue
         
-        # Pattern 2: Look for temperature values with current timestamp
+        # If Pattern 1 found data with proper timestamps, return it
+        if extracted_data:
+            self.logger.debug(f"Script {script_num}: Found {len(extracted_data)} data points with proper timestamps")
+            return extracted_data
+        
+        # Pattern 2: Look for temperature values - generate timestamps based on context
+        fallback_temperatures = []
         temp_matches = re.finditer(r'([\d\.]+)\s*°C', script_content)
         for match in temp_matches:
             try:
                 temp_value = float(match.group(1))
-                current_time = datetime.now().isoformat()
-                extracted_data.append((current_time, temp_value))
+                if self._is_reasonable_temperature_value(temp_value):
+                    fallback_temperatures.append(temp_value)
             except ValueError:
                 continue
         
@@ -388,10 +395,15 @@ class GraphExtractor:
                     temp_value = float(match.group(1))
                     # Only accept reasonable temperature values (not timestamps)
                     if self._is_reasonable_temperature_value(temp_value):
-                        current_time = datetime.now().isoformat()
-                        extracted_data.append((current_time, temp_value))
+                        fallback_temperatures.append(temp_value)
                 except ValueError:
                     continue
+        
+        # Process fallback temperatures with proper timestamp generation
+        if fallback_temperatures:
+            # Remove duplicates while preserving order
+            unique_temps = list(dict.fromkeys(fallback_temperatures))
+            extracted_data = self._generate_time_series_from_values(unique_temps, script_num)
         
         return extracted_data
     
@@ -661,6 +673,54 @@ class GraphExtractor:
             pass
         
         return None
+    
+    def _generate_time_series_from_values(self, values: List[float], script_num: int) -> List[Tuple[str, float]]:
+        """Generate time series data from temperature values with appropriate timestamps.
+        
+        Args:
+            values: List of temperature values
+            script_num: Script number for logging
+            
+        Returns:
+            List of (timestamp, value) tuples with distributed timestamps
+        """
+        if not values:
+            return []
+        
+        self.logger.debug(f"Script {script_num}: Generating timestamps for {len(values)} temperature values")
+        
+        # If only one value, it's likely a current reading
+        if len(values) == 1:
+            current_time = datetime.now().isoformat()
+            self.logger.debug(f"Script {script_num}: Single temperature value, using current timestamp")
+            return [(current_time, values[0])]
+        
+        # For multiple values, try to determine if we have time series data
+        # Check if we have AJAX-calculated time range from earlier in the process
+        if hasattr(self, '_ajax_calculated_start') and hasattr(self, '_ajax_calculated_end') and \
+           self._ajax_calculated_start and self._ajax_calculated_end:
+            # Use the time range from AJAX calculation
+            start_time = self._ajax_calculated_start
+            end_time = self._ajax_calculated_end
+            self.logger.debug(f"Script {script_num}: Using AJAX time range [{start_time}, {end_time}]")
+        else:
+            # Default to a reasonable time range (last 4 hours)
+            import time
+            end_time = int(time.time())
+            start_time = end_time - (4 * 3600)  # 4 hours ago
+            self.logger.debug(f"Script {script_num}: Using default 4h time range [{start_time}, {end_time}]")
+        
+        # Generate evenly distributed timestamps across the time range
+        time_interval = (end_time - start_time) / (len(values) - 1) if len(values) > 1 else 0
+        
+        time_series_data = []
+        for i, value in enumerate(values):
+            timestamp_unix = start_time + (i * time_interval)
+            timestamp_iso = datetime.fromtimestamp(timestamp_unix).isoformat()
+            time_series_data.append((timestamp_iso, value))
+        
+        self.logger.debug(f"Script {script_num}: Generated time series with {len(time_series_data)} points")
+        return time_series_data
     
     def _is_reasonable_temperature_value(self, value: float) -> bool:
         """Check if a value looks like a reasonable temperature (not a timestamp).

@@ -10,19 +10,19 @@ from ..api_client import CheckmkAPIError
 from ..config import AppConfig
 
 
-def _create_time_range_object(start_time: datetime, end_time: datetime) -> List[int]:
+def _create_time_range_object(start_time: datetime, end_time: datetime) -> Dict[str, str]:
     """
-    Convert datetime objects to a time_range array for Checkmk metrics API.
+    Convert datetime objects to a time_range object for Checkmk metrics API.
 
-    Based on the API validation errors, the Checkmk REST API expects a time_range
-    as an array of two integer Unix timestamps: [start_timestamp, end_timestamp]
+    Based on the Checkmk 2.4 REST API specification, the time_range should be an object
+    with 'start' and 'end' fields as datetime strings in format 'YYYY-MM-DD HH:MM:SS.ffffff'
 
     Args:
         start_time: Start datetime
         end_time: End datetime
 
     Returns:
-        List with start and end Unix timestamps as integers
+        Dict with start and end datetime strings in the required format
 
     Raises:
         ValueError: If timestamps are invalid or in wrong order
@@ -37,11 +37,12 @@ def _create_time_range_object(start_time: datetime, end_time: datetime) -> List[
     if end_time > current_time + timedelta(days=1):  # More than 1 day in future
         raise ValueError("End time cannot be more than 1 day in the future")
 
-    # Convert to Unix timestamps as integers (no fractional seconds)
-    start_timestamp = int(start_time.timestamp())
-    end_timestamp = int(end_time.timestamp())
+    # Convert to datetime strings in the format expected by Checkmk 2.4 API
+    # Format: 'YYYY-MM-DD HH:MM:SS.ffffff' (e.g., '2025-07-27 17:08:40.245187')
+    start_str = start_time.strftime("%Y-%m-%d %H:%M:%S.%f")
+    end_str = end_time.strftime("%Y-%m-%d %H:%M:%S.%f")
 
-    return [start_timestamp, end_timestamp]
+    return {"start": start_str, "end": end_str}
 
 
 class MetricInfo:
@@ -107,7 +108,7 @@ class MetricsService(BaseService):
             start_time = end_time - timedelta(hours=time_range_hours)
 
             # Build request data
-            # Note: Checkmk REST API requires time_range object with datetime strings
+            # Note: Checkmk 2.4 REST API requires time_range object with 'start' and 'end' datetime strings
             data = {
                 "type": "single_metric",
                 "host_name": host_name,
@@ -161,7 +162,7 @@ class MetricsService(BaseService):
             start_time = end_time - timedelta(hours=time_range_hours)
 
             # Build request data
-            # Note: Checkmk REST API requires time_range object with datetime strings
+            # Note: Checkmk 2.4 REST API requires time_range object with 'start' and 'end' datetime strings
             data = {
                 "type": "predefined_graph",
                 "host_name": host_name,
