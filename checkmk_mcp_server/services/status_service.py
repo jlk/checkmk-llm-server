@@ -321,7 +321,8 @@ class StatusService(BaseService):
         category = self._categorize_service_problem(service_data)
 
         # Calculate duration
-        last_change = service_data.get("last_state_change")
+        extensions = service_data.get("extensions", {})
+        last_change = extensions.get("last_state_change")
         if last_change:
             change_time = datetime.fromtimestamp(last_change)
             duration = self._format_duration(datetime.now() - change_time)
@@ -335,12 +336,12 @@ class StatusService(BaseService):
         business_impact = self._assess_business_impact(service_data, state, category)
 
         return ServiceProblem(
-            host_name=service_data.get("host_name", ""),
-            service_name=service_data.get("service_description", ""),
+            host_name=extensions.get("host_name", ""),
+            service_name=extensions.get("description", extensions.get("service_description", "")),
             state=state,
             severity=severity,
             category=category,
-            plugin_output=service_data.get("plugin_output", ""),
+            plugin_output=extensions.get("plugin_output", ""),
             duration=duration,
             last_state_change=(
                 datetime.fromtimestamp(last_change) if last_change else datetime.now()
@@ -441,8 +442,31 @@ class StatusService(BaseService):
     def _get_service_state_from_data(
         self, service_data: Dict[str, Any]
     ) -> ServiceState:
-        """Extract service state from API data."""
-        state_code = service_data.get("state", 0)
+        """Extract service state from API data.
+        
+        Service state is located in service_data["extensions"]["state"] according to
+        Checkmk API specification. This method includes defensive programming to handle
+        missing extensions field and logs issues for debugging.
+        """
+        extensions = service_data.get("extensions")
+        if not extensions:
+            # Log missing extensions for debugging
+            self.logger.warning(
+                "Service data missing 'extensions' field - using fallback state 0 (OK). "
+                f"Available keys: {list(service_data.keys())}"
+            )
+            return ServiceState.OK
+            
+        state_code = extensions.get("state", 0)
+        
+        # Handle both numeric and string state codes
+        if isinstance(state_code, str):
+            try:
+                state_code = int(state_code)
+            except ValueError:
+                self.logger.warning(f"Invalid state code format: {state_code}, using 0")
+                state_code = 0
+                
         return self.STATE_NAMES.get(state_code, ServiceState.UNKNOWN)
 
     def _map_state_to_severity(self, state: ServiceState) -> ProblemSeverity:
@@ -458,7 +482,8 @@ class StatusService(BaseService):
         self, service_data: Dict[str, Any]
     ) -> ProblemCategory:
         """Categorize a service problem based on service name and output."""
-        service_name = service_data.get("service_description", "").lower()
+        extensions = service_data.get("extensions", {})
+        service_name = extensions.get("description", extensions.get("service_description", "")).lower()
 
         # Check for category keywords in service name
         for keyword, category in self.PROBLEM_CATEGORIES.items():
@@ -494,7 +519,8 @@ class StatusService(BaseService):
             score += 5
 
         # Duration impact
-        last_change = service_data.get("last_state_change")
+        extensions = service_data.get("extensions", {})
+        last_change = extensions.get("last_state_change")
         if last_change:
             hours_ago = (
                 datetime.now() - datetime.fromtimestamp(last_change)
@@ -533,11 +559,17 @@ class StatusService(BaseService):
 
     def _is_service_acknowledged(self, service_data: Dict[str, Any]) -> bool:
         """Check if service problem is acknowledged."""
-        return service_data.get("acknowledged", False)
+        extensions = service_data.get("extensions", {})
+        acknowledged = extensions.get("acknowledged", 0)
+        # Checkmk returns acknowledged as integer (0 or 1+)
+        return acknowledged > 0 if isinstance(acknowledged, int) else bool(acknowledged)
 
     def _is_service_in_downtime(self, service_data: Dict[str, Any]) -> bool:
         """Check if service is in scheduled downtime."""
-        return service_data.get("in_downtime", False)
+        extensions = service_data.get("extensions", {})
+        downtime_depth = extensions.get("scheduled_downtime_depth", 0)
+        # Checkmk returns downtime depth as integer (0 = not in downtime, >0 = in downtime)
+        return downtime_depth > 0
 
     def _is_service_urgent(self, service_data: Dict[str, Any]) -> bool:
         """Check if service problem is urgent."""
@@ -551,7 +583,8 @@ class StatusService(BaseService):
         if state == ServiceState.WARNING and not self._is_service_acknowledged(
             service_data
         ):
-            last_change = service_data.get("last_state_change")
+            extensions = service_data.get("extensions", {})
+            last_change = extensions.get("last_state_change")
             if last_change:
                 hours_ago = (
                     datetime.now() - datetime.fromtimestamp(last_change)
@@ -774,8 +807,8 @@ class StatusService(BaseService):
                     {
                         "host_name": p.host_name,
                         "service_name": p.service_name,
-                        "state": p.state.value,
-                        "severity": p.severity.value,
+                        "state": p.state,
+                        "severity": p.severity,
                         "output": p.plugin_output,
                         "acknowledged": p.acknowledged,
                     }
@@ -905,7 +938,7 @@ class StatusService(BaseService):
                 result["problem_services"] = [
                     {
                         "service_name": p.service_name,
-                        "state": p.state.value,
+                        "state": p.state,
                         "output": p.plugin_output,
                         "duration": str(datetime.now() - p.last_state_change),
                     }
