@@ -39,11 +39,11 @@ class ServiceTools:
         from ...utils.errors import sanitize_error
         # Import ServiceState from the correct location
         try:
-            from ...models.service_models import ServiceState
+            from ...services.models.services import ServiceState
         except ImportError:
             # Fallback for testing - define a simple enum
             from enum import Enum
-            class ServiceState(Enum):
+            class ServiceState(str, Enum):
                 OK = "OK"
                 WARNING = "WARNING" 
                 CRITICAL = "CRITICAL"
@@ -86,11 +86,22 @@ class ServiceTools:
                 # Convert string states to enum values
                 if state_filter:
                     state_enum_filter = []
+                    invalid_states = []
                     for state in state_filter:
                         try:
                             state_enum_filter.append(ServiceState[state.upper()])
                         except KeyError:
-                            pass
+                            invalid_states.append(state)
+                    
+                    # Log invalid states for debugging
+                    if invalid_states:
+                        logger.warning(f"Invalid state filter values ignored: {invalid_states}")
+                    
+                    # If all states were invalid, use None instead of empty list
+                    # Empty list would match no services, None means no filter
+                    if not state_enum_filter:
+                        logger.info("All state filter values were invalid, removing state filter")
+                        state_enum_filter = None
                 else:
                     state_enum_filter = None
 

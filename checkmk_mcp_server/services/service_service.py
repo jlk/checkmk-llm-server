@@ -409,7 +409,16 @@ class ServiceService(BaseService):
 
             # Apply state filter
             if state_filter:
-                services = [s for s in services if s.state in state_filter]
+                original_count = len(services)
+                
+                # Filter services by state
+                filtered_services = []
+                for s in services:
+                    if s.state in state_filter:
+                        filtered_services.append(s)
+                
+                services = filtered_services
+                self.logger.debug(f"Filtered from {original_count} to {len(services)} services")
 
             # Apply limit
             total_count = len(services)
@@ -446,7 +455,7 @@ class ServiceService(BaseService):
 
         # Extract basic information - try extensions first, then direct access
         # Import the safe utility function to handle falsy values properly
-        from ..utils import safe_get_with_fallback
+        from ..common import safe_get_with_fallback
 
         host_name = safe_get_with_fallback(extensions, service_data, "host_name", "")
         service_name = safe_get_with_fallback(
@@ -455,10 +464,27 @@ class ServiceService(BaseService):
             "description",
             service_data.get("service_description", ""),
         )
-        state_value = safe_get_with_fallback(extensions, service_data, "state", "OK")
+        # Extract state from multiple possible locations
+        # Try multiple extraction strategies to handle different API formats
+        state_value = None
+        
+        # Strategy 1: extensions.state (most common)
+        if "state" in extensions and extensions["state"] is not None:
+            state_value = extensions["state"]
+        # Strategy 2: service_data.state (fallback)
+        elif "state" in service_data and service_data["state"] is not None:
+            state_value = service_data["state"]
+        # Strategy 3: Look for nested state in other common locations
+        elif "monitoring" in service_data and "state" in service_data["monitoring"]:
+            state_value = service_data["monitoring"]["state"]
+        # Strategy 4: Look in attributes section
+        elif "attributes" in extensions and "state" in extensions["attributes"]:
+            state_value = extensions["attributes"]["state"]
 
-        # Handle both string and numeric state values from Checkmk API
-        if isinstance(state_value, str):
+        # Handle missing state value properly - don't default to OK
+        if state_value is None:
+            state = ServiceState.UNKNOWN
+        elif isinstance(state_value, str):
             # API returns string values like "OK", "WARNING", "CRITICAL", "UNKNOWN"
             state_mapping = {
                 "OK": ServiceState.OK,
@@ -470,7 +496,7 @@ class ServiceService(BaseService):
             }
             state = state_mapping.get(state_value.upper(), ServiceState.UNKNOWN)
         else:
-            # Fallback for numeric codes (0=OK, 1=WARNING, 2=CRITICAL, 3=UNKNOWN)
+            # Handle numeric codes (0=OK, 1=WARNING, 2=CRITICAL, 3=UNKNOWN)
             numeric_mapping = {
                 0: ServiceState.OK,
                 1: ServiceState.WARNING,
